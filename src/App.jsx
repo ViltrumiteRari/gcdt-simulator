@@ -210,6 +210,51 @@ function computeConf(mkt,probs){
   return{score:clamp(score,5,97),factors};
 }
 
+function norm3(call, put, wait){
+  const c=Math.max(1,call),p=Math.max(1,put),w=Math.max(1,wait);
+  const tot=c+p+w;
+  return{call:Math.round(c/tot*100),put:Math.round(p/tot*100),wait:Math.round(w/tot*100)};
+}
+
+function thesisMomentum(curr,prev){
+  if(!prev)return{call:0,put:0,wait:0};
+  return{call:curr.call-prev.call,put:curr.put-prev.put,wait:curr.wait-prev.wait};
+}
+
+function pushReason(arr,label,delta){arr.push({label,delta});}
+function computeEdgeScore(scores){const vals=[scores.call,scores.put,scores.wait].sort((a,b)=>b-a);return vals[0]-vals[1];}
+
+function computeTheses(mkt,hist,prev){
+  const div=mkt.itsSPX-mkt.itsSPY,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3,ac=mkt.accelerator||0,netGex=mkt.netGex||0;
+  const l6=hist.slice(-6),l12=hist.slice(-12);
+  const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
+  const accelSlope=l6.length>=2?l6[l6.length-1].accel-l6[0].accel:0;
+  const range12=l12.length>=4?Math.max(...l12.map(c=>c.spySpot))-Math.min(...l12.map(c=>c.spySpot)):0;
+  let call=33,put=33,wait=34;
+  const callReasons=[],putReasons=[],waitReasons=[],callNeeds=[],putNeeds=[],callInvalid=[],putInvalid=[];
+
+  if(div<-0.5){call+=14;put-=4;wait-=6;pushReason(callReasons,"SPX ITS leading SPY",14);}
+  else if(div>0.5){put+=8;call-=6;wait+=4;pushReason(putReasons,"SPY leading / call caution",8);pushReason(waitReasons,"retail-led caution",4);}
+  else{wait+=7;pushReason(waitReasons,"ITS convergence / unclear leadership",7);}
+  if(ac>9&&accelSlope>=0){call+=8;put+=8;wait-=6;pushReason(callReasons,"accelerator expanding",8);pushReason(putReasons,"accelerator expanding",8);}
+  else if(ac>9&&accelSlope<0){wait+=10;call-=5;put-=5;pushReason(waitReasons,"accelerator peaked / rolling",10);}
+  else if(ac<3.5){wait+=9;pushReason(waitReasons,"low acceleration",9);}
+  if(fg>0.6&&priceSlope>0){call+=9;put-=4;pushReason(callReasons,"spot above FEP with upward slope",9);}
+  else if(fg<-0.6&&priceSlope<0){put+=9;call-=4;pushReason(putReasons,"spot below FEP with downward slope",9);}
+  else if(Math.abs(fg)<0.35){wait+=8;pushReason(waitReasons,"spot anchored to FEP",8);}
+
+  if(netGex>0&&gi>0.65){wait+=15;call-=5;put-=5;pushReason(waitReasons,"dominant positive GEX pin risk",15);}
+  else if(netGex<0&&gi>0.35){call+=5;put+=10;wait-=6;pushReason(putReasons,"negative GEX amplification",10);pushReason(callReasons,"free-move volatility",5);}
+  else if(gi<0.25){call+=5;put+=5;wait-=5;pushReason(callReasons,"GEX weak / directional unlock",5);pushReason(putReasons,"GEX weak / directional unlock",5);}
+  if(mkt.spySpot>mkt.gammaFlip&&priceSlope>0){call+=7;pushReason(callReasons,"above gamma flip",7);}
+  if(mkt.spySpot<mkt.gammaFlip&&priceSlope<0){put+=7;pushReason(putReasons,"below gamma flip",7);}
+  if(Math.abs(mkt.spySpot-mkt.callWall)<0.8&&priceSlope<=0){put+=6;wait+=6;call-=7;pushReason(putReasons,"call wall rejection risk",6);pushReason(waitReasons,"near call wall",6);}
+  if(Math.abs(mkt.spySpot-mkt.putWall)<0.8&&priceSlope>=0){call+=6;wait+=6;put-=7;pushReason(callReasons,"put wall bounce risk",6);pushReason(waitReasons,"near put wall",6);}
+  if(range12>0&&range12<0.9){wait+=14;pushReason(waitReasons,"compressed range / pin behavior",14);}
+  if(mkt.isPremarket){wait+=35;call-=20;put-=20;pushReason(waitReasons,"premarket observe-only",35);}
+  const mLeft=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
+  if(mLeft<90){wait+=10;call-=4;put-=4;pushReason(waitReasons,"theta window penalty",10);}
+  if(mLeft<35){wait+=16;call-=6;put-=6;pushReason(waitReasons,"final theta endgame",16);}
 function ncdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.7814779+t*(-1.8212560+t*1.3302744))));return x>0?1-p:p;}
 function priceOpt(spot,strike,iv,mL,isCall){
   if(mL<=0)return Math.max(0.01,isCall?Math.max(0,spot-strike):Math.max(0,strike-spot));
@@ -794,3 +839,5 @@ export default function App(){
     </div>
   );
 }
+
+

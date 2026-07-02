@@ -228,6 +228,8 @@ function computeTheses(mkt,hist,prev){
   const div=mkt.itsSPX-mkt.itsSPY,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3,ac=mkt.accelerator||0,netGex=mkt.netGex||0;
   const l6=hist.slice(-6),l12=hist.slice(-12);
   const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
+  const belowFepCount=l6.filter(c=>c.spySpot<c.fep).length;
+  const aboveFepCount=l6.filter(c=>c.spySpot>c.fep).length;
   const accelSlope=l6.length>=2?l6[l6.length-1].accel-l6[0].accel:0;
   const range12=l12.length>=4?Math.max(...l12.map(c=>c.spySpot))-Math.min(...l12.map(c=>c.spySpot)):0;
   let call=33,put=33,wait=34;
@@ -256,8 +258,13 @@ function computeTheses(mkt,hist,prev){
   if(mLeft<90){wait+=10;call-=4;put-=4;pushReason(waitReasons,"theta window penalty",10);}
   if(mLeft<35){wait+=16;call-=6;put-=6;pushReason(waitReasons,"final theta endgame",16);}
 
-  if(call<72){if(!(div<-0.5))callNeeds.push("SPX ITS lead / institutional confirmation");if(!(priceSlope>0))callNeeds.push("upward price acceptance");if(!(ac>6))callNeeds.push("accelerator expansion");}
-  if(put<72){if(!(priceSlope<0))putNeeds.push("downward price acceptance");if(!(mkt.spySpot<mkt.gammaFlip))putNeeds.push("below gamma flip / failed reclaim");if(!(ac>6))putNeeds.push("accelerator expansion");}
+  if(belowFepCount>=4&&priceSlope<-0.6){put+=22;wait-=12;call-=8;pushReason(putReasons,"persistent downside acceptance below FEP",22);}
+  if(aboveFepCount>=4&&priceSlope>0.6){call+=22;wait-=12;put-=8;pushReason(callReasons,"persistent upside acceptance above FEP",22);}
+  if(priceSlope<-2.0){put+=18;wait-=10;call-=8;pushReason(putReasons,"multi-tick selloff slope",18);}
+  if(priceSlope>2.0){call+=18;wait-=10;put-=8;pushReason(callReasons,"multi-tick squeeze slope",18);}
+  
+  if(call<72){if(!(div<-0.5))callNeeds.push("SPX ITS lead / institutional confirmation");if(!(priceSlope>0))callNeeds.push("upward price acceptance");if(!(ac>6)&&!(aboveFepCount>=4&&priceSlope>0.6))callNeeds.push("accelerator expansion OR persistent upside acceptance");}
+  if(put<72){if(!(priceSlope<0))putNeeds.push("downward price acceptance");if(!(mkt.spySpot<mkt.gammaFlip))putNeeds.push("below gamma flip / failed reclaim");if(!(ac>6)&&!(belowFepCount>=4&&priceSlope<-0.6))putNeeds.push("accelerator expansion OR persistent downside acceptance");}
   if(div>0.9)callInvalid.push("SPY-led caution expanding");
   if(priceSlope<-0.6)callInvalid.push("price slope turning down");
   if(div<-0.9&&priceSlope>0)putInvalid.push("institutional upside leadership");
@@ -266,7 +273,7 @@ function computeTheses(mkt,hist,prev){
   const mom=thesisMomentum(scores,prev?.scores);
   const winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
   const edgeScore=computeEdgeScore(scores);
-  const entryBias=scores.call>=72&&scores.call>scores.put+18&&scores.call>scores.wait+12?"CALL":scores.put>=72&&scores.put>scores.call+18&&scores.put>scores.wait+12?"PUT":"WAIT";
+  const entryBias=scores.call>=62&&scores.call>scores.put+12&&scores.call>scores.wait+8?"CALL":scores.put>=62&&scores.put>scores.call+12&&scores.put>scores.wait+8?"PUT":"WAIT";
   const state=entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":scores.wait>=45&&scores.call<65&&scores.put<65?"WAIT_DOMINANT":scores.call>=45&&scores.call>=scores.put?"CALL_BUILDING":scores.put>=45?"PUT_BUILDING":"NO_EDGE";
   return{scores,momentum:mom,winner,entryBias,state,edgeScore,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
 }
@@ -298,7 +305,8 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules){
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
   const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}\nCALL reasons: ${(th.call.reasons||[]).slice(0,4).map(r=>r.label).join(", ")||"none"}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nCALL invalidations: ${(th.call.invalidations||[]).join(", ")||"none"}\nPUT reasons: ${(th.put.reasons||[]).slice(0,4).map(r=>r.label).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}\nPUT invalidations: ${(th.put.invalidations||[]).join(", ")||"none"}\nWAIT reasons: ${(th.wait.reasons||[]).slice(0,4).map(r=>r.label).join(", ")||"none"}`;
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
-  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"}${mkt.isPremarket?" | PREMARKET":""}\nBAL:$${bal.toFixed(0)} | ${posStr}\n\nSESSION JOURNAL:\n${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}\n\nREGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})\nCONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}\n\nTHESIS WEIGHTS:\n${thesisStr}\n\nSPY: $${mkt.spySpot.toFixed(2)} | SPX: ${mkt.spxSpot.toFixed(0)}\nSPX-ITS: ${mkt.itsSPX.toFixed(2)} | SPY-ITS: ${mkt.itsSPY.toFixed(2)} | DIV: ${div.toFixed(2)} (${div<-0.4?"SPX LEADS=conviction":div>0.4?"SPY LEADS=caution":"CONVERGED"})\nFlip: $${mkt.gammaFlip.toFixed(2)} ${mkt.spySpot>mkt.gammaFlip?"ABOVE":"BELOW"} | Walls: C$${mkt.callWall.toFixed(1)} P$${mkt.putWall.toFixed(1)}\nGEX: ${gexStr} | ACCEL: ${mkt.accelerator.toFixed(2)} | NDF: ${mkt.ndf.toFixed(3)} | IV: ${mkt.iv.toFixed(1)}%\nFEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}\n\n${optStr}\n\nRECENT:\n${rH}\n\nRULES:\n- Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis.\n- Do not only explain why waiting is safe. Decide which thesis is strengthening and what fires it.\n- If ENTRY_READY_CALL or ENTRY_READY_PUT is active, invalidations are absent, and an option exists, act.\n- A growing CALL thesis does not erase PUT. A growing PUT thesis does not erase CALL.\n- If in a position and opposite thesis or WAIT overtakes the entry thesis, SELL first.\n- No entries: premarket, theta crush, already in position.\n${rulesStr}\n\nRespond ONLY valid JSON. No markdown. No commentary.
+  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"}${mkt.isPremarket?" | PREMARKET":""}\nBAL:$${bal.toFixed(0)} | ${posStr}\n\nSESSION JOURNAL:\n${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}\n\nREGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})\nCONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}\n\nTHESIS WEIGHTS:\n${thesisStr}\n\nSPY: $${mkt.spySpot.toFixed(2)} | SPX: ${mkt.spxSpot.toFixed(0)}\nSPX-ITS: ${mkt.itsSPX.toFixed(2)} | SPY-ITS: ${mkt.itsSPY.toFixed(2)} | DIV: ${div.toFixed(2)} (${div<-0.4?"SPX LEADS=conviction":div>0.4?"SPY LEADS=caution":"CONVERGED"})\nFlip: $${mkt.gammaFlip.toFixed(2)} ${mkt.spySpot>mkt.gammaFlip?"ABOVE":"BELOW"} | Walls: C$${mkt.callWall.toFixed(1)} P$${mkt.putWall.toFixed(1)}\nGEX: ${gexStr} | ACCEL: ${mkt.accelerator.toFixed(2)} | NDF: ${mkt.ndf.toFixed(3)} | IV: ${mkt.iv.toFixed(1)}%\nFEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}\n\n${optStr}\n\nRECENT:\n${rH}\n\nRULES:\n- Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis.\n- Do not only explain why waiting is safe. Decide which thesis is strengthening and what fires it.\n- If ENTRY_READY_CALL or ENTRY_READY_PUT is active, invalidations are absent, and an option exists, act.
+- Persistent price acceptance below FEP/gamma flip can confirm PUT without accelerator expansion. Persistent price acceptance above FEP/gamma flip can confirm CALL without accelerator expansion.\n- A growing CALL thesis does not erase PUT. A growing PUT thesis does not erase CALL.\n- If in a position and opposite thesis or WAIT overtakes the entry thesis, SELL first.\n- No entries: premarket, theta crush, already in position.\n${rulesStr}\n\nRespond ONLY valid JSON. No markdown. No commentary.
 {"decision":"WAIT","reasoning":"one sentence","mindset":"one short phrase","journal_entry":"one sentence","edge_state":"NO_EDGE","confidence_trend":"UNCLEAR","call_fire":"none","put_fire":"none","wait_thesis":"one sentence"}`;
   const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
   if(!resp.ok)throw new Error(`${resp.status}`);
@@ -869,5 +877,4 @@ export default function App(){
     </div>
   );
 }
-
 

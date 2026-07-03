@@ -317,7 +317,7 @@ function computeDeterministicPlan(mkt,hist,probs,thesis){
   const mode=pinMode&&!freeMove?'PIN_RANGE':freeMove?'GEX_EXPANSION':'EDGE';
   return{dir,score,mode,reason:reasons.slice(-3).join(' + ')||'no deterministic edge',stop,target};
 }
-st mom=thesisMomentum(scores,prev?.scores);
+const mom=thesisMomentum(scores,prev?.scores);
   const winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
   const edgeScore=computeEdgeScore(scores);
   // v9: threshold dropped to 42 with a +6 margin — realistic given the rebalanced weights

@@ -89,7 +89,7 @@ function createSeedEngine(forceArcheId){
   const callDomStart=lerp(arche.callDomRange[0],arche.callDomRange[1],Math.random());
   const spotStart=741.26+(Math.random()-0.5)*8;
   const session={archetype:arche.id,archetypeLabel:arche.label,sourceDay:arche.sourceDay,fidelity:arche.fidelity,dataBasis:"archetype",dayType:arche.dayType,eodCollapse:!!arche.eodCollapse,gexRange:arche.gexRange,macroTick:Math.floor(20+Math.random()*200),macroMag:(Math.random()>0.5?1:-1)*(1.8+Math.random()*3.2),macroRecovery:Math.random()>0.45,squeezeTick:Math.floor(60+Math.random()*160),squeezeDir:Math.random()>0.5?1:-1,charmDecayRate:0.003+Math.random()*0.004,gexDominance:arche.pinBias,fakeoutTick:Math.floor(35+Math.random()*140),hasFakeout:Math.random()>0.5,volLevel:clamp((accelStart-3)/6,0.1,1),instBias:(callDomStart-0.5)};
-  let s={spySpot:spotStart,spxSpot:spotStart*10,gammaFlip:spotStart+(Math.random()-0.5)*3,callWall:spotStart+arche.wallGap,putWall:spotStart-arche.wallGap*2.4,fep:spotStart-0.5,accelerator:accelStart,netGex:netGexStart,itsSPX:itsFromGex(callDomStart,netGexStart,5.2),itsSPY:4.8,ndf:0.12,dealerPct:22,iv:ivStart,pcr:0.88,gexInfluence:0.08,callDom:callDomStart,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spyLagBuffer:[4.8,4.8,4.8]};
+  let s={spySpot:spotStart,spxSpot:spotStart*10,gammaFlip:spotStart+(Math.random()-0.5)*3,callWall:spotStart+arche.wallGap,putWall:spotStart-arche.wallGap*2.4,fep:spotStart-0.5,accelerator:accelStart,netGex:netGexStart,itsSPX:itsFromGex(callDomStart,netGexStart,5.2),itsSPY:4.8,ndf:0.12,dealerPct:22,iv:ivStart,pcr:0.88,gexInfluence:0.08,callDom:callDomStart,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spyLagBuffer:[4.8,4.8,4.8],pinPressure:0,lastImpulseTick:-999,flatTicks:0,lastSpySpot:spotStart};
   function gexInfAt(tick){const isPost=s.h>OPEN_H||(s.h===OPEN_H&&s.m>=OPEN_M);if(!isPost)return 0.08;const st=tick-10,prog=Math.max(0,st/390);const bell=Math.sin(prog*Math.PI)*0.85+0.15;const decay=Math.exp(-session.charmDecayRate*st);return Math.min(0.95,bell*session.gexDominance*decay+(1-decay)*0.08);}
   function tick(){
     const t=s.tick,isPre=s.h<OPEN_H||(s.h===OPEN_H&&s.m<OPEN_M),gi=gexInfAt(t),posGex=s.netGex>0,st=isPre?0:t-10,prog=Math.max(0,st/390);
@@ -107,14 +107,26 @@ function createSeedEngine(forceArcheId){
     if(!isPre&&session.dayType==="squeeze"&&t>=session.squeezeTick&&t<session.squeezeTick+6)squeezeForce=session.squeezeDir*(0.28+Math.random()*0.18);
     let fakeout=0;
     if(!isPre&&session.hasFakeout){if(t>=session.fakeoutTick&&t<session.fakeoutTick+4)fakeout=-drift*2.8;else if(t>=session.fakeoutTick+4&&t<session.fakeoutTick+10)fakeout=drift*2.0;}
+    const fepTouch=Math.abs(s.spySpot-s.fep)<0.28;
+    const wallTouch=Math.abs(s.spySpot-s.callWall)<0.55||Math.abs(s.spySpot-s.putWall)<0.55||Math.abs(s.spySpot-s.gammaFlip)<0.45;
+    const nextPinPressure=Math.max(0,Math.min(18,(s.pinPressure||0)+(fepTouch||wallTouch?1.4:-0.75)));
+    let impulseForce=0;
+    const burstChance=session.dayType==="pin"?0.018:session.dayType==="trend_up"||session.dayType==="trend_down"?0.026:0.021;
+    if(!isPre&&t-(s.lastImpulseTick||-999)>10&&Math.random()<burstChance){impulseForce=(Math.random()>0.5?1:-1)*(1.1+Math.random()*3.8);s.lastImpulseTick=t;}
+    if(!isPre&&nextPinPressure>7&&t-(s.lastImpulseTick||-999)>7){const dir=Math.random()<0.55?(session.instBias>=0?1:-1):(Math.random()>0.5?1:-1);impulseForce+=dir*(0.9+Math.random()*2.8);s.lastImpulseTick=t;}
+    const flatTicks=Math.abs(s.spySpot-(s.lastSpySpot||s.spySpot))<0.015?(s.flatTicks||0)+1:0;
+    const antiFreeze=flatTicks>6?(Math.sin(t*0.9)*0.16+(Math.random()-0.5)*0.28):0;
     const mLeft=(SESSION_END_H*60)-(s.h*60+s.m),thetaMult=mLeft<90?0.50+(mLeft/90)*0.50:1.0;
-    const noise=(Math.random()-0.5)*0.40*volMult*thetaMult;
-    const dSpy=(drift+gexForce+macroForce+squeezeForce+fakeout)*thetaMult+noise;
-    const newSpySpot=Math.max(s.putWall-(posGex?1:3),Math.min(s.callWall+(posGex?0.5:3.5),s.spySpot+dSpy));
+    const noise=((Math.random()-0.5)*0.40*volMult+antiFreeze)*thetaMult;
+    const dSpy=(drift+gexForce+macroForce+squeezeForce+fakeout+impulseForce)*thetaMult+noise;
+    const softLo=s.putWall-(posGex?2.2:6.5),softHi=s.callWall+(posGex?2.2:6.5);
+    let newSpySpot=s.spySpot+dSpy;
+    if(newSpySpot<softLo)newSpySpot=softLo+(newSpySpot-softLo)*0.25;
+    if(newSpySpot>softHi)newSpySpot=softHi+(newSpySpot-softHi)*0.25;
     const newSpxSpot=newSpySpot*10+(Math.random()-0.5)*2;
     const newFep=s.fep*0.87+(newSpySpot-(Math.random()-0.47)*1.5)*0.13;
     const mom=(newSpySpot-s.spySpot)/Math.max(0.01,Math.abs(s.spySpot))*1000;
-    const newAccel=clamp(s.accelerator*0.77+(2.6+Math.abs(dSpy)*17*volMult)*0.23+(t>=session.macroTick+10&&t<session.macroTick+14?4.5:0)+(squeezeForce!==0?3.8:0)+(Math.random()-0.5)*0.55,1,14);
+    const newAccel=clamp(s.accelerator*0.77+(2.6+Math.abs(dSpy)*17*volMult)*0.23+(t>=session.macroTick+10&&t<session.macroTick+14?4.5:0)+(squeezeForce!==0?3.8:0)+(impulseForce!==0?3.2:0)+(Math.random()-0.5)*0.55,1,14);
     let newNetGex=s.netGex*0.999+(Math.random()-0.5)*Math.abs(s.netGex)*0.002;
     let newCallDom=clamp(s.callDom*0.88+(0.5+session.instBias+mom*0.03)*0.12+(Math.random()-0.5)*0.04,0.15,0.95);
     // EOD gamma collapse mechanic (spx_squeeze_collapse archetype, modeled on Jul 1's real -1T EOD flip as 0DTEs expire)
@@ -136,7 +148,7 @@ function createSeedEngine(forceArcheId){
     const newPcr=clamp(s.pcr*0.93+(0.88+(Math.random()-0.5)*0.16)*0.07,0.45,2.6);
     let{h,m}=s;m++;if(m>=60){m=0;h++;}
     const newPre=h<OPEN_H||(h===OPEN_H&&m<OPEN_M);
-    s={...s,spySpot:newSpySpot,spxSpot:newSpxSpot,fep:newFep,accelerator:newAccel,netGex:newNetGex,itsSPX:newItsSPX,itsSPY:newItsSPY,callDom:newCallDom,ndf:newNdf,dealerPct:newDealer,iv:newIv,pcr:newPcr,gexInfluence:gexInfAt(t+1),tick:t+1,h,m,isPremarket:newPre,isTradeable:!newPre,spyLagBuffer:lagBuf};
+    s={...s,spySpot:newSpySpot,spxSpot:newSpxSpot,fep:newFep,accelerator:newAccel,netGex:newNetGex,itsSPX:newItsSPX,itsSPY:newItsSPY,callDom:newCallDom,ndf:newNdf,dealerPct:newDealer,iv:newIv,pcr:newPcr,gexInfluence:gexInfAt(t+1),tick:t+1,h,m,isPremarket:newPre,isTradeable:!newPre,spyLagBuffer:lagBuf,pinPressure:impulseForce!==0?0:nextPinPressure,lastImpulseTick:s.lastImpulseTick,flatTicks,lastSpySpot:newSpySpot};
     return{...s,session,mode:"seed",archetypeLabel:session.archetypeLabel,sourceDay:session.sourceDay,fidelity:session.fidelity,dataBasis:"archetype"};
   }
   return{tick,getSession:()=>({...session}),peek:()=>({...s}),mode:"seed"};
@@ -311,8 +323,8 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const theta=mL<90,div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
   const gexStr=`${mkt.netGex>0?"PINNING":"AMPLIFYING"} ${(gi*100).toFixed(0)}% ${gi>0.7?"[DOMINANT]":gi<0.3?"[WEAK]":"[MODERATE]"}`;
-  const callOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,true):null;
-  const putOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,false):null;
+  const callOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,true,th.scalpEdge?"scalp":"swing"):null;
+  const putOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,false,th.scalpEdge?"scalp":"swing"):null;
   const optStr=mkt.isPremarket?"PREMARKET — observe only"
     :callOpt||putOpt?`PRE-PRICED:\n${callOpt?`CALL: ${callOpt.strike}C @ $${callOpt.price.toFixed(2)}`:"CALL: none"}\n${putOpt?`PUT: ${putOpt.strike}P @ $${putOpt.price.toFixed(2)}`:"PUT: none"}`
     :pos?"MANAGE POSITION":"NO ENTRIES";
@@ -392,7 +404,7 @@ function Spark({data,color,h=36,w=120,fill=false}){
   return<svg width={w} height={h} style={{display:"block"}}>{fill&&<polygon points={`0,${h} ${pts} ${w},${h}`} fill={color} opacity={0.12}/>}<polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/></svg>;
 }
 
-function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,callTrigger,putTrigger}){
+function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,callTrigger,putTrigger,callStop,putStop}){
   const ref=useRef(null);
   const[scrollX,setScrollX]=useState(0),[drag,setDrag]=useState(false),[ds,setDs]=useState(0),[ss,setSs]=useState(0),[hov,setHov]=useState(null);
   // v10: default view only ever showed the latest ~56 ticks (W/STEP). fitDay compresses the
@@ -405,7 +417,7 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
   const sp=candles.map(c=>c.spySpot);
   const dMin=sp.length?Math.min(...sp):gammaFlip-3,dMax=sp.length?Math.max(...sp):gammaFlip+3;
   const pad=Math.max(1.2,(dMax-dMin)*0.15);
-  const visL=[gammaFlip,callWall,putWall,callTrigger,putTrigger].filter(v=>v!=null&&v>dMin-8&&v<dMax+8);
+  const visL=[gammaFlip,callWall,putWall,callTrigger,putTrigger,callStop,putStop].filter(v=>v!=null&&v>dMin-8&&v<dMax+8);
   const mn=Math.min(dMin-pad,...visL),mx=Math.max(dMax+pad,...visL),rng=mx-mn||1;
   const toY=v=>PT+((mx-v)/rng)*(H-PT-PB),toX=i=>PL+i*STEP-scrollX;
   const down=e=>{setDrag(true);setDs(e.clientX||e.touches?.[0]?.clientX||0);setSs(scrollX);e.preventDefault();};
@@ -427,7 +439,7 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
           <rect width={W} height={H} fill="#0e1117"/>
           {openIdx>0&&(()=>{const x=toX(openIdx);if(x>0&&x<W)return<><rect x={0} y={0} width={x} height={H} fill="#f0c040" opacity={0.04}/><line x1={x} y1={PT} x2={x} y2={H-PB} stroke="#f0c040" strokeWidth={0.5} strokeDasharray="2,4" opacity={0.4}/></>;})()}
           {[{v:callWall,c:"#00d4a8",l:"CW"},{v:gammaFlip,c:"#f0c040",l:"FLIP"},{v:putWall,c:"#ff4060",l:"PW"}].map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={0.6} strokeDasharray="3,3" opacity={0.5}/><text x={W-4} y={y-2} fill={c} fontSize={7} textAnchor="end" opacity={0.8}>{l} ${v.toFixed(0)}</text></g>;})}
-          {[{v:callTrigger,c:"#00ff88",l:"CALL TRIG"},{v:putTrigger,c:"#ff3366",l:"PUT TRIG"}].filter(x=>x.v!=null).map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={1} strokeDasharray="1,3" opacity={0.75}/><text x={4} y={y-2} fill={c} fontSize={7} textAnchor="start" opacity={0.9}>{l} ${v.toFixed(2)}</text></g>;})}
+          {[{v:callTrigger,c:"#00ff88",l:"CALL BUY"},{v:putTrigger,c:"#ff3366",l:"PUT BUY"},{v:callStop,c:"#f0c040",l:"CALL STOP"},{v:putStop,c:"#f0c040",l:"PUT STOP"}].filter(x=>x.v!=null).map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={1} strokeDasharray={l.includes("STOP")?"4,3":"1,3"} opacity={0.75}/><text x={4} y={y-2} fill={c} fontSize={7} textAnchor="start" opacity={0.9}>{l} ${v.toFixed(2)}</text></g>;})}
           {candles.length>1&&<polyline points={candles.map((c,i)=>`${toX(i)+3},${toY(c.spySpot)}`).join(" ")} fill="none" stroke="#dde4f0" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round"/>}
           {candles.length>1&&<polyline points={candles.map((c,i)=>`${toX(i)+3},${toY(c.fep)}`).join(" ")} fill="none" stroke="#4a5568" strokeWidth={0.8} strokeDasharray="2,2" opacity={0.4}/>}
           {position&&(()=>{const ei=candles.findIndex(c=>c.t===position.entryTime);if(ei<0)return null;const x=toX(ei)+3,y=toY(candles[ei].spySpot);return<circle cx={x} cy={y} r={4} fill={position.isCall?"#00d4a8":"#ff4060"} opacity={0.9}/>;})()}
@@ -534,7 +546,7 @@ export default function App(){
   const sessionOpenR=useRef(null),sessionHighR=useRef(-Infinity),sessionLowR=useRef(Infinity),aboveFepTotalR=useRef(0),belowFepTotalR=useRef(0);
   const[thesisData,setThesisData]=useState({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const[thesisHist,setThesisHist]=useState([]);
-  const[callTrigger,setCallTrigger]=useState(null),[putTrigger,setPutTrigger]=useState(null);
+  const[callTrigger,setCallTrigger]=useState(null),[putTrigger,setPutTrigger]=useState(null),[callStop,setCallStop]=useState(null),[putStop,setPutStop]=useState(null);
 
   const addM=useCallback(e=>{mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
@@ -547,7 +559,7 @@ export default function App(){
   const doTick=useCallback(eng=>{
     const m=eng.tick();tickR.current++;
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
-    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});}
+    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);if(optPnl>=55||optPnl<=-35||spotFail||spotTarget){balR.current*=(1+optPnl/100);logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:fmt.pct(optPnl),pnl:optPnl}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
     if(m.h>=SESSION_END_H){
       if(posR.current){const p=posR.current,r=(p.current/p.entry-1)*100;balR.current*=(1+r/100);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:fmt.pct(r),pnl:r}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
@@ -569,13 +581,21 @@ export default function App(){
       sessionLowR.current=Math.min(sessionLowR.current,m.spySpot);
       if(m.spySpot>m.fep)aboveFepTotalR.current++;else if(m.spySpot<m.fep)belowFepTotalR.current++;
     }
-    setCallTrigger(Math.max(m.gammaFlip,m.fep+0.6));
-    setPutTrigger(Math.min(m.gammaFlip,m.fep-0.6));
+    const recent12=candR.current.slice(-12),rHi=recent12.length?Math.max(...recent12.map(x=>x.spySpot)):m.spySpot,rLo=recent12.length?Math.min(...recent12.map(x=>x.spySpot)):m.spySpot;
+    const callBuy=Math.max(m.gammaFlip,m.fep+0.35,rLo+0.18),putBuy=Math.min(m.gammaFlip,m.fep-0.35,rHi-0.18);
+    setCallTrigger(callBuy);setPutTrigger(putBuy);setCallStop(Math.min(callBuy-0.55,m.fep-0.25));setPutStop(Math.max(putBuy+0.55,m.fep+0.25));
     const top=Object.entries(np).sort((a,b)=>b[1]-a[1])[0][0];
     if(top!==lastSR.current){lastSR.current=top;tlR.current=[...tlR.current,{t:fmt.time(m.h,m.m),state:top,probs:{...np}}];setTimeline([...tlR.current]);}
     const accelCrossed=m.accelerator>=8.5&&prevAccelR.current<8.5;
-    const spikeReady=(nt.scalpEdge||accelCrossed)&&(tickR.current-lastAiTickR.current)>=3;
+    const recent20=candR.current.slice(-20),range20=recent20.length?Math.max(...recent20.map(x=>x.spySpot))-Math.min(...recent20.map(x=>x.spySpot)):0,hi20=recent20.length?Math.max(...recent20.map(x=>x.spySpot)):m.spySpot,lo20=recent20.length?Math.min(...recent20.map(x=>x.spySpot)):m.spySpot;
+    const pinTradeMode=!m.isPremarket&&!posR.current&&mL>=45&&(np.pin>=45||((m.netGex||0)>0&&(m.gexInfluence||0)>0.35)||range20<1.15);
+    const nearUpper=pinTradeMode&&range20>=0.18&&m.spySpot>=hi20-0.18;
+    const nearLower=pinTradeMode&&range20>=0.18&&m.spySpot<=lo20+0.18;
+    const expansionTrade=!m.isPremarket&&!posR.current&&mL>=45&&(nt.scalpEdge||nt.entryBias!=="WAIT");
+    const localDir=nearUpper?"PUT":nearLower?"CALL":expansionTrade?(nt.scalpEdge?nt.scalpDir:nt.entryBias):"WAIT";
+    const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
+    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",opt=findStrike(m.spySpot,m.iv,mL,isC,"scalp");if(opt){const stopSpot=isC?Math.min(m.spySpot-0.55,m.fep-0.25):Math.max(m.spySpot+0.55,m.fep+0.25);const targetSpot=isC?Math.min(Math.max(hi20,m.callWall),m.spySpot+1.25):Math.max(Math.min(lo20,m.putWall),m.spySpot-1.25);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:fmt.time(m.h,m.m),entrySpot:m.spySpot,stopSpot,targetSpot,planType:nearUpper||nearLower?"PIN_RANGE":"EDGE"};setPos({...posR.current});logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO ${nearUpper||nearLower?"PIN":"EDGE"} ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);addM({t:fmt.time(m.h,m.m),mindset:nearUpper||nearLower?"pin range edge":"local edge trigger",reasoning:`Local deterministic ${localDir} fired: ${nearUpper?"upper pin rejection":nearLower?"lower pin bounce":nt.scalpEdge?"scalp edge":"entry bias"}.`,decision:isC?"BUY_CALL":"BUY_PUT",score:nc.score,edgeState:"LOCAL_ENTRY",confTrend:"BUILDING"});return;}}
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
@@ -599,10 +619,10 @@ export default function App(){
             // trade (no priceable option, already in position, wrong window) was silently dropped
             // with zero record. Now every rejected fire is logged so it's visible, not vanished.
             if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else if(mLn<90){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else if(mLn<45){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but no option was priceable in the $0.13-$0.28 band this tick — no fill possible.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else{posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
+            else{const stopSpot=isC?Math.min(m.spySpot-0.55,m.fep-0.25):Math.max(m.spySpot+0.55,m.fep+0.25);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.8),m.spySpot+1.8):Math.max(Math.min(m.putWall,m.spySpot-0.8),m.spySpot-1.8);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:"AI"};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
           }
         })
         .catch(e=>addM({t:fmt.time(m.h,m.m),mindset:"API/parse error",reasoning:e.message||"unknown error",decision:"WAIT",score:0,edgeState:"ERROR",confTrend:"—"}))
@@ -816,7 +836,7 @@ export default function App(){
 
       <div style={{flex:1,overflowY:"auto",paddingBottom:20}}>
         {mkt&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${isPremarket?T.yellow+"40":T.border}`,margin:"8px 14px",overflow:"hidden"}}>
-          <PriceChart candles={candles} gammaFlip={mkt.gammaFlip} callWall={mkt.callWall} putWall={mkt.putWall} position={pos} isPremarket={isPremarket} callTrigger={callTrigger} putTrigger={putTrigger}/>
+          <PriceChart candles={candles} gammaFlip={mkt.gammaFlip} callWall={mkt.callWall} putWall={mkt.putWall} position={pos} isPremarket={isPremarket} callTrigger={callTrigger} putTrigger={putTrigger} callStop={callStop} putStop={putStop}/>
           <div style={{padding:"7px 12px",borderTop:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div><div style={{fontSize:18,fontWeight:700}}>${mkt.spySpot.toFixed(2)}</div><div style={{fontSize:8,color:mkt.spySpot>mkt.gammaFlip?T.accent:T.red}}>{mkt.spySpot>mkt.gammaFlip?"▲":"▼"} FLIP ${mkt.gammaFlip.toFixed(1)}</div></div>
             <div style={{textAlign:"center"}}><div style={{fontSize:9,color:T.muted}}>SPX</div><div style={{fontSize:12,fontWeight:700,color:T.purple}}>{mkt.spxSpot.toFixed(0)}</div></div>
@@ -965,3 +985,5 @@ export default function App(){
     </div>
   );
 }
+
+

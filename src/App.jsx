@@ -311,6 +311,14 @@ function computeLeadLag(mkt,hist){
   const tradeHint=opportunity?(dir==='UP'?'CALL catch-up watch if SPY clears micro level':'PUT catch-down watch if SPY loses micro level'):'lead-lag context only';
   return{dir,spxMove,spyMove,gap,magGap,state,opportunity,learned,tradeHint,text:`SPX lead-lag: ${dir} | ${state} | 4t SPX:${spxMove>=0?'+':''}${spxMove.toFixed(2)} vs SPY:${spyMove>=0?'+':''}${spyMove.toFixed(2)} gap:${gap>=0?'+':''}${gap.toFixed(2)} | ${learned} | ${tradeHint}`};
 }
+function summarizeSessionModel(sm){
+  const leadTotal=Math.max(1,sm.leadOpp||0),catchRate=Math.round((sm.leadCatch||0)/leadTotal*100),rejectRate=Math.round((sm.leadReject||0)/leadTotal*100);
+  const pinTotal=Math.max(1,(sm.pinWins||0)+(sm.pinLosses||0)),pinRate=Math.round((sm.pinWins||0)/pinTotal*100);
+  const accelTotal=Math.max(1,(sm.accelFollow||0)+(sm.accelFail||0)),accelRate=Math.round((sm.accelFollow||0)/accelTotal*100);
+  const bias=catchRate>=60?'SPY is obeying SPX lead':rejectRate>=45?'SPY is rejecting SPX lead':'SPX lead-lag still unproven';
+  const pin=bias&&pinTotal>1?` | pin scalps ${pinRate}% so far`:'';
+  return`SESSION LEARNING: ${bias}. Lead catch ${sm.leadCatch||0}/${sm.leadOpp||0}, reject ${sm.leadReject||0}. Accel follow-through ${accelRate}% (${sm.accelFollow||0}/${accelTotal}).${pin}`;
+}
 function computeDeterministicPlan(mkt,hist,probs,thesis){
   const l6=hist.slice(-6),l12=hist.slice(-12),l20=hist.slice(-20);
   const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
@@ -324,21 +332,25 @@ function computeDeterministicPlan(mkt,hist,probs,thesis){
   let call=0,put=0,reasons=[];
   const pinMode=(mkt.netGex>0&&gi>0.32)||(probs.pin>=38&&range20<1.4);
   const freeMove=mkt.netGex<0||gi<0.25||gexVel<-0.18;
-  if(div>0.45){call+=8;reasons.push('SPX leads/telegraphs');}
+  if(div>0.45){call+=3;reasons.push('SPX lead-lag watch');}
   if(div<-0.45){put+=5;reasons.push('SPY lead caution');}
   if(freeMove){if(priceSlope>0.35){call+=18;reasons.push('weak/negative GEX upside expansion');} if(priceSlope<-0.35){put+=18;reasons.push('weak/negative GEX downside expansion');}}
   if(above&&priceSlope>0.25){call+=16;reasons.push('above FEP+flip acceptance');}
-  if(below&&priceSlope<0.25){put+=16;reasons.push('below FEP+flip acceptance');}
+  if(below&&priceSlope<-0.25){put+=20;call-=10;reasons.push('below FEP+flip downside acceptance');}
   if(mkt.accelerator>6&&accelSlope>=0){if(priceSlope>=0){call+=12;reasons.push('accel with upside slope');}else{put+=12;reasons.push('accel with downside slope');}}
   if(mkt.accelerator>8.5&&Math.abs(priceSlope)>0.35){if(priceSlope>0)call+=10;else put+=10;reasons.push('scalp impulse');}
   if(pinMode&&range20>=0.22){
-    if(mkt.spySpot>=hi20-0.18){put+=26;reasons.push('positive-GEX upper pin edge');}
-    if(mkt.spySpot<=lo20+0.18){call+=26;reasons.push('positive-GEX lower pin edge');}
+    if(mkt.spySpot>=hi20-0.18&&priceSlope<-0.12){put+=26;reasons.push('positive-GEX upper pin rejection confirmed');}
+    else if(mkt.spySpot>=hi20-0.18){put-=10;reasons.push('upper pin edge unconfirmed, no rejection yet');}
+    if(mkt.spySpot<=lo20+0.18&&priceSlope>0.12){call+=26;reasons.push('positive-GEX lower pin bounce confirmed');}
+    else if(mkt.spySpot<=lo20+0.18){call-=10;reasons.push('lower pin edge unconfirmed, no bounce yet');}
     if(Math.abs(fg)<0.25&&Math.abs(priceSlope)<0.25){call-=4;put-=4;reasons.push('dead-center pin, no edge');}
   }
   if(mkt.netGex>0&&gexVel>0.12&&Math.abs(fg)>0.45){if(fg>0)put+=8;else call+=8;reasons.push('GEX insertion favors mean reversion');}
   if(mkt.netGex<0&&gexVel<0&&Math.abs(priceSlope12)>0.75){if(priceSlope12>0)call+=14;else put+=14;reasons.push('negative GEX velocity follows move');}
-  const dir=call>=28&&call>put+4?'CALL':put>=28&&put>call+4?'PUT':'WAIT';
+  if(below&&priceSlope<=0){call-=14;reasons.push('CALL suppressed below FEP/flip without reclaim');}
+  if(above&&priceSlope>=0){put-=14;reasons.push('PUT suppressed above FEP/flip without rejection');}
+  const dir=call>=30&&call>put+6?'CALL':put>=30&&put>call+6?'PUT':'WAIT';
   const isC=dir==='CALL';
   const stop=dir==='WAIT'?null:isC?Math.max(mkt.spySpot-0.22,mkt.fep-0.12):Math.min(mkt.spySpot+0.22,mkt.fep+0.12);
   const target=dir==='WAIT'?null:isC?Math.min(Math.max(mkt.callWall,hi20,mkt.spySpot+0.55),mkt.spySpot+1.25):Math.max(Math.min(mkt.putWall,lo20,mkt.spySpot-0.55),mkt.spySpot-1.25);
@@ -420,8 +432,8 @@ RULES:
 - SCALP EDGE and LOCAL GUIDE are context, not commands. Trade only when the setup matches the playbook and the option/level structure gives asymmetric upside with a tiny invalidation.
 - Ideal entry is a $0.15-$0.25 OTM contract, never above $0.50. Prefer 1-3 high-quality trades, not constant firing.
 - Before entry, define invalidation. If the option goes against you around 5-8% or spot fails the thesis level, SELL immediately.
-- Track SPX→SPY lead-lag. SPX moving first can reveal a 1-2 tick window before SPY reflects it. Treat it as an early-warning hypothesis, not an automatic entry.
-- Exit: first wrong signal wins. Sell on accel peak+roll, FEP catch, GEX regime shift, opposite thesis overtaking, or option loss near -8%. Take profits around +40% unless momentum is still expanding.
+- Track SPX to SPY lead-lag. SPX moving first can reveal a 1-2 tick window before SPY reflects it. Treat it as an early-warning hypothesis, not an automatic entry. If SPX is moving down and SPY is catching down, suppress CALL unless SPY has reclaimed FEP/flip and bounced. If SPX is moving up and SPY is catching up, suppress PUT unless SPY has rejected a level.
+- Exit: first wrong signal wins. Sell on accel peak and roll, FEP catch, GEX regime shift, opposite thesis overtaking, lead-lag contradiction, or option loss near -6%. Take profits around +35% unless momentum is still expanding.
 - No entries: premarket, final theta window, already in position, no account equity, or no clean contract under $0.50.
 - GEX DOMINANT(>70%): only range-edge scalps with tight invalidation. GEX WEAK(<30%): free move, but still require price acceptance. Learn intraday whether SPY is obeying SPX lead, rejecting it, or staying pinned. Your job is discretion, not rule obedience.${repeatStr}
 - CRITICAL — decision/journal consistency: "decision" is the ONLY field that executes anything. If journal_entry describes firing, entering, or an edge going live, decision MUST equal BUY_CALL or BUY_PUT to match — never narrate an entry without setting decision accordingly, and never set decision to BUY_CALL/BUY_PUT without journal_entry reflecting it.
@@ -620,6 +632,8 @@ export default function App(){
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const thesisHistR=useRef([]),prevAccelR=useRef(0),lastAiTickR=useRef(-99),repeatWaitR=useRef(0),lastWaitReasonR=useRef("");
+  const lastMindsetKeyR=useRef("");
+  const sessionModelR=useRef({leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99});
   // v9: session-long memory. callAI previously only saw hist.slice(-4) — four candles, full
   // stop. This tracks the whole session (open, high/low, above/below-FEP counts) so the AI's
   // context isn't reset every call; it's summarized into one line and passed to callAI below.
@@ -628,7 +642,7 @@ export default function App(){
   const[thesisHist,setThesisHist]=useState([]);
   const[callTrigger,setCallTrigger]=useState(null),[putTrigger,setPutTrigger]=useState(null),[callStop,setCallStop]=useState(null),[putStop,setPutStop]=useState(null);
 
-  const addM=useCallback(e=>{mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
+  const addM=useCallback(e=>{const key=`${e.edgeState}|${e.decision}|${e.mindset}|${String(e.reasoning||'').slice(0,80)}`;if((e.edgeState||'').startsWith('LOCAL')&&key===lastMindsetKeyR.current)return;lastMindsetKeyR.current=key;mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
 
   useEffect(()=>{
@@ -640,7 +654,7 @@ export default function App(){
     const m=eng.tick();tickR.current++;
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
     const chain=buildOptionChain(m.spySpot,m.iv,mL,20);setOptionChain(chain);
-    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);setBal(size*(p.current/p.entry));if(optPnl>=40||optPnl<=-8||spotFail||spotTarget){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
+    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity),llNow=computeLeadLag(m,candR.current),leadWrong=p.isCall&&llNow.dir==='DOWN'&&llNow.state==='SPY_CATCHING_UP'||!p.isCall&&llNow.dir==='UP'&&llNow.state==='SPY_CATCHING_UP';setBal(size*(p.current/p.entry));if(optPnl>=35||optPnl<=-6||spotFail||spotTarget||leadWrong){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);if(p.planType==='PIN_RANGE'){if(optPnl>=0)sessionModelR.current.pinWins++;else sessionModelR.current.pinLosses++;}logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}${leadWrong?" lead-lag contradicted":""}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
     if(m.h>=SESSION_END_H){
       if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
@@ -670,6 +684,10 @@ export default function App(){
     const accelCrossed=m.accelerator>=8.5&&prevAccelR.current<8.5;
     const det=computeDeterministicPlan(m,candR.current,np,nt);
     const leadLag=computeLeadLag(m,candR.current);
+    const sm=sessionModelR.current;
+    if(leadLag.state!==sm.lastLeadState){if(leadLag.opportunity)sm.leadOpp++;if(leadLag.state==='SPY_CATCHING_UP')sm.leadCatch++;if(leadLag.state==='SPY_REJECTING_SPX')sm.leadReject++;sm.lastLeadState=leadLag.state;}
+    if(m.accelerator>=8.5&&tickR.current-sm.lastAccelTick>4){sm.lastAccelTick=tickR.current;if(Math.abs(candR.current.slice(-4).at(0)?.spySpot-m.spySpot)>0.35)sm.accelFollow++;else sm.accelFail++;}
+    const sessionLearning=summarizeSessionModel(sm);
     const localDir=det.dir;
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
@@ -683,7 +701,7 @@ export default function App(){
       // consecutive recent ticks within 15c of current spot, from actual candle history.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`)
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`)
         .then(dec=>{
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
@@ -724,7 +742,7 @@ export default function App(){
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
-    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";
+    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[]);

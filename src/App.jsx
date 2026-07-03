@@ -290,7 +290,7 @@ function priceOpt(spot,strike,iv,mL,isCall){
   return Math.max(0.01,Math.round((isCall?spot*ncdf(d1)-strike*ncdf(d2):strike*ncdf(-d2)-spot*ncdf(-d1))*100)/100);
 }
 function findStrike(spot,iv,mL,isCall){
-  for(const off of[1,2,1.5,2.5,3,0.5,3.5,4,5,6,7,8]){
+  for(const off of[1,2,1.5,2.5,3,0.5,3.5,4,5,6,7,8,9,10,12,15,18,22]){
     const strike=isCall?Math.round((spot+off)*2)/2:Math.round((spot-off)*2)/2;
     const price=priceOpt(spot,strike,iv,mL,isCall);
     if(price>=0.13&&price<=0.28)return{strike,price};
@@ -369,6 +369,7 @@ async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
     const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
     const data=await resp.json();
     if(data.proposals)return data.proposals;
+    // Try parsing from decision field if wrapped
     const txt=JSON.stringify(data);
     const match=txt.match(/"proposals"\s*:\s*(\[.*?\])/s);
     if(match)return JSON.parse(match[1]);
@@ -519,6 +520,9 @@ export default function App(){
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const thesisHistR=useRef([]),prevAccelR=useRef(0),lastAiTickR=useRef(-99),repeatWaitR=useRef(0),lastWaitReasonR=useRef("");
+  // v9: session-long memory. callAI previously only saw hist.slice(-4) — four candles, full
+  // stop. This tracks the whole session (open, high/low, above/below-FEP counts) so the AI's
+  // context isn't reset every call; it's summarized into one line and passed to callAI below.
   const sessionOpenR=useRef(null),sessionHighR=useRef(-Infinity),sessionLowR=useRef(Infinity),aboveFepTotalR=useRef(0),belowFepTotalR=useRef(0);
   const[thesisData,setThesisData]=useState({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const[thesisHist,setThesisHist]=useState([]);
@@ -550,6 +554,7 @@ export default function App(){
     setItsSPXHist(prev=>[...prev.slice(-150),m.itsSPX]);
     setItsSPYHist(prev=>[...prev.slice(-150),m.itsSPY]);
     thesisHistR.current=[...thesisHistR.current.slice(-150),{t:c.t,call:nt.scores.call,put:nt.scores.put,wait:nt.scores.wait}];setThesisHist([...thesisHistR.current]);
+    // v9: accumulate whole-session stats every tradeable tick (not just last 4-6 candles)
     if(!m.isPremarket){
       if(sessionOpenR.current==null)sessionOpenR.current=m.spySpot;
       sessionHighR.current=Math.max(sessionHighR.current,m.spySpot);
@@ -566,6 +571,9 @@ export default function App(){
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
+      // v10: ground "how long has this been flat" in a real computed number instead of letting
+      // the AI guess a duration it can't actually verify (it only ever sees ~8 candles). Count
+      // consecutive recent ticks within 15c of current spot, from actual candle history.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary)
@@ -578,6 +586,10 @@ export default function App(){
           if(dec.decision==="SELL"&&posR.current){const p=posR.current,r=(p.current/p.entry-1)*100;balR.current*=(1+r/100);setBal(balR.current);logR.current=[...logR.current,{t:ts,action:`SELL ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:fmt.pct(r),pnl:r}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
           else if(dec.decision==="BUY_CALL"||dec.decision==="BUY_PUT"){
             const isC=dec.decision==="BUY_CALL",opt=isC?dec.callOpt:dec.putOpt;
+            // v10: the AI's decision field and journal_entry text are two independent outputs from
+            // the same call — nothing previously enforced they agree, and a decided-but-unfilled
+            // trade (no priceable option, already in position, wrong window) was silently dropped
+            // with zero record. Now every rejected fire is logged so it's visible, not vanished.
             if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(mLn<90){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
@@ -711,6 +723,7 @@ export default function App(){
           ))}
         </div>
         {s.journal?.length>0&&<><div style={{fontSize:10,color:T.muted,marginBottom:8}}>SESSION JOURNAL</div>{s.journal.map((j,i)=><div key={i} style={{fontSize:9,color:T.muted,marginBottom:4,paddingLeft:8,borderLeft:`2px solid ${T.border}`}}><span style={{color:T.accent}}>{j.t}</span> {j.entry}</div>)}</>}
+        {s.mindset?.length>0&&<><div style={{fontSize:10,color:T.muted,marginTop:12,marginBottom:8}}>AI MINDSET LOG ({s.mindset.length})</div>{s.mindset.map((e,i)=><div key={i} style={{padding:"7px 9px",borderRadius:4,background:T.surface,border:`1px solid ${e.edgeState==="MISFIRE"?T.red+"60":e.edgeState==="ERROR"?T.yellow+"60":T.border}`,marginBottom:6}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{fontSize:8,color:T.muted}}>{e.t}</span><span style={{fontSize:8,color:e.edgeState==="MISFIRE"?T.red:e.edgeState==="ERROR"?T.yellow:T.muted,fontWeight:e.edgeState==="MISFIRE"||e.edgeState==="ERROR"?700:400}}>{e.edgeState} [{e.score}] {e.decision}</span></div><div style={{fontSize:9,color:T.text}}>{e.reasoning}</div></div>)}</>}
         <div style={{fontSize:10,color:T.muted,marginTop:12,marginBottom:8}}>TRADES</div>
         {s.trades.length===0&&<div style={{fontSize:10,color:T.dim}}>No trades.</div>}
         {s.trades.map((t,i)=><div key={i} style={{padding:"8px 12px",background:T.surface,borderRadius:4,border:`1px solid ${(t.pnl||0)>=0?T.accent+"40":T.red+"40"}`,marginBottom:6}}><div style={{fontSize:10}}>{t.action}</div><div style={{fontSize:9,color:(t.pnl||0)>=0?T.accent:T.red}}>{t.t} {t.result}</div></div>)}

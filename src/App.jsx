@@ -281,43 +281,7 @@ function computeTheses(mkt,hist,prev){
   if(priceSlope>0.6)putInvalid.push("price slope turning up");
 
   const scores=norm3(call,put,wait);
-  con
-function computeDeterministicPlan(mkt,hist,probs,thesis){
-  const l6=hist.slice(-6),l12=hist.slice(-12),l20=hist.slice(-20);
-  const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
-  const priceSlope12=l12.length>=2?l12[l12.length-1].spySpot-l12[0].spySpot:priceSlope;
-  const accelSlope=l6.length>=2?l6[l6.length-1].accel-l6[0].accel:0;
-  const range20=l20.length>=4?Math.max(...l20.map(x=>x.spySpot))-Math.min(...l20.map(x=>x.spySpot)):0;
-  const hi20=l20.length?Math.max(...l20.map(x=>x.spySpot)):mkt.spySpot,lo20=l20.length?Math.min(...l20.map(x=>x.spySpot)):mkt.spySpot;
-  const oldG=l12[0]?.netGex??mkt.netGex,gexVel=(mkt.netGex-oldG)/Math.max(1e9,Math.abs(oldG||1e9));
-  const div=mkt.itsSPX-mkt.itsSPY,gi=mkt.gexInfluence||0,fg=mkt.spySpot-mkt.fep;
-  const above=mkt.spySpot>mkt.fep&&mkt.spySpot>mkt.gammaFlip,below=mkt.spySpot<mkt.fep&&mkt.spySpot<mkt.gammaFlip;
-  let call=0,put=0,reasons=[];
-  const pinMode=(mkt.netGex>0&&gi>0.32)||(probs.pin>=38&&range20<1.4);
-  const freeMove=mkt.netGex<0||gi<0.25||gexVel<-0.18;
-  if(div>0.45){call+=8;reasons.push('SPX leads/telegraphs');}
-  if(div<-0.45){put+=5;reasons.push('SPY lead caution');}
-  if(freeMove){if(priceSlope>0.35){call+=18;reasons.push('weak/negative GEX upside expansion');} if(priceSlope<-0.35){put+=18;reasons.push('weak/negative GEX downside expansion');}}
-  if(above&&priceSlope>0.25){call+=16;reasons.push('above FEP+flip acceptance');}
-  if(below&&priceSlope<0.25){put+=16;reasons.push('below FEP+flip acceptance');}
-  if(mkt.accelerator>6&&accelSlope>=0){if(priceSlope>=0){call+=12;reasons.push('accel with upside slope');}else{put+=12;reasons.push('accel with downside slope');}}
-  if(mkt.accelerator>8.5&&Math.abs(priceSlope)>0.35){if(priceSlope>0)call+=10;else put+=10;reasons.push('scalp impulse');}
-  if(pinMode&&range20>=0.22){
-    if(mkt.spySpot>=hi20-0.18){put+=26;reasons.push('positive-GEX upper pin edge');}
-    if(mkt.spySpot<=lo20+0.18){call+=26;reasons.push('positive-GEX lower pin edge');}
-    if(Math.abs(fg)<0.25&&Math.abs(priceSlope)<0.25){call-=4;put-=4;reasons.push('dead-center pin, no edge');}
-  }
-  if(mkt.netGex>0&&gexVel>0.12&&Math.abs(fg)>0.45){if(fg>0)put+=8;else call+=8;reasons.push('GEX insertion favors mean reversion');}
-  if(mkt.netGex<0&&gexVel<0&&Math.abs(priceSlope12)>0.75){if(priceSlope12>0)call+=14;else put+=14;reasons.push('negative GEX velocity follows move');}
-  const dir=call>=28&&call>put+4?'CALL':put>=28&&put>call+4?'PUT':'WAIT';
-  const isC=dir==='CALL';
-  const stop=dir==='WAIT'?null:isC?Math.min(mkt.spySpot-0.55,mkt.fep-0.25):Math.max(mkt.spySpot+0.55,mkt.fep+0.25);
-  const target=dir==='WAIT'?null:isC?Math.min(Math.max(mkt.callWall,hi20,mkt.spySpot+0.8),mkt.spySpot+1.8):Math.max(Math.min(mkt.putWall,lo20,mkt.spySpot-0.8),mkt.spySpot-1.8);
-  const score=dir==='CALL'?call:dir==='PUT'?put:Math.max(call,put);
-  const mode=pinMode&&!freeMove?'PIN_RANGE':freeMove?'GEX_EXPANSION':'EDGE';
-  return{dir,score,mode,reason:reasons.slice(-3).join(' + ')||'no deterministic edge',stop,target};
-}
-const mom=thesisMomentum(scores,prev?.scores);
+  const mom=thesisMomentum(scores,prev?.scores);
   const winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
   const edgeScore=computeEdgeScore(scores);
   // v9: threshold dropped to 42 with a +6 margin — realistic given the rebalanced weights
@@ -366,7 +330,42 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
     :pos?"MANAGE POSITION":"NO ENTRIES";
   const rH=hist.slice(-8).map(c=>`${c.t} SPY:${c.spySpot.toFixed(2)} SPX-ITS:${c.itsSPX.toFixed(2)} SPY-ITS:${c.itsSPY.toFixed(2)} DIV:${(c.itsSPX-c.itsSPY).toFixed(2)} ACCEL:${c.accel.toFixed(1)}`).join("\n");
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
-  const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
+  const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) function computeDeterministicPlan(mkt,hist,probs,thesis){
+  const l6=hist.slice(-6),l12=hist.slice(-12),l20=hist.slice(-20);
+  const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
+  const priceSlope12=l12.length>=2?l12[l12.length-1].spySpot-l12[0].spySpot:priceSlope;
+  const accelSlope=l6.length>=2?l6[l6.length-1].accel-l6[0].accel:0;
+  const range20=l20.length>=4?Math.max(...l20.map(x=>x.spySpot))-Math.min(...l20.map(x=>x.spySpot)):0;
+  const hi20=l20.length?Math.max(...l20.map(x=>x.spySpot)):mkt.spySpot,lo20=l20.length?Math.min(...l20.map(x=>x.spySpot)):mkt.spySpot;
+  const oldG=l12[0]?.netGex??mkt.netGex,gexVel=(mkt.netGex-oldG)/Math.max(1e9,Math.abs(oldG||1e9));
+  const div=mkt.itsSPX-mkt.itsSPY,gi=mkt.gexInfluence||0,fg=mkt.spySpot-mkt.fep;
+  const above=mkt.spySpot>mkt.fep&&mkt.spySpot>mkt.gammaFlip,below=mkt.spySpot<mkt.fep&&mkt.spySpot<mkt.gammaFlip;
+  let call=0,put=0,reasons=[];
+  const pinMode=(mkt.netGex>0&&gi>0.32)||(probs.pin>=38&&range20<1.4);
+  const freeMove=mkt.netGex<0||gi<0.25||gexVel<-0.18;
+  if(div>0.45){call+=8;reasons.push('SPX leads/telegraphs');}
+  if(div<-0.45){put+=5;reasons.push('SPY lead caution');}
+  if(freeMove){if(priceSlope>0.35){call+=18;reasons.push('weak/negative GEX upside expansion');} if(priceSlope<-0.35){put+=18;reasons.push('weak/negative GEX downside expansion');}}
+  if(above&&priceSlope>0.25){call+=16;reasons.push('above FEP+flip acceptance');}
+  if(below&&priceSlope<0.25){put+=16;reasons.push('below FEP+flip acceptance');}
+  if(mkt.accelerator>6&&accelSlope>=0){if(priceSlope>=0){call+=12;reasons.push('accel with upside slope');}else{put+=12;reasons.push('accel with downside slope');}}
+  if(mkt.accelerator>8.5&&Math.abs(priceSlope)>0.35){if(priceSlope>0)call+=10;else put+=10;reasons.push('scalp impulse');}
+  if(pinMode&&range20>=0.22){
+    if(mkt.spySpot>=hi20-0.18){put+=26;reasons.push('positive-GEX upper pin edge');}
+    if(mkt.spySpot<=lo20+0.18){call+=26;reasons.push('positive-GEX lower pin edge');}
+    if(Math.abs(fg)<0.25&&Math.abs(priceSlope)<0.25){call-=4;put-=4;reasons.push('dead-center pin, no edge');}
+  }
+  if(mkt.netGex>0&&gexVel>0.12&&Math.abs(fg)>0.45){if(fg>0)put+=8;else call+=8;reasons.push('GEX insertion favors mean reversion');}
+  if(mkt.netGex<0&&gexVel<0&&Math.abs(priceSlope12)>0.75){if(priceSlope12>0)call+=14;else put+=14;reasons.push('negative GEX velocity follows move');}
+  const dir=call>=28&&call>put+4?'CALL':put>=28&&put>call+4?'PUT':'WAIT';
+  const isC=dir==='CALL';
+  const stop=dir==='WAIT'?null:isC?Math.min(mkt.spySpot-0.55,mkt.fep-0.25):Math.max(mkt.spySpot+0.55,mkt.fep+0.25);
+  const target=dir==='WAIT'?null:isC?Math.min(Math.max(mkt.callWall,hi20,mkt.spySpot+0.8),mkt.spySpot+1.8):Math.max(Math.min(mkt.putWall,lo20,mkt.spySpot-0.8),mkt.spySpot-1.8);
+  const score=dir==='CALL'?call:dir==='PUT'?put:Math.max(call,put);
+  const mode=pinMode&&!freeMove?'PIN_RANGE':freeMove?'GEX_EXPANSION':'EDGE';
+  return{dir,score,mode,reason:reasons.slice(-3).join(' + ')||'no deterministic edge',stop,target};
+}
+| STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
   const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"}${mkt.isPremarket?" | PREMARKET":""}

@@ -214,11 +214,12 @@ function thesisMomentum(curr,prev){if(!prev)return{call:0,put:0,wait:0};return{c
 function pushReason(arr,label,delta){arr.push({label,delta});}
 function computeEdgeScore(scores){const vals=[scores.call,scores.put,scores.wait].sort((a,b)=>b-a);return vals[0]-vals[1];}
 
-// v8: thresholds lowered from v7's 62/12/8 — that combo meant CALL/PUT essentially never
-// beat WAIT's baseline stacking (convergence+7, FEP-anchor+8, low-accel+9, theta+10-16).
-// 55/8/5 lets genuine multi-signal stacks actually clear the bar. scalpEdge is a fast-path
-// for accel spikes (>=11 on a rising slope) that bypasses the full entryBias gate entirely,
-// so a 1-2 tick spike caught by an event-driven AI call (see doTick) can still fire.
+// v9: full rebalance. v8 lowered the threshold but left the weight accumulation itself
+// broken — WAIT stacks premarket+35, theta+10/+16, compressed-range+14, dominant-GEX+15
+// while CALL/PUT often got boosted SIMULTANEOUSLY by the same signal (accel expanding
+// used to add +8 to both, canceling separation). Fixed here: accel boost now goes only
+// to the side price is actually moving; WAIT's structural boosts cut roughly in half;
+// entry threshold dropped to a realistic level given the smaller base spread (33/33/34).
 function computeTheses(mkt,hist,prev){
   const div=mkt.itsSPX-mkt.itsSPY,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3,ac=mkt.accelerator||0,netGex=mkt.netGex||0;
   const l6=hist.slice(-6),l12=hist.slice(-12);
@@ -232,26 +233,27 @@ function computeTheses(mkt,hist,prev){
 
   if(div<-0.5){call+=14;put-=4;wait-=6;pushReason(callReasons,"SPX ITS leading SPY",14);}
   else if(div>0.5){put+=8;call-=6;wait+=4;pushReason(putReasons,"SPY leading / call caution",8);pushReason(waitReasons,"retail-led caution",4);}
-  else{wait+=7;pushReason(waitReasons,"ITS convergence / unclear leadership",7);}
-  if(ac>9&&accelSlope>=0){call+=8;put+=8;wait-=6;pushReason(callReasons,"accelerator expanding",8);pushReason(putReasons,"accelerator expanding",8);}
-  else if(ac>9&&accelSlope<0){wait+=10;call-=5;put-=5;pushReason(waitReasons,"accelerator peaked / rolling",10);}
-  else if(ac<3.5){wait+=9;pushReason(waitReasons,"low acceleration",9);}
+  else{wait+=4;pushReason(waitReasons,"ITS convergence / unclear leadership",4);}
+  // v9: accel boost now directional (follows priceSlope), not both sides at once
+  if(ac>7&&accelSlope>=0){if(priceSlope>=0){call+=12;pushReason(callReasons,"accelerator expanding into upside momentum",12);}else{put+=12;pushReason(putReasons,"accelerator expanding into downside momentum",12);}wait-=6;}
+  else if(ac>9&&accelSlope<0){wait+=6;call-=3;put-=3;pushReason(waitReasons,"accelerator peaked / rolling",6);}
+  else if(ac<3.5){wait+=5;pushReason(waitReasons,"low acceleration",5);}
   if(fg>0.6&&priceSlope>0){call+=9;put-=4;pushReason(callReasons,"spot above FEP with upward slope",9);}
   else if(fg<-0.6&&priceSlope<0){put+=9;call-=4;pushReason(putReasons,"spot below FEP with downward slope",9);}
-  else if(Math.abs(fg)<0.35){wait+=8;pushReason(waitReasons,"spot anchored to FEP",8);}
+  else if(Math.abs(fg)<0.35){wait+=4;pushReason(waitReasons,"spot anchored to FEP",4);}
 
-  if(netGex>0&&gi>0.65){wait+=15;call-=5;put-=5;pushReason(waitReasons,"dominant positive GEX pin risk",15);}
+  if(netGex>0&&gi>0.65){wait+=8;call-=3;put-=3;pushReason(waitReasons,"dominant positive GEX pin risk",8);}
   else if(netGex<0&&gi>0.35){call+=5;put+=10;wait-=6;pushReason(putReasons,"negative GEX amplification",10);pushReason(callReasons,"free-move volatility",5);}
   else if(gi<0.25){call+=5;put+=5;wait-=5;pushReason(callReasons,"GEX weak / directional unlock",5);pushReason(putReasons,"GEX weak / directional unlock",5);}
   if(mkt.spySpot>mkt.gammaFlip&&priceSlope>0){call+=7;pushReason(callReasons,"above gamma flip",7);}
   if(mkt.spySpot<mkt.gammaFlip&&priceSlope<0){put+=7;pushReason(putReasons,"below gamma flip",7);}
-  if(Math.abs(mkt.spySpot-mkt.callWall)<0.8&&priceSlope<=0){put+=6;wait+=6;call-=7;pushReason(putReasons,"call wall rejection risk",6);pushReason(waitReasons,"near call wall",6);}
-  if(Math.abs(mkt.spySpot-mkt.putWall)<0.8&&priceSlope>=0){call+=6;wait+=6;put-=7;pushReason(callReasons,"put wall bounce risk",6);pushReason(waitReasons,"near put wall",6);}
-  if(range12>0&&range12<0.9){wait+=14;pushReason(waitReasons,"compressed range / pin behavior",14);}
+  if(Math.abs(mkt.spySpot-mkt.callWall)<0.8&&priceSlope<=0){put+=6;wait+=3;call-=7;pushReason(putReasons,"call wall rejection risk",6);pushReason(waitReasons,"near call wall",3);}
+  if(Math.abs(mkt.spySpot-mkt.putWall)<0.8&&priceSlope>=0){call+=6;wait+=3;put-=7;pushReason(callReasons,"put wall bounce risk",6);pushReason(waitReasons,"near put wall",3);}
+  if(range12>0&&range12<0.9){wait+=6;pushReason(waitReasons,"compressed range / pin behavior",6);}
   if(mkt.isPremarket){wait+=35;call-=20;put-=20;pushReason(waitReasons,"premarket observe-only",35);}
   const mLeft=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
-  if(mLeft<90){wait+=10;call-=4;put-=4;pushReason(waitReasons,"theta window penalty",10);}
-  if(mLeft<35){wait+=16;call-=6;put-=6;pushReason(waitReasons,"final theta endgame",16);}
+  if(mLeft<90){wait+=5;call-=2;put-=2;pushReason(waitReasons,"theta window penalty",5);}
+  if(mLeft<35){wait+=8;call-=3;put-=3;pushReason(waitReasons,"final theta endgame",8);}
 
   if(belowFepCount>=4&&priceSlope<-0.6){put+=22;wait-=12;call-=8;pushReason(putReasons,"persistent downside acceptance below FEP",22);}
   if(aboveFepCount>=4&&priceSlope>0.6){call+=22;wait-=12;put-=8;pushReason(callReasons,"persistent upside acceptance above FEP",22);}
@@ -269,8 +271,12 @@ function computeTheses(mkt,hist,prev){
   const mom=thesisMomentum(scores,prev?.scores);
   const winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
   const edgeScore=computeEdgeScore(scores);
-  const entryBias=scores.call>=55&&scores.call>scores.put+8&&scores.call>scores.wait+5?"CALL":scores.put>=55&&scores.put>scores.call+8&&scores.put>scores.wait+5?"PUT":"WAIT";
-  const scalpEdge=ac>=11&&accelSlope>0.5&&!mkt.isPremarket&&mLeft>=90;
+  // v9: threshold dropped to 42 with a +6 margin — realistic given the rebalanced weights
+  // above no longer let WAIT out-accumulate everything else by default.
+  const entryBias=scores.call>=42&&scores.call>scores.put+6&&scores.call>scores.wait?"CALL":scores.put>=42&&scores.put>scores.call+6&&scores.put>scores.wait?"PUT":"WAIT";
+  // v9: scalpEdge bar lowered 11->8.5, since accel rarely sustains above 11 for a full tick
+  // (your 10:24 log: "spike failed to hold above 11" — that was the mechanism starving itself).
+  const scalpEdge=ac>=8.5&&accelSlope>0.3&&!mkt.isPremarket&&mLeft>=90;
   const scalpDir=priceSlope>=0?"CALL":"PUT";
   const state=entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":scores.wait>=45&&scores.call<65&&scores.put<65?"WAIT_DOMINANT":scores.call>=45&&scores.call>=scores.put?"CALL_BUILDING":scores.put>=45?"PUT_BUILDING":"NO_EDGE";
   return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
@@ -291,7 +297,7 @@ function findStrike(spot,iv,mL,isCall){
   return null;
 }
 
-async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount){
+async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<90,div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
@@ -301,7 +307,7 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const optStr=mkt.isPremarket?"PREMARKET — observe only"
     :callOpt||putOpt?`PRE-PRICED:\n${callOpt?`CALL: ${callOpt.strike}C @ $${callOpt.price.toFixed(2)}`:"CALL: none"}\n${putOpt?`PUT: ${putOpt.strike}P @ $${putOpt.price.toFixed(2)}`:"PUT: none"}`
     :pos?"MANAGE POSITION":"NO ENTRIES";
-  const rH=hist.slice(-4).map(c=>`${c.t} SPY:${c.spySpot.toFixed(2)} SPX-ITS:${c.itsSPX.toFixed(2)} SPY-ITS:${c.itsSPY.toFixed(2)} DIV:${(c.itsSPX-c.itsSPY).toFixed(2)} ACCEL:${c.accel.toFixed(1)}`).join("\n");
+  const rH=hist.slice(-8).map(c=>`${c.t} SPY:${c.spySpot.toFixed(2)} SPX-ITS:${c.itsSPX.toFixed(2)} SPY-ITS:${c.itsSPY.toFixed(2)} DIV:${(c.itsSPX-c.itsSPY).toFixed(2)} ACCEL:${c.accel.toFixed(1)}`).join("\n");
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
   const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
@@ -311,6 +317,8 @@ BAL:$${bal.toFixed(0)} | ${posStr}
 
 SESSION JOURNAL:
 ${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}
+
+${sessionSummary||"Session just opened."}
 
 REGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})
 CONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}
@@ -501,6 +509,7 @@ export default function App(){
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const thesisHistR=useRef([]),prevAccelR=useRef(0),lastAiTickR=useRef(-99),repeatWaitR=useRef(0),lastWaitReasonR=useRef("");
+  const sessionOpenR=useRef(null),sessionHighR=useRef(-Infinity),sessionLowR=useRef(Infinity),aboveFepTotalR=useRef(0),belowFepTotalR=useRef(0);
   const[thesisData,setThesisData]=useState({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const[thesisHist,setThesisHist]=useState([]);
   const[callTrigger,setCallTrigger]=useState(null),[putTrigger,setPutTrigger]=useState(null);
@@ -531,17 +540,24 @@ export default function App(){
     setItsSPXHist(prev=>[...prev.slice(-150),m.itsSPX]);
     setItsSPYHist(prev=>[...prev.slice(-150),m.itsSPY]);
     thesisHistR.current=[...thesisHistR.current.slice(-150),{t:c.t,call:nt.scores.call,put:nt.scores.put,wait:nt.scores.wait}];setThesisHist([...thesisHistR.current]);
+    if(!m.isPremarket){
+      if(sessionOpenR.current==null)sessionOpenR.current=m.spySpot;
+      sessionHighR.current=Math.max(sessionHighR.current,m.spySpot);
+      sessionLowR.current=Math.min(sessionLowR.current,m.spySpot);
+      if(m.spySpot>m.fep)aboveFepTotalR.current++;else if(m.spySpot<m.fep)belowFepTotalR.current++;
+    }
     setCallTrigger(Math.max(m.gammaFlip,m.fep+0.6));
     setPutTrigger(Math.min(m.gammaFlip,m.fep-0.6));
     const top=Object.entries(np).sort((a,b)=>b[1]-a[1])[0][0];
     if(top!==lastSR.current){lastSR.current=top;tlR.current=[...tlR.current,{t:fmt.time(m.h,m.m),state:top,probs:{...np}}];setTimeline([...tlR.current]);}
-    const accelCrossed=m.accelerator>=9&&prevAccelR.current<9;
+    const accelCrossed=m.accelerator>=8.5&&prevAccelR.current<8.5;
     const spikeReady=(nt.scalpEdge||accelCrossed)&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current)
+      const sessionSummary=sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.";
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary)
         .then(dec=>{
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
@@ -569,6 +585,8 @@ export default function App(){
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
+    sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
+    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[]);
@@ -889,11 +907,7 @@ export default function App(){
 
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{fontSize:8,color:T.muted,marginBottom:5}}>SPEED · {speed}x</div>
-          <input type="range" min="0.5" max="10" step="0.5" value={speed} onChange={e=>setSpeed(Number(e.target.value))} style={{width:"100%",accentColor:T.accent,marginBottom:8}}/>
-          <div style={{fontSize:8,color:T.muted,marginBottom:5}}>AI EVERY</div>
-          <div style={{display:"flex",gap:5}}>
-            {[5,8,12,20].map(n=><button key={n} onClick={()=>setAiFreq(n)} style={{flex:1,padding:"4px 0",background:aiFreq===n?T.accent:"transparent",color:aiFreq===n?T.bg:T.muted,border:`1px solid ${aiFreq===n?T.accent:T.border}`,borderRadius:3,fontFamily:"monospace",fontSize:8,cursor:"pointer"}}>{n}t</button>)}
-          </div>
+          <input type="range" min="0.5" max="10" step="0.5" value={speed} onChange={e=>setSpeed(Number(e.target.value))} style={{width:"100%",accentColor:T.accent}}/>
         </div>
 
         {done&&<div style={{background:pnl>=0?T.accentDim:T.redDim,borderRadius:8,border:`1px solid ${pnl>=0?T.accent:T.red}40`,margin:"0 14px 8px",padding:16,textAlign:"center"}}>

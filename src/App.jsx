@@ -117,6 +117,7 @@ function createSeedEngine(forceArcheId){
     const newAccel=clamp(s.accelerator*0.77+(2.6+Math.abs(dSpy)*17*volMult)*0.23+(t>=session.macroTick+10&&t<session.macroTick+14?4.5:0)+(squeezeForce!==0?3.8:0)+(Math.random()-0.5)*0.55,1,14);
     let newNetGex=s.netGex*0.999+(Math.random()-0.5)*Math.abs(s.netGex)*0.002;
     let newCallDom=clamp(s.callDom*0.88+(0.5+session.instBias+mom*0.03)*0.12+(Math.random()-0.5)*0.04,0.15,0.95);
+    // EOD gamma collapse mechanic (spx_squeeze_collapse archetype, modeled on Jul 1's real -1T EOD flip as 0DTEs expire)
     if(session.eodCollapse&&!isPre){
       const minsLeft=(SESSION_END_H*60+SESSION_END_M)-(s.h*60+s.m);
       if(minsLeft<=25){
@@ -344,17 +345,21 @@ RULES:
 - Exit: accel peaks+rolls OR FEP catches spot OR GEX regime shifts OR opposite thesis overtakes entry thesis.
 - No entries: premarket, theta crush, already in position.
 - GEX DOMINANT(>70%): pin/chop only | GEX WEAK(<30%): free move, higher directional conviction${repeatStr}
+- CRITICAL — decision/journal consistency: "decision" is the ONLY field that executes anything. If journal_entry describes firing, entering, or an edge going live, decision MUST equal BUY_CALL or BUY_PUT to match — never narrate an entry without setting decision accordingly, and never set decision to BUY_CALL/BUY_PUT without journal_entry reflecting it.
+- CRITICAL — only write a NEW journal_entry if something material changed since the last entry above (thesis leader flipped, a level was crossed/approached, accel crossed 7 or 9, ITS lead flipped sign, a trade fired/closed). If nothing material changed, set journal_entry to an empty string "" — do not manufacture a fresh narrative every check just because you were asked again.
+- You do not know exact elapsed durations beyond what's given to you in "Price has held within 15c..." above. Never invent a duration in minutes yourself — use the provided number or omit duration language entirely.
 ${rulesStr}
 
 Respond ONLY valid JSON:
 {"decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR"}`;
   const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
-  if(!resp.ok)throw new Error(`${resp.status}`);
+  if(!resp.ok)throw new Error(`API ${resp.status}`);
   const data=await resp.json();
   const raw=typeof data==="string"?data:JSON.stringify(data);
   const match=raw.match(/\{[\s\S]*\}/);
-  const parsed=match?JSON.parse(match[0]):data;
-  if(!parsed.decision)throw new Error("bad shape");
+  let parsed;
+  try{parsed=match?JSON.parse(match[0]):data;}catch(e){throw new Error(`JSON parse failed: ${e.message} — raw: ${raw.slice(0,80)}`);}
+  if(!parsed.decision)throw new Error(`missing decision field — raw: ${raw.slice(0,80)}`);
   return{...parsed,callOpt,putOpt};
 }
 
@@ -381,7 +386,11 @@ function Spark({data,color,h=36,w=120,fill=false}){
 function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,callTrigger,putTrigger}){
   const ref=useRef(null);
   const[scrollX,setScrollX]=useState(0),[drag,setDrag]=useState(false),[ds,setDs]=useState(0),[ss,setSs]=useState(0),[hov,setHov]=useState(null);
-  const W=340,H=130,STEP=6,PT=6,PB=20,PL=6;
+  // v10: default view only ever showed the latest ~56 ticks (W/STEP). fitDay compresses the
+  // whole session's candle history into view instead — this is the "show the whole chart" fix.
+  const[fitDay,setFitDay]=useState(false);
+  const W=340,H=130,PT=6,PB=20,PL=6;
+  const STEP=fitDay?Math.max(0.6,(W-PL-6)/Math.max(1,candles.length)):6;
   const tot=Math.max(W,candles.length*STEP+PL+6),maxS=Math.max(0,tot-W);
   useEffect(()=>{if(!drag)setScrollX(maxS);},[candles.length,maxS,drag]);
   const sp=candles.map(c=>c.spySpot);
@@ -401,6 +410,7 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
       <div style={{background:"#141920",borderBottom:"1px solid #1a2030",padding:"4px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{fontSize:9,color:isPremarket?"#f0c040":"#4a5568"}}>{isPremarket?"PREMARKET":"PRICE"}</span>
         <span style={{fontSize:11,fontWeight:700,color:isPremarket?"#f0c040":"#00d4a8",fontFamily:"monospace"}}>{candles.length>0?candles[candles.length-1].t:"--:--"} ET</span>
+        <button onClick={()=>setFitDay(f=>!f)} style={{fontSize:7,color:fitDay?"#00d4a8":"#4a5568",background:"none",border:`1px solid ${fitDay?"#00d4a8":"#1a2030"}`,borderRadius:2,padding:"1px 5px",cursor:"pointer"}}>{fitDay?"FULL DAY":"ZOOM"}</button>
         <span style={{fontSize:9,color:"#4a5568"}}>{hc?`${hc.t} $${hc.spySpot.toFixed(2)}`:"drag"}</span>
       </div>
       <div ref={ref} style={{overflow:"hidden",cursor:drag?"grabbing":"grab",touchAction:"none",userSelect:"none"}} onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up} onTouchStart={down} onTouchMove={move} onTouchEnd={up}>
@@ -532,7 +542,7 @@ export default function App(){
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
     const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
-    candR.current=[...candR.current.slice(-320),c];setCandles([...candR.current]);
+    candR.current=[...candR.current.slice(-450),c];setCandles([...candR.current]);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
     const np=computeProbs(m,candR.current),nc=computeConf(m,np),nt=computeTheses(m,candR.current,thesisR.current);
     probR.current=np;confR.current=nc;thesisR.current=nt;setProbs({...np});setConfData({...nc});setThesisData({...nt});
@@ -556,7 +566,8 @@ export default function App(){
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
-      const sessionSummary=sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.";
+      let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
+      const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary)
         .then(dec=>{
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
@@ -565,9 +576,16 @@ export default function App(){
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
           if(dec.decision==="SELL"&&posR.current){const p=posR.current,r=(p.current/p.entry-1)*100;balR.current*=(1+r/100);setBal(balR.current);logR.current=[...logR.current,{t:ts,action:`SELL ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:fmt.pct(r),pnl:r}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
-          else if((dec.decision==="BUY_CALL"||dec.decision==="BUY_PUT")&&!posR.current&&mLn>=90&&m.isTradeable){const isC=dec.decision==="BUY_CALL",opt=isC?dec.callOpt:dec.putOpt;if(opt){posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}}
+          else if(dec.decision==="BUY_CALL"||dec.decision==="BUY_PUT"){
+            const isC=dec.decision==="BUY_CALL",opt=isC?dec.callOpt:dec.putOpt;
+            if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else if(mLn<90){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but no option was priceable in the $0.13-$0.28 band this tick — no fill possible.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else{posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
+          }
         })
-        .catch(e=>addM({t:fmt.time(m.h,m.m),mindset:"API error",reasoning:e.message,decision:"WAIT",score:0,edgeState:"—",confTrend:"—"}))
+        .catch(e=>addM({t:fmt.time(m.h,m.m),mindset:"API/parse error",reasoning:e.message||"unknown error",decision:"WAIT",score:0,edgeState:"ERROR",confTrend:"—"}))
         .finally(()=>{thinkR.current=false;setThinking(false);});
     }
   },[aiFreq,addM,addJournal,rules.approved]);

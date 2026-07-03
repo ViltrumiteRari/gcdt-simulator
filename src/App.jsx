@@ -89,7 +89,7 @@ function createSeedEngine(forceArcheId){
   const callDomStart=lerp(arche.callDomRange[0],arche.callDomRange[1],Math.random());
   const spotStart=741.26+(Math.random()-0.5)*8;
   const session={archetype:arche.id,archetypeLabel:arche.label,sourceDay:arche.sourceDay,fidelity:arche.fidelity,dataBasis:"archetype",dayType:arche.dayType,eodCollapse:!!arche.eodCollapse,gexRange:arche.gexRange,macroTick:Math.floor(20+Math.random()*200),macroMag:(Math.random()>0.5?1:-1)*(1.8+Math.random()*3.2),macroRecovery:Math.random()>0.45,squeezeTick:Math.floor(60+Math.random()*160),squeezeDir:Math.random()>0.5?1:-1,charmDecayRate:0.003+Math.random()*0.004,gexDominance:arche.pinBias,fakeoutTick:Math.floor(35+Math.random()*140),hasFakeout:Math.random()>0.5,volLevel:clamp((accelStart-3)/6,0.1,1),instBias:(callDomStart-0.5)};
-  let s={spySpot:spotStart,spxSpot:spotStart*10,gammaFlip:spotStart+(Math.random()-0.5)*3,callWall:spotStart+arche.wallGap,putWall:spotStart-arche.wallGap*2.4,fep:spotStart-0.5,accelerator:accelStart,netGex:netGexStart,itsSPX:itsFromGex(callDomStart,netGexStart,5.2),itsSPY:4.8,ndf:0.12,dealerPct:22,iv:ivStart,pcr:0.88,gexInfluence:0.08,callDom:callDomStart,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spyLagBuffer:[4.8,4.8,4.8]};
+  let s={spySpot:spotStart,spxSpot:spotStart*10,gammaFlip:spotStart+(Math.random()-0.5)*3,callWall:spotStart+arche.wallGap,putWall:spotStart-arche.wallGap*2.4,fep:spotStart-0.5,accelerator:accelStart,netGex:netGexStart,itsSPX:itsFromGex(callDomStart,netGexStart,5.2),itsSPY:4.8,ndf:0.12,dealerPct:22,iv:ivStart,pcr:0.88,gexInfluence:0.08,callDom:callDomStart,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spyLagBuffer:[4.8,4.8,4.8],pinPressure:0,lastImpulseTick:-999};
   function gexInfAt(tick){const isPost=s.h>OPEN_H||(s.h===OPEN_H&&s.m>=OPEN_M);if(!isPost)return 0.08;const st=tick-10,prog=Math.max(0,st/390);const bell=Math.sin(prog*Math.PI)*0.85+0.15;const decay=Math.exp(-session.charmDecayRate*st);return Math.min(0.95,bell*session.gexDominance*decay+(1-decay)*0.08);}
   function tick(){
     const t=s.tick,isPre=s.h<OPEN_H||(s.h===OPEN_H&&s.m<OPEN_M),gi=gexInfAt(t),posGex=s.netGex>0,st=isPre?0:t-10,prog=Math.max(0,st/390);
@@ -107,14 +107,24 @@ function createSeedEngine(forceArcheId){
     if(!isPre&&session.dayType==="squeeze"&&t>=session.squeezeTick&&t<session.squeezeTick+6)squeezeForce=session.squeezeDir*(0.28+Math.random()*0.18);
     let fakeout=0;
     if(!isPre&&session.hasFakeout){if(t>=session.fakeoutTick&&t<session.fakeoutTick+4)fakeout=-drift*2.8;else if(t>=session.fakeoutTick+4&&t<session.fakeoutTick+10)fakeout=drift*2.0;}
+    const fepTouch=Math.abs(s.spySpot-s.fep)<0.28;
+    const wallTouch=Math.abs(s.spySpot-s.callWall)<0.55||Math.abs(s.spySpot-s.putWall)<0.55||Math.abs(s.spySpot-s.gammaFlip)<0.45;
+    const nextPinPressure=Math.max(0,Math.min(18,(s.pinPressure||0)+(fepTouch||wallTouch?1.4:-0.7)));
+    let impulseForce=0;
+    const burstChance=session.dayType==="pin"?0.014:session.dayType==="trend_up"||session.dayType==="trend_down"?0.021:0.018;
+    if(!isPre&&t-(s.lastImpulseTick||-999)>12&&Math.random()<burstChance){impulseForce=(Math.random()>0.5?1:-1)*(1.4+Math.random()*4.8);s.lastImpulseTick=t;}
+    if(!isPre&&nextPinPressure>8&&t-(s.lastImpulseTick||-999)>8){const dir=Math.random()<0.58?(session.instBias>=0?1:-1):(Math.random()>0.5?1:-1);impulseForce+=dir*(1.2+Math.random()*3.4);s.lastImpulseTick=t;}
     const mLeft=(SESSION_END_H*60)-(s.h*60+s.m),thetaMult=mLeft<90?0.50+(mLeft/90)*0.50:1.0;
     const noise=(Math.random()-0.5)*0.40*volMult*thetaMult;
-    const dSpy=(drift+gexForce+macroForce+squeezeForce+fakeout)*thetaMult+noise;
-    const newSpySpot=Math.max(s.putWall-(posGex?1:3),Math.min(s.callWall+(posGex?0.5:3.5),s.spySpot+dSpy));
+    const dSpy=(drift+gexForce+macroForce+squeezeForce+fakeout+impulseForce)*thetaMult+noise;
+    const softLo=s.putWall-(posGex?2.5:6.5),softHi=s.callWall+(posGex?2.5:6.5);
+    let newSpySpot=s.spySpot+dSpy;
+    if(newSpySpot<softLo)newSpySpot=softLo+(newSpySpot-softLo)*0.22;
+    if(newSpySpot>softHi)newSpySpot=softHi+(newSpySpot-softHi)*0.22;
     const newSpxSpot=newSpySpot*10+(Math.random()-0.5)*2;
     const newFep=s.fep*0.87+(newSpySpot-(Math.random()-0.47)*1.5)*0.13;
     const mom=(newSpySpot-s.spySpot)/Math.max(0.01,Math.abs(s.spySpot))*1000;
-    const newAccel=clamp(s.accelerator*0.77+(2.6+Math.abs(dSpy)*17*volMult)*0.23+(t>=session.macroTick+10&&t<session.macroTick+14?4.5:0)+(squeezeForce!==0?3.8:0)+(Math.random()-0.5)*0.55,1,14);
+    const newAccel=clamp(s.accelerator*0.77+(2.6+Math.abs(dSpy)*17*volMult)*0.23+(t>=session.macroTick+10&&t<session.macroTick+14?4.5:0)+(squeezeForce!==0?3.8:0)+(impulseForce!==0?3.2:0)+(Math.random()-0.5)*0.55,1,14);
     let newNetGex=s.netGex*0.999+(Math.random()-0.5)*Math.abs(s.netGex)*0.002;
     let newCallDom=clamp(s.callDom*0.88+(0.5+session.instBias+mom*0.03)*0.12+(Math.random()-0.5)*0.04,0.15,0.95);
     // EOD gamma collapse mechanic (spx_squeeze_collapse archetype, modeled on Jul 1's real -1T EOD flip as 0DTEs expire)
@@ -136,7 +146,7 @@ function createSeedEngine(forceArcheId){
     const newPcr=clamp(s.pcr*0.93+(0.88+(Math.random()-0.5)*0.16)*0.07,0.45,2.6);
     let{h,m}=s;m++;if(m>=60){m=0;h++;}
     const newPre=h<OPEN_H||(h===OPEN_H&&m<OPEN_M);
-    s={...s,spySpot:newSpySpot,spxSpot:newSpxSpot,fep:newFep,accelerator:newAccel,netGex:newNetGex,itsSPX:newItsSPX,itsSPY:newItsSPY,callDom:newCallDom,ndf:newNdf,dealerPct:newDealer,iv:newIv,pcr:newPcr,gexInfluence:gexInfAt(t+1),tick:t+1,h,m,isPremarket:newPre,isTradeable:!newPre,spyLagBuffer:lagBuf};
+    s={...s,spySpot:newSpySpot,spxSpot:newSpxSpot,fep:newFep,accelerator:newAccel,netGex:newNetGex,itsSPX:newItsSPX,itsSPY:newItsSPY,callDom:newCallDom,ndf:newNdf,dealerPct:newDealer,iv:newIv,pcr:newPcr,gexInfluence:gexInfAt(t+1),tick:t+1,h,m,isPremarket:newPre,isTradeable:!newPre,spyLagBuffer:lagBuf,pinPressure:impulseForce!==0?0:nextPinPressure,lastImpulseTick:s.lastImpulseTick};
     return{...s,session,mode:"seed",archetypeLabel:session.archetypeLabel,sourceDay:session.sourceDay,fidelity:session.fidelity,dataBasis:"archetype"};
   }
   return{tick,getSession:()=>({...session}),peek:()=>({...s}),mode:"seed"};
@@ -305,7 +315,9 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules){
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
   const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}\nCALL reasons: ${(th.call.reasons||[]).slice(0,4).map(r=>r.label).join(", ")||"none"}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nCALL invalidations: ${(th.call.invalidations||[]).join(", ")||"none"}\nPUT reasons: ${(th.put.reasons||[]).slice(0,4).map(r=>r.label).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}\nPUT invalidations: ${(th.put.invalidations||[]).join(", ")||"none"}\nWAIT reasons: ${(th.wait.reasons||[]).slice(0,4).map(r=>r.label).join(", ")||"none"}`;
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
-  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"}${mkt.isPremarket?" | PREMARKET":""}\nBAL:$${bal.toFixed(0)} | ${posStr}\n\nSESSION JOURNAL:\n${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}\n\nREGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})\nCONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}\n\nTHESIS WEIGHTS:\n${thesisStr}\n\nSPY: $${mkt.spySpot.toFixed(2)} | SPX: ${mkt.spxSpot.toFixed(0)}\nSPX-ITS: ${mkt.itsSPX.toFixed(2)} | SPY-ITS: ${mkt.itsSPY.toFixed(2)} | DIV: ${div.toFixed(2)} (${div<-0.4?"SPX LEADS=conviction":div>0.4?"SPY LEADS=caution":"CONVERGED"})\nFlip: $${mkt.gammaFlip.toFixed(2)} ${mkt.spySpot>mkt.gammaFlip?"ABOVE":"BELOW"} | Walls: C$${mkt.callWall.toFixed(1)} P$${mkt.putWall.toFixed(1)}\nGEX: ${gexStr} | ACCEL: ${mkt.accelerator.toFixed(2)} | NDF: ${mkt.ndf.toFixed(3)} | IV: ${mkt.iv.toFixed(1)}%\nFEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}\n\n${optStr}\n\nRECENT:\n${rH}\n\nRULES:\n- Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis.\n- Do not only explain why waiting is safe. Decide which thesis is strengthening and what fires it.\n- If ENTRY_READY_CALL or ENTRY_READY_PUT is active, invalidations are absent, and an option exists, act.
+  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"}${mkt.isPremarket?" | PREMARKET":""}\nBAL:$${bal.toFixed(0)} | ${posStr}\n\nSESSION JOURNAL:\n${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}\n\nREGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})\nCONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}\n\nTHESIS WEIGHTS:\n${thesisStr}\n\nSPY: $${mkt.spySpot.toFixed(2)} | SPX: ${mkt.spxSpot.toFixed(0)}\nSPX-ITS: ${mkt.itsSPX.toFixed(2)} | SPY-ITS: ${mkt.itsSPY.toFixed(2)} | DIV: ${div.toFixed(2)} (${div<-0.4?"SPX LEADS=conviction":div>0.4?"SPY LEADS=caution":"CONVERGED"})\nFlip: $${mkt.gammaFlip.toFixed(2)} ${mkt.spySpot>mkt.gammaFlip?"ABOVE":"BELOW"} | Walls: C$${mkt.callWall.toFixed(1)} P$${mkt.putWall.toFixed(1)}\nGEX: ${gexStr} | ACCEL: ${mkt.accelerator.toFixed(2)} | NDF: ${mkt.ndf.toFixed(3)} | IV: ${mkt.iv.toFixed(1)}%\nFEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}\n\n${optStr}\n\nRECENT:\n${rH}\n\nRULES:\n- Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis.\n- Do not only explain why waiting is safe. Decide which thesis is strengthening and what fires it.\n- If SCALP EDGE condition is true → allow BUY_CALL or BUY_PUT even without ENTRY_READY
+- Else if ENTRY_READY_CALL or ENTRY_READY_PUT is active, invalidations are absent, and an option exists → SWING trade
+- Else → WAIT
 - Persistent price acceptance below FEP/gamma flip can confirm PUT without accelerator expansion. Persistent price acceptance above FEP/gamma flip can confirm CALL without accelerator expansion.\n- A growing CALL thesis does not erase PUT. A growing PUT thesis does not erase CALL.\n- If in a position and opposite thesis or WAIT overtakes the entry thesis, SELL first.\n- No entries: premarket, theta crush, already in position.\n${rulesStr}\n\nRespond ONLY valid JSON. No markdown. No commentary.
 {"decision":"WAIT","reasoning":"one sentence","mindset":"one short phrase","journal_entry":"one sentence","edge_state":"NO_EDGE","confidence_trend":"UNCLEAR","call_fire":"none","put_fire":"none","wait_thesis":"one sentence"}`;
   const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});

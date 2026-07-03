@@ -295,6 +295,22 @@ function computeTheses(mkt,hist,prev){
   return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
 }
 
+function computeLeadLag(mkt,hist){
+  const l4=hist.slice(-4),l8=hist.slice(-8);
+  const base=l4[0]||hist[0]||mkt,base8=l8[0]||base;
+  const spxMove=((mkt.spxSpot-(base.spxSpot??mkt.spxSpot))/10),spyMove=mkt.spySpot-(base.spySpot??mkt.spySpot);
+  const spxMove8=((mkt.spxSpot-(base8.spxSpot??mkt.spxSpot))/10),spyMove8=mkt.spySpot-(base8.spySpot??mkt.spySpot);
+  const gap=spxMove-spyMove,magGap=Math.abs(gap),dir=spxMove>0.18?'UP':spxMove<-0.18?'DOWN':'FLAT';
+  const spySame=dir==='UP'?spyMove>0.05:dir==='DOWN'?spyMove<-0.05:false;
+  const spyReject=dir==='UP'?spyMove<-0.04:dir==='DOWN'?spyMove>0.04:false;
+  const spyLagging=dir!=='FLAT'&&!spyReject&&Math.abs(spyMove)<Math.abs(spxMove)*0.55;
+  const spyCatching=dir!=='FLAT'&&spySame&&Math.abs(spyMove)>=Math.abs(spxMove)*0.70;
+  const opportunity=dir!=='FLAT'&&spyLagging&&magGap>=0.18;
+  const learned=l8.length>=6?`8t SPX:${spxMove8>=0?'+':''}${spxMove8.toFixed(2)} vs SPY:${spyMove8>=0?'+':''}${spyMove8.toFixed(2)}`:'warming up';
+  const state=spyReject?'SPY_REJECTING_SPX':spyCatching?'SPY_CATCHING_UP':spyLagging?'SPY_LAGGING_SPX':'NO_CLEAR_LAG';
+  const tradeHint=opportunity?(dir==='UP'?'CALL catch-up watch if SPY clears micro level':'PUT catch-down watch if SPY loses micro level'):'lead-lag context only';
+  return{dir,spxMove,spyMove,gap,magGap,state,opportunity,learned,tradeHint,text:`SPX lead-lag: ${dir} | ${state} | 4t SPX:${spxMove>=0?'+':''}${spxMove.toFixed(2)} vs SPY:${spyMove>=0?'+':''}${spyMove.toFixed(2)} gap:${gap>=0?'+':''}${gap.toFixed(2)} | ${learned} | ${tradeHint}`};
+}
 function computeDeterministicPlan(mkt,hist,probs,thesis){
   const l6=hist.slice(-6),l12=hist.slice(-12),l20=hist.slice(-20);
   const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
@@ -324,8 +340,8 @@ function computeDeterministicPlan(mkt,hist,probs,thesis){
   if(mkt.netGex<0&&gexVel<0&&Math.abs(priceSlope12)>0.75){if(priceSlope12>0)call+=14;else put+=14;reasons.push('negative GEX velocity follows move');}
   const dir=call>=28&&call>put+4?'CALL':put>=28&&put>call+4?'PUT':'WAIT';
   const isC=dir==='CALL';
-  const stop=dir==='WAIT'?null:isC?Math.min(mkt.spySpot-0.55,mkt.fep-0.25):Math.max(mkt.spySpot+0.55,mkt.fep+0.25);
-  const target=dir==='WAIT'?null:isC?Math.min(Math.max(mkt.callWall,hi20,mkt.spySpot+0.8),mkt.spySpot+1.8):Math.max(Math.min(mkt.putWall,lo20,mkt.spySpot-0.8),mkt.spySpot-1.8);
+  const stop=dir==='WAIT'?null:isC?Math.max(mkt.spySpot-0.22,mkt.fep-0.12):Math.min(mkt.spySpot+0.22,mkt.fep+0.12);
+  const target=dir==='WAIT'?null:isC?Math.min(Math.max(mkt.callWall,hi20,mkt.spySpot+0.55),mkt.spySpot+1.25):Math.max(Math.min(mkt.putWall,lo20,mkt.spySpot-0.55),mkt.spySpot-1.25);
   const score=dir==='CALL'?call:dir==='PUT'?put:Math.max(call,put);
   const mode=pinMode&&!freeMove?'PIN_RANGE':freeMove?'GEX_EXPANSION':'EDGE';
   return{dir,score,mode,reason:reasons.slice(-3).join(' + ')||'no deterministic edge',stop,target};
@@ -401,13 +417,13 @@ THESIS WEIGHTS: ${thesisStr}
 
 RULES:
 - Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis, not a default.
-- If SCALP EDGE FIRING is present above, take BUY_CALL/BUY_PUT in that direction immediately — this is a live accelerator spike, do not wait for the full thesis stack to agree, it will decay before next check.
-- Else if BIAS is CALL or PUT and no invalidations are firing, enter that direction.
-- Else WAIT — but say what specifically would flip it, not just that you're waiting.
-- SPX ITS leads SPY ITS = institutional conviction. SPY leads SPX at resistance = exit/avoid.
-- Exit: accel peaks+rolls OR FEP catches spot OR GEX regime shifts OR opposite thesis overtakes entry thesis.
-- No entries: premarket, theta crush, already in position.
-- GEX DOMINANT(>70%): pin/chop only | GEX WEAK(<30%): free move, higher directional conviction${repeatStr}
+- SCALP EDGE and LOCAL GUIDE are context, not commands. Trade only when the setup matches the playbook and the option/level structure gives asymmetric upside with a tiny invalidation.
+- Ideal entry is a $0.15-$0.25 OTM contract, never above $0.50. Prefer 1-3 high-quality trades, not constant firing.
+- Before entry, define invalidation. If the option goes against you around 5-8% or spot fails the thesis level, SELL immediately.
+- Track SPX→SPY lead-lag. SPX moving first can reveal a 1-2 tick window before SPY reflects it. Treat it as an early-warning hypothesis, not an automatic entry.
+- Exit: first wrong signal wins. Sell on accel peak+roll, FEP catch, GEX regime shift, opposite thesis overtaking, or option loss near -8%. Take profits around +40% unless momentum is still expanding.
+- No entries: premarket, final theta window, already in position, no account equity, or no clean contract under $0.50.
+- GEX DOMINANT(>70%): only range-edge scalps with tight invalidation. GEX WEAK(<30%): free move, but still require price acceptance. Learn intraday whether SPY is obeying SPX lead, rejecting it, or staying pinned. Your job is discretion, not rule obedience.${repeatStr}
 - CRITICAL — decision/journal consistency: "decision" is the ONLY field that executes anything. If journal_entry describes firing, entering, or an edge going live, decision MUST equal BUY_CALL or BUY_PUT to match — never narrate an entry without setting decision accordingly, and never set decision to BUY_CALL/BUY_PUT without journal_entry reflecting it.
 - CRITICAL — only write a NEW journal_entry if something material changed since the last entry above (thesis leader flipped, a level was crossed/approached, accel crossed 7 or 9, ITS lead flipped sign, a trade fired/closed). If nothing material changed, set journal_entry to an empty string "" — do not manufacture a fresh narrative every check just because you were asked again.
 - You do not know exact elapsed durations beyond what's given to you in "Price has held within 15c..." above. Never invent a duration in minutes yourself — use the provided number or omit duration language entirely.
@@ -482,7 +498,7 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
           <rect width={W} height={H} fill="#0e1117"/>
           {openIdx>0&&(()=>{const x=toX(openIdx);if(x>0&&x<W)return<><rect x={0} y={0} width={x} height={H} fill="#f0c040" opacity={0.04}/><line x1={x} y1={PT} x2={x} y2={H-PB} stroke="#f0c040" strokeWidth={0.5} strokeDasharray="2,4" opacity={0.4}/></>;})()}
           {[{v:callWall,c:"#00d4a8",l:"CW"},{v:gammaFlip,c:"#f0c040",l:"FLIP"},{v:putWall,c:"#ff4060",l:"PW"}].map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={0.6} strokeDasharray="3,3" opacity={0.5}/><text x={W-4} y={y-2} fill={c} fontSize={7} textAnchor="end" opacity={0.8}>{l} ${v.toFixed(0)}</text></g>;})}
-          {[{v:callTrigger,c:"#00ff88",l:"CALL BUY"},{v:putTrigger,c:"#ff3366",l:"PUT BUY"},{v:callStop,c:"#f0c040",l:"CALL STOP"},{v:putStop,c:"#f0c040",l:"PUT STOP"}].filter(x=>x.v!=null).map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={1} strokeDasharray={l.includes("STOP")?"4,3":"1,3"} opacity={0.75}/><text x={4} y={y-2} fill={c} fontSize={7} textAnchor="start" opacity={0.9}>{l} ${v.toFixed(2)}</text></g>;})}
+          {position&&[{v:position.targetSpot,c:position.isCall?"#00ff88":"#ff3366",l:"TARGET"},{v:position.stopSpot,c:"#f0c040",l:"STOP"}].filter(x=>x.v!=null).map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={1} strokeDasharray={l==="STOP"?"4,3":"1,3"} opacity={0.7}/><text x={4} y={y-2} fill={c} fontSize={7} textAnchor="start" opacity={0.85}>{l}</text></g>;})}
           {candles.length>1&&<polyline points={candles.map((c,i)=>`${toX(i)+3},${toY(c.spySpot)}`).join(" ")} fill="none" stroke="#dde4f0" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round"/>}
           {candles.length>1&&<polyline points={candles.map((c,i)=>`${toX(i)+3},${toY(c.fep)}`).join(" ")} fill="none" stroke="#4a5568" strokeWidth={0.8} strokeDasharray="2,2" opacity={0.4}/>}
           {position&&(()=>{const ei=candles.findIndex(c=>c.t===position.entryTime);if(ei<0)return null;const x=toX(ei)+3,y=toY(candles[ei].spySpot);return<circle cx={x} cy={y} r={4} fill={position.isCall?"#00d4a8":"#ff4060"} opacity={0.9}/>;})()}
@@ -552,9 +568,9 @@ function OptionChainPanel({chain,pos}){
       <div style={{fontSize:8,color:T.muted,textAlign:"center"}}>STRIKE</div>
       <div style={{fontSize:8,color:T.red,fontWeight:700,textAlign:"right"}}>PUT</div>
       {rows.map(r=>{const ca=pos?.isCall&&pos?.strike===r.strike,pa=pos&&!pos.isCall&&pos.strike===r.strike;return <div key={r.strike} style={{display:"contents"}}>
-        <div style={{fontSize:9,color:ca?T.bg:T.accent,background:ca?T.accent:"transparent",borderRadius:3,padding:"2px 4px"}}>{r.call.price.toFixed(2)} <span style={{fontSize:7,opacity:0.7}}>Δ{r.call.delta.toFixed(2)}</span></div>
+        <div style={{fontSize:9,color:ca?T.bg:(r.call.price<=0.50?T.accent:T.dim),background:ca?T.accent:"transparent",borderRadius:3,padding:"2px 4px"}}>{r.call.price<=0.50?`${r.call.price.toFixed(2)} Δ${r.call.delta.toFixed(2)}`:"—"}</div>
         <div style={{fontSize:9,color:Math.abs(r.strike-chain.spot)<0.26?T.yellow:T.muted,textAlign:"center",fontWeight:Math.abs(r.strike-chain.spot)<0.26?700:400}}>{r.strike.toFixed(1)}</div>
-        <div style={{fontSize:9,color:pa?T.bg:T.red,background:pa?T.red:"transparent",borderRadius:3,padding:"2px 4px",textAlign:"right"}}>{r.put.price.toFixed(2)} <span style={{fontSize:7,opacity:0.7}}>Δ{r.put.delta.toFixed(2)}</span></div>
+        <div style={{fontSize:9,color:pa?T.bg:(r.put.price<=0.50?T.red:T.dim),background:pa?T.red:"transparent",borderRadius:3,padding:"2px 4px",textAlign:"right"}}>{r.put.price<=0.50?`${r.put.price.toFixed(2)} Δ${r.put.delta.toFixed(2)}`:"—"}</div>
       </div>;})}
     </div>
   </div>;
@@ -624,7 +640,7 @@ export default function App(){
     const m=eng.tick();tickR.current++;
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
     const chain=buildOptionChain(m.spySpot,m.iv,mL,20);setOptionChain(chain);
-    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);setBal(size*(p.current/p.entry));if(optPnl>=55||optPnl<=-35||spotFail||spotTarget){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
+    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);setBal(size*(p.current/p.entry));if(optPnl>=40||optPnl<=-8||spotFail||spotTarget){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
     if(m.h>=SESSION_END_H){
       if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
@@ -653,11 +669,12 @@ export default function App(){
     if(top!==lastSR.current){lastSR.current=top;tlR.current=[...tlR.current,{t:fmt.time(m.h,m.m),state:top,probs:{...np}}];setTimeline([...tlR.current]);}
     const accelCrossed=m.accelerator>=8.5&&prevAccelR.current<8.5;
     const det=computeDeterministicPlan(m,candR.current,np,nt);
+    const leadLag=computeLeadLag(m,candR.current);
     const localDir=det.dir;
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
-    if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} armed (${det.score}): ${det.reason}.`:`No local entry. ${det.reason}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
-    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Guide ${localDir} (${det.score}): ${det.reason}${opt?` | suggested ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)}`:" | no <=$0.50 contract"}. AI has discretion; no auto-entry.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
+    if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} armed (${det.score}): ${det.reason}. ${leadLag.text}.`:`No local entry. ${det.reason}. ${leadLag.text}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
+    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Guide ${localDir} (${det.score}): ${det.reason}. ${leadLag.text}${opt?` | suggested ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)}`:" | no <=$0.50 contract"}. AI has discretion; no auto-entry.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
@@ -666,7 +683,7 @@ export default function App(){
       // consecutive recent ticks within 15c of current spot, from actual candle history.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.`)
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`)
         .then(dec=>{
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
@@ -685,7 +702,7 @@ export default function App(){
             else if(mLn<45){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but no option was priceable in the $0.13-$0.28 band this tick — no fill possible.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else{const stopSpot=isC?Math.min(m.spySpot-0.55,m.fep-0.25):Math.max(m.spySpot+0.55,m.fep+0.25);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.8),m.spySpot+1.8):Math.max(Math.min(m.putWall,m.spySpot-0.8),m.spySpot-1.8);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:"AI",size:balR.current};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
+            else{const stopSpot=isC?Math.max(m.spySpot-0.22,m.fep-0.12):Math.min(m.spySpot+0.22,m.fep+0.12);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.55),m.spySpot+1.25):Math.max(Math.min(m.putWall,m.spySpot-0.55),m.spySpot-1.25);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:"AI",size:balR.current};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
           }
         })
         .catch(e=>addM({t:fmt.time(m.h,m.m),mindset:"API/parse error",reasoning:e.message||"unknown error",decision:"WAIT",score:0,edgeState:"ERROR",confTrend:"—"}))

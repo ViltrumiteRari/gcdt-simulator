@@ -201,8 +201,8 @@ function computeProbs(mkt,hist){
 function computeConf(mkt,probs){
   const div=mkt.itsSPX-mkt.itsSPY,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3;
   let score=50;const factors=[];
-  if(div<-0.5){const p=Math.min(22,Math.round(Math.abs(div)*14));score+=p;factors.push({label:"SPX leads SPY (institutional)",delta:p});}
-  else if(div>0.5){const p=-Math.min(18,Math.round(div*11));score+=p;factors.push({label:"SPY leads SPX (retail/caution)",delta:p});}
+  if(div>0.5){const p=Math.min(22,Math.round(Math.abs(div)*14));score+=p;factors.push({label:"SPX leads SPY (institutional)",delta:p});}
+  else if(div<-0.5){const p=-Math.min(18,Math.round(Math.abs(div)*11));score+=p;factors.push({label:"SPY leads SPX (retail/caution)",delta:p});}
   if(mkt.accelerator>6.5){const p=Math.round((mkt.accelerator-5)*3.5);score+=p;factors.push({label:"Accelerator building",delta:p});}
   else if(mkt.accelerator<3.2){const p=-Math.round((4-mkt.accelerator)*4.5);score+=p;factors.push({label:"Accelerator fading",delta:p});}
   if(Math.abs(fg)<0.3){score+=8;factors.push({label:"FEP aligned",delta:8});}
@@ -244,8 +244,8 @@ function computeTheses(mkt,hist,prev){
   let call=33,put=33,wait=34;
   const callReasons=[],putReasons=[],waitReasons=[],callNeeds=[],putNeeds=[],callInvalid=[],putInvalid=[];
 
-  if(div<-0.5){call+=14;put-=4;wait-=6;pushReason(callReasons,"SPX ITS leading SPY",14);}
-  else if(div>0.5){put+=8;call-=6;wait+=4;pushReason(putReasons,"SPY leading / call caution",8);pushReason(waitReasons,"retail-led caution",4);}
+  if(div>0.5){call+=14;put-=4;wait-=6;pushReason(callReasons,"SPX ITS leading SPY",14);}
+  else if(div<-0.5){put+=8;call-=6;wait+=4;pushReason(putReasons,"SPY leading / call caution",8);pushReason(waitReasons,"retail-led caution",4);}
   else{wait+=4;pushReason(waitReasons,"ITS convergence / unclear leadership",4);}
   // v9: accel boost now directional (follows priceSlope), not both sides at once
   if(ac>7&&accelSlope>=0){if(priceSlope>=0){call+=12;pushReason(callReasons,"accelerator expanding into upside momentum",12);}else{put+=12;pushReason(putReasons,"accelerator expanding into downside momentum",12);}wait-=6;}
@@ -273,15 +273,51 @@ function computeTheses(mkt,hist,prev){
   if(priceSlope<-2.0){put+=18;wait-=10;call-=8;pushReason(putReasons,"multi-tick selloff slope",18);}
   if(priceSlope>2.0){call+=18;wait-=10;put-=8;pushReason(callReasons,"multi-tick squeeze slope",18);}
 
-  if(call<65){if(!(div<-0.5))callNeeds.push("SPX ITS lead / institutional confirmation");if(!(priceSlope>0))callNeeds.push("upward price acceptance");if(!(ac>6)&&!(aboveFepCount>=4&&priceSlope>0.6))callNeeds.push("accelerator expansion OR persistent upside acceptance");}
+  if(call<65){if(!(div>0.5))callNeeds.push("SPX ITS lead / institutional confirmation");if(!(priceSlope>0))callNeeds.push("upward price acceptance");if(!(ac>6)&&!(aboveFepCount>=4&&priceSlope>0.6))callNeeds.push("accelerator expansion OR persistent upside acceptance");}
   if(put<65){if(!(priceSlope<0))putNeeds.push("downward price acceptance");if(!(mkt.spySpot<mkt.gammaFlip))putNeeds.push("below gamma flip / failed reclaim");if(!(ac>6)&&!(belowFepCount>=4&&priceSlope<-0.6))putNeeds.push("accelerator expansion OR persistent downside acceptance");}
-  if(div>0.9)callInvalid.push("SPY-led caution expanding");
+  if(div<-0.9)callInvalid.push("SPY-led caution expanding");
   if(priceSlope<-0.6)callInvalid.push("price slope turning down");
-  if(div<-0.9&&priceSlope>0)putInvalid.push("institutional upside leadership");
+  if(div>0.9&&priceSlope>0)putInvalid.push("institutional upside leadership");
   if(priceSlope>0.6)putInvalid.push("price slope turning up");
 
   const scores=norm3(call,put,wait);
-  const mom=thesisMomentum(scores,prev?.scores);
+  con
+function computeDeterministicPlan(mkt,hist,probs,thesis){
+  const l6=hist.slice(-6),l12=hist.slice(-12),l20=hist.slice(-20);
+  const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
+  const priceSlope12=l12.length>=2?l12[l12.length-1].spySpot-l12[0].spySpot:priceSlope;
+  const accelSlope=l6.length>=2?l6[l6.length-1].accel-l6[0].accel:0;
+  const range20=l20.length>=4?Math.max(...l20.map(x=>x.spySpot))-Math.min(...l20.map(x=>x.spySpot)):0;
+  const hi20=l20.length?Math.max(...l20.map(x=>x.spySpot)):mkt.spySpot,lo20=l20.length?Math.min(...l20.map(x=>x.spySpot)):mkt.spySpot;
+  const oldG=l12[0]?.netGex??mkt.netGex,gexVel=(mkt.netGex-oldG)/Math.max(1e9,Math.abs(oldG||1e9));
+  const div=mkt.itsSPX-mkt.itsSPY,gi=mkt.gexInfluence||0,fg=mkt.spySpot-mkt.fep;
+  const above=mkt.spySpot>mkt.fep&&mkt.spySpot>mkt.gammaFlip,below=mkt.spySpot<mkt.fep&&mkt.spySpot<mkt.gammaFlip;
+  let call=0,put=0,reasons=[];
+  const pinMode=(mkt.netGex>0&&gi>0.32)||(probs.pin>=38&&range20<1.4);
+  const freeMove=mkt.netGex<0||gi<0.25||gexVel<-0.18;
+  if(div>0.45){call+=8;reasons.push('SPX leads/telegraphs');}
+  if(div<-0.45){put+=5;reasons.push('SPY lead caution');}
+  if(freeMove){if(priceSlope>0.35){call+=18;reasons.push('weak/negative GEX upside expansion');} if(priceSlope<-0.35){put+=18;reasons.push('weak/negative GEX downside expansion');}}
+  if(above&&priceSlope>0.25){call+=16;reasons.push('above FEP+flip acceptance');}
+  if(below&&priceSlope<0.25){put+=16;reasons.push('below FEP+flip acceptance');}
+  if(mkt.accelerator>6&&accelSlope>=0){if(priceSlope>=0){call+=12;reasons.push('accel with upside slope');}else{put+=12;reasons.push('accel with downside slope');}}
+  if(mkt.accelerator>8.5&&Math.abs(priceSlope)>0.35){if(priceSlope>0)call+=10;else put+=10;reasons.push('scalp impulse');}
+  if(pinMode&&range20>=0.22){
+    if(mkt.spySpot>=hi20-0.18){put+=26;reasons.push('positive-GEX upper pin edge');}
+    if(mkt.spySpot<=lo20+0.18){call+=26;reasons.push('positive-GEX lower pin edge');}
+    if(Math.abs(fg)<0.25&&Math.abs(priceSlope)<0.25){call-=4;put-=4;reasons.push('dead-center pin, no edge');}
+  }
+  if(mkt.netGex>0&&gexVel>0.12&&Math.abs(fg)>0.45){if(fg>0)put+=8;else call+=8;reasons.push('GEX insertion favors mean reversion');}
+  if(mkt.netGex<0&&gexVel<0&&Math.abs(priceSlope12)>0.75){if(priceSlope12>0)call+=14;else put+=14;reasons.push('negative GEX velocity follows move');}
+  const dir=call>=28&&call>put+4?'CALL':put>=28&&put>call+4?'PUT':'WAIT';
+  const isC=dir==='CALL';
+  const stop=dir==='WAIT'?null:isC?Math.min(mkt.spySpot-0.55,mkt.fep-0.25):Math.max(mkt.spySpot+0.55,mkt.fep+0.25);
+  const target=dir==='WAIT'?null:isC?Math.min(Math.max(mkt.callWall,hi20,mkt.spySpot+0.8),mkt.spySpot+1.8):Math.max(Math.min(mkt.putWall,lo20,mkt.spySpot-0.8),mkt.spySpot-1.8);
+  const score=dir==='CALL'?call:dir==='PUT'?put:Math.max(call,put);
+  const mode=pinMode&&!freeMove?'PIN_RANGE':freeMove?'GEX_EXPANSION':'EDGE';
+  return{dir,score,mode,reason:reasons.slice(-3).join(' + ')||'no deterministic edge',stop,target};
+}
+st mom=thesisMomentum(scores,prev?.scores);
   const winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
   const edgeScore=computeEdgeScore(scores);
   // v9: threshold dropped to 42 with a +6 margin — realistic given the rebalanced weights
@@ -345,7 +381,7 @@ REGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin
 CONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}
 
 SPY: $${mkt.spySpot.toFixed(2)} | SPX: ${mkt.spxSpot.toFixed(0)}
-SPX-ITS: ${mkt.itsSPX.toFixed(2)} | SPY-ITS: ${mkt.itsSPY.toFixed(2)} | DIV: ${div.toFixed(2)} (${div<-0.4?"SPX LEADS=conviction":div>0.4?"SPY LEADS=caution":"CONVERGED"})
+SPX-ITS: ${mkt.itsSPX.toFixed(2)} | SPY-ITS: ${mkt.itsSPY.toFixed(2)} | DIV: ${div.toFixed(2)} (${div>0.4?"SPX LEADS=conviction":div<-0.4?"SPY LEADS=caution":"CONVERGED"})
 Flip: $${mkt.gammaFlip.toFixed(2)} ${mkt.spySpot>mkt.gammaFlip?"ABOVE":"BELOW"} | Walls: C$${mkt.callWall.toFixed(1)} P$${mkt.putWall.toFixed(1)}
 GEX: ${gexStr} | ACCEL: ${mkt.accelerator.toFixed(2)} | NDF: ${mkt.ndf.toFixed(3)} | IV: ${mkt.iv.toFixed(1)}%
 FEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}
@@ -565,7 +601,7 @@ export default function App(){
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
-    const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
+    const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
     candR.current=[...candR.current.slice(-450),c];setCandles([...candR.current]);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
     const np=computeProbs(m,candR.current),nc=computeConf(m,np),nt=computeTheses(m,candR.current,thesisR.current);
@@ -587,15 +623,11 @@ export default function App(){
     const top=Object.entries(np).sort((a,b)=>b[1]-a[1])[0][0];
     if(top!==lastSR.current){lastSR.current=top;tlR.current=[...tlR.current,{t:fmt.time(m.h,m.m),state:top,probs:{...np}}];setTimeline([...tlR.current]);}
     const accelCrossed=m.accelerator>=8.5&&prevAccelR.current<8.5;
-    const recent20=candR.current.slice(-20),range20=recent20.length?Math.max(...recent20.map(x=>x.spySpot))-Math.min(...recent20.map(x=>x.spySpot)):0,hi20=recent20.length?Math.max(...recent20.map(x=>x.spySpot)):m.spySpot,lo20=recent20.length?Math.min(...recent20.map(x=>x.spySpot)):m.spySpot;
-    const pinTradeMode=!m.isPremarket&&!posR.current&&mL>=45&&(np.pin>=45||((m.netGex||0)>0&&(m.gexInfluence||0)>0.35)||range20<1.15);
-    const nearUpper=pinTradeMode&&range20>=0.18&&m.spySpot>=hi20-0.18;
-    const nearLower=pinTradeMode&&range20>=0.18&&m.spySpot<=lo20+0.18;
-    const expansionTrade=!m.isPremarket&&!posR.current&&mL>=45&&(nt.scalpEdge||nt.entryBias!=="WAIT");
-    const localDir=nearUpper?"PUT":nearLower?"CALL":expansionTrade?(nt.scalpEdge?nt.scalpDir:nt.entryBias):"WAIT";
+    const det=computeDeterministicPlan(m,candR.current,np,nt);
+    const localDir=det.dir;
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
-    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",opt=findStrike(m.spySpot,m.iv,mL,isC,"scalp");if(opt){const stopSpot=isC?Math.min(m.spySpot-0.55,m.fep-0.25):Math.max(m.spySpot+0.55,m.fep+0.25);const targetSpot=isC?Math.min(Math.max(hi20,m.callWall),m.spySpot+1.25):Math.max(Math.min(lo20,m.putWall),m.spySpot-1.25);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:fmt.time(m.h,m.m),entrySpot:m.spySpot,stopSpot,targetSpot,planType:nearUpper||nearLower?"PIN_RANGE":"EDGE"};setPos({...posR.current});logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO ${nearUpper||nearLower?"PIN":"EDGE"} ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);addM({t:fmt.time(m.h,m.m),mindset:nearUpper||nearLower?"pin range edge":"local edge trigger",reasoning:`Local deterministic ${localDir} fired: ${nearUpper?"upper pin rejection":nearLower?"lower pin bounce":nt.scalpEdge?"scalp edge":"entry bias"}.`,decision:isC?"BUY_CALL":"BUY_PUT",score:nc.score,edgeState:"LOCAL_ENTRY",confTrend:"BUILDING"});return;}}
+    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",opt=findStrike(m.spySpot,m.iv,mL,isC,"scalp");if(opt){const stopSpot=det.stop,targetSpot=det.target;posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:fmt.time(m.h,m.m),entrySpot:m.spySpot,stopSpot,targetSpot,planType:det.mode,detScore:det.score};setPos({...posR.current});logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO ${det.mode} ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);addM({t:fmt.time(m.h,m.m),mindset:`deterministic ${det.mode}`,reasoning:`Local ${localDir} fired (${det.score}): ${det.reason}.`,decision:isC?"BUY_CALL":"BUY_PUT",score:nc.score,edgeState:"LOCAL_ENTRY",confTrend:"BUILDING"});return;}}
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
@@ -697,7 +729,7 @@ export default function App(){
   const isPremarket=mkt?.isPremarket||false;
   const lastM=mindsetLog[mindsetLog.length-1];
   const div=mkt?(mkt.itsSPX-mkt.itsSPY):0;
-  const divColor=div<-0.5?T.accent:div>0.5?T.red:T.yellow;
+  const divColor=div>0.5?T.accent:div<-0.5?T.red:T.yellow;
 
   if(screen==="home")return(
     <div style={{background:T.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"monospace"}}>
@@ -839,7 +871,7 @@ export default function App(){
           <PriceChart candles={candles} gammaFlip={mkt.gammaFlip} callWall={mkt.callWall} putWall={mkt.putWall} position={pos} isPremarket={isPremarket} callTrigger={callTrigger} putTrigger={putTrigger} callStop={callStop} putStop={putStop}/>
           <div style={{padding:"7px 12px",borderTop:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div><div style={{fontSize:18,fontWeight:700}}>${mkt.spySpot.toFixed(2)}</div><div style={{fontSize:8,color:mkt.spySpot>mkt.gammaFlip?T.accent:T.red}}>{mkt.spySpot>mkt.gammaFlip?"▲":"▼"} FLIP ${mkt.gammaFlip.toFixed(1)}</div></div>
-            <div style={{textAlign:"center"}}><div style={{fontSize:9,color:T.muted}}>SPX</div><div style={{fontSize:12,fontWeight:700,color:T.purple}}>{mkt.spxSpot.toFixed(0)}</div></div>
+            <div style={{textAlign:"center"}}><div style={{fontSize:9,color:T.muted}}>SPX GEX {fmt.gex(mkt.netGex*10)}</div><div style={{fontSize:12,fontWeight:700,color:T.purple}}>{mkt.spxSpot.toFixed(0)}</div><div style={{fontSize:7,color:T.muted}}>SPY GEX {fmt.gex(mkt.netGex)}</div></div>
             <div style={{textAlign:"right"}}><div style={{fontSize:10,fontWeight:700,color:mkt.netGex>0?T.accent:T.red}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:7,color:mkt.netGex>0?T.accent:T.red}}>{mkt.netGex>0?"PIN":"AMP"} {(gexInf*100).toFixed(0)}%</div></div>
           </div>
         </div>}
@@ -850,7 +882,7 @@ export default function App(){
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <span style={{fontSize:8,color:T.muted}}>DIV</span>
               <span style={{fontSize:20,fontWeight:700,color:divColor}}>{div>=0?"+":""}{div.toFixed(2)}</span>
-              <span style={{fontSize:8,color:divColor}}>{Math.abs(div)<0.3?"CONVERGED":div<-0.5?"SPX LEADS":"SPY LEADS"}</span>
+              <span style={{fontSize:8,color:divColor}}>{Math.abs(div)<0.3?"CONVERGED":div>0.5?"SPX LEADS":"SPY LEADS"}</span>
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -860,7 +892,7 @@ export default function App(){
                 <span style={{fontSize:11,fontWeight:700,color:T.purple}}>{mkt.itsSPX.toFixed(2)}</span>
               </div>
               <Spark data={itsSPXHist} color={T.purple} h={32} w={130} fill={true}/>
-              <div style={{fontSize:8,color:T.muted,marginTop:3}}>{mkt.spxSpot.toFixed(0)}</div>
+              <div style={{fontSize:8,color:T.muted,marginTop:3}}>{mkt.spxSpot.toFixed(0)} · GEX {fmt.gex(mkt.netGex*10)}</div>
               <div style={{fontSize:6,color:sessionMode==="replay"&&!mkt.synthData?T.accent:T.yellow,marginTop:2,letterSpacing:"0.04em"}}>{sessionMode==="replay"?(mkt.synthData?"SYNTH · gap-fill":"REAL · Jul 1 snapshot"):"SYNTH · archetype"}</div>
             </div>
             <div style={{flex:1,background:T.surface2,borderRadius:6,padding:"8px 10px"}}>
@@ -869,7 +901,7 @@ export default function App(){
                 <span style={{fontSize:11,fontWeight:700,color:T.text}}>{mkt.itsSPY.toFixed(2)}</span>
               </div>
               <Spark data={itsSPYHist} color={T.text} h={32} w={130} fill={false}/>
-              <div style={{fontSize:8,color:T.muted,marginTop:3}}>${mkt.spySpot.toFixed(2)}</div>
+              <div style={{fontSize:8,color:T.muted,marginTop:3}}>${mkt.spySpot.toFixed(2)} · GEX {fmt.gex(mkt.netGex)}</div>
               <div style={{fontSize:6,color:T.yellow,marginTop:2,letterSpacing:"0.04em"}}>SYNTH · lag-derived (always)</div>
             </div>
           </div>

@@ -289,13 +289,21 @@ function priceOpt(spot,strike,iv,mL,isCall){
   const TT=mL/(252*390),sig=iv/100,sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq),d2=d1-sig*sq;
   return Math.max(0.01,Math.round((isCall?spot*ncdf(d1)-strike*ncdf(d2):strike*ncdf(-d2)-spot*ncdf(-d1))*100)/100);
 }
-function findStrike(spot,iv,mL,isCall){
-  for(const off of[1,2,1.5,2.5,3,0.5,3.5,4,5,6,7,8,9,10,12,15,18,22]){
-    const strike=isCall?Math.round((spot+off)*2)/2:Math.round((spot-off)*2)/2;
-    const price=priceOpt(spot,strike,iv,mL,isCall);
-    if(price>=0.13&&price<=0.28)return{strike,price};
-  }
-  return null;
+function findStrike(spot, iv, mL, isCall, mode = "swing") {
+    const offsets = mode === "scalp"
+        ? [0.5, 1, 1.5, 2, 2.5, 3]
+        : [1, 2, 1.5, 2.5, 3, 3.5, 4, 5, 6];
+
+    for (const off of offsets) {
+        const strike = isCall ? Math.round((spot + off) * 2) / 2 : Math.round((spot - off) * 2) / 2;
+        const price = priceOpt(spot, strike, iv, mL, isCall);
+
+        const maxOtm = mode === "scalp" ? 3.0 : 6.0;
+        if (off <= maxOtm && price >= 0.12 && price <= 0.45) {
+            return { strike, price };
+        }
+    }
+    return null;
 }
 
 async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary){

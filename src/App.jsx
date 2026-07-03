@@ -376,7 +376,10 @@ function priceOpt(spot,strike,iv,mL,isCall,ctx=null){
 }
 function optDelta(spot,strike,iv,mL,isCall){
   if(mL<=0)return isCall?(spot>strike?1:0):(spot<strike?-1:0);
-  const TT=mL/(252*390),sig=Math.max(0.01,effectiveIv(spot,strike,iv,mL,isCall)/100),sq=Math.sqrt(TT),d1=(Math.log(spot/strifunction optionCtx(mkt,hist,memory){
+  const TT=mL/(252*390),sig=Math.max(0.01,effectiveIv(spot,strike,iv,mL,isCall)/100),sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq);
+  return isCall?ncdf(d1):ncdf(d1)-1;
+}
+function optionCtx(mkt,hist,memory){
   const prev=hist[hist.length-1]||mkt;
   const spyMove=mkt.spySpot-(prev.spySpot??mkt.spySpot);
   return{spyMove,accel:mkt.accelerator||0,memory:memory||{}};
@@ -401,9 +404,7 @@ function applyOptionPath(raw,spot,strike,mL,isCall,ctx){
   if(prevPrice>=0.65&&!favorable)px=Math.min(px,peak*0.72);
   return Math.max(0.01,Math.round(px*100)/100);
 }
-ke)+0.5*sig*sig*TT)/(sig*sq);
-  return isCall?ncdf(d1):ncdf(d1)-1;
-}
+
 function buildOptionChain(spot,iv,mL,width=80,ctx=null){
   const base=Math.round(spot*2)/2,strikes=[];
   for(let i=-width;i<=width;i++)strikes.push(Math.round((base+i*0.5)*2)/2);
@@ -1126,3 +1127,5 @@ export default function App(){
     </div>
   );
 }
+
+

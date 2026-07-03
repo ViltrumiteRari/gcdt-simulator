@@ -341,7 +341,7 @@ function optDelta(spot,strike,iv,mL,isCall){
   const TT=mL/(252*390),sig=Math.max(0.01,iv/100),sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq);
   return isCall?ncdf(d1):ncdf(d1)-1;
 }
-function buildOptionChain(spot,iv,mL,width=8){
+function buildOptionChain(spot,iv,mL,width=20){
   const base=Math.round(spot*2)/2,strikes=[];
   for(let i=-width;i<=width;i++)strikes.push(Math.round((base+i*0.5)*2)/2);
   const row=strike=>({strike,distance:Math.abs(strike-spot),call:{strike,side:'CALL',price:priceOpt(spot,strike,iv,mL,true),delta:optDelta(spot,strike,iv,mL,true)},put:{strike,side:'PUT',price:priceOpt(spot,strike,iv,mL,false),delta:optDelta(spot,strike,iv,mL,false)}});
@@ -350,19 +350,19 @@ function buildOptionChain(spot,iv,mL,width=8){
 }
 function selectContract(chain,isCall,mode='swing'){
   const list=isCall?chain.calls:chain.puts;
-  const cfg=mode==='pin'?{ideal:0.36,min:0.08,max:0.95,maxDist:2.5,delta:0.32}:mode==='expansion'?{ideal:0.22,min:0.05,max:0.85,maxDist:5.5,delta:0.18}:mode==='scalp'?{ideal:0.30,min:0.06,max:0.90,maxDist:4.0,delta:0.20}:{ideal:0.24,min:0.05,max:0.75,maxDist:6.0,delta:0.16};
-  let candidates=list.filter(o=>o.distance<=cfg.maxDist&&o.price>=cfg.min&&o.price<=cfg.max&&Math.abs(o.delta)>=cfg.delta);
-  if(candidates.length===0)candidates=list.filter(o=>o.distance<=cfg.maxDist+2&&o.price>=0.03&&o.price<=1.25);
+  const cfg=mode==='pin'?{ideal:0.22,min:0.10,max:0.50,maxDist:5.0,delta:0.08}:mode==='expansion'?{ideal:0.20,min:0.08,max:0.50,maxDist:10.0,delta:0.04}:mode==='scalp'?{ideal:0.20,min:0.10,max:0.50,maxDist:8.0,delta:0.05}:{ideal:0.20,min:0.08,max:0.50,maxDist:10.0,delta:0.04};
+  let candidates=list.filter(o=>o.distance<=cfg.maxDist&&o.price>=cfg.min&&o.price<=cfg.max&&Math.abs(o.delta)>=cfg.delta&&(isCall?o.strike>chain.spot:o.strike<chain.spot));
+  if(candidates.length===0)candidates=list.filter(o=>o.distance<=cfg.maxDist+2&&o.price>=0.05&&o.price<=0.50&&(isCall?o.strike>chain.spot:o.strike<chain.spot));
   candidates=candidates.map(o=>({...o,score:Math.abs(o.price-cfg.ideal)+o.distance*0.018-Math.abs(o.delta)*0.05})).sort((a,b)=>a.score-b.score);
   return candidates[0]?{strike:candidates[0].strike,price:candidates[0].price,delta:candidates[0].delta,distance:candidates[0].distance,side:isCall?'CALL':'PUT'}:null;
 }
 function findStrike(spot,iv,mL,isCall,mode='swing'){
-  return selectContract(buildOptionChain(spot,iv,mL,8),isCall,mode);
+  return selectContract(buildOptionChain(spot,iv,mL,20),isCall,mode);
 }
 
 async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
-  const theta=mL<90,div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
+  const theta=mL<45,div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
   const gexStr=`${mkt.netGex>0?"PINNING":"AMPLIFYING"} ${(gi*100).toFixed(0)}% ${gi>0.7?"[DOMINANT]":gi<0.3?"[WEAK]":"[MODERATE]"}`;
   const callOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,true,th.scalpEdge?"scalp":"swing"):null;
@@ -541,7 +541,7 @@ function StateBars({probs}){
 
 function OptionChainPanel({chain,pos}){
   if(!chain)return null;
-  const rows=chain.rows.filter(r=>Math.abs(r.strike-chain.spot)<=2.5);
+  const rows=chain.rows.filter(r=>(r.call.price<=0.50||r.put.price<=0.50)&&Math.abs(r.strike-chain.spot)<=10).sort((a,b)=>Math.abs(a.strike-chain.spot)-Math.abs(b.strike-chain.spot)).slice(0,10).sort((a,b)=>a.strike-b.strike);
   return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
       <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>LIVE OPTION CHAIN</span>
@@ -623,10 +623,10 @@ export default function App(){
   const doTick=useCallback(eng=>{
     const m=eng.tick();tickR.current++;
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
-    const chain=buildOptionChain(m.spySpot,m.iv,mL,8);setOptionChain(chain);
-    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);if(optPnl>=55||optPnl<=-35||spotFail||spotTarget){balR.current*=(1+optPnl/100);logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:fmt.pct(optPnl),pnl:optPnl}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
+    const chain=buildOptionChain(m.spySpot,m.iv,mL,20);setOptionChain(chain);
+    if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);setBal(size*(p.current/p.entry));if(optPnl>=55||optPnl<=-35||spotFail||spotTarget){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);return;}}
     if(m.h>=SESSION_END_H){
-      if(posR.current){const p=posR.current,r=(p.current/p.entry-1)*100;balR.current*=(1+r/100);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:fmt.pct(r),pnl:r}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
+      if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
@@ -657,7 +657,7 @@ export default function App(){
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
     if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} armed (${det.score}): ${det.reason}.`:`No local entry. ${det.reason}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
-    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);if(opt){const stopSpot=det.stop,targetSpot=det.target;posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:fmt.time(m.h,m.m),entrySpot:m.spySpot,stopSpot,targetSpot,planType:det.mode,detScore:det.score,entryDelta:opt.delta,entryDistance:opt.distance,contractMode};setPos({...posR.current});logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO ${det.mode} ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);addM({t:fmt.time(m.h,m.m),mindset:`deterministic ${det.mode}`,reasoning:`Local ${localDir} FIRED (${det.score}): ${det.reason}.`,decision:isC?"BUY_CALL":"BUY_PUT",score:nc.score,edgeState:"LOCAL_ENTRY",confTrend:"BUILDING"});return;}else{addM({t:fmt.time(m.h,m.m),mindset:"no fill",reasoning:`Local ${localDir} armed (${det.score}) but findStrike returned no contract.`,decision:"WAIT",score:nc.score,edgeState:"NO_FILL",confTrend:"—"});}}
+    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Guide ${localDir} (${det.score}): ${det.reason}${opt?` | suggested ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)}`:" | no <=$0.50 contract"}. AI has discretion; no auto-entry.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
@@ -666,25 +666,26 @@ export default function App(){
       // consecutive recent ticks within 15c of current spot, from actual candle history.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary)
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.`)
         .then(dec=>{
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
           lastWaitReasonR.current=dec.reasoning||"";
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
-          if(dec.decision==="SELL"&&posR.current){const p=posR.current,r=(p.current/p.entry-1)*100;balR.current*=(1+r/100);setBal(balR.current);logR.current=[...logR.current,{t:ts,action:`SELL ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:fmt.pct(r),pnl:r}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
+          if(dec.decision==="SELL"&&posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);setBal(balR.current);logR.current=[...logR.current,{t:ts,action:`SELL ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
           else if(dec.decision==="BUY_CALL"||dec.decision==="BUY_PUT"){
             const isC=dec.decision==="BUY_CALL",opt=isC?dec.callOpt:dec.putOpt;
             // v10: the AI's decision field and journal_entry text are two independent outputs from
             // the same call — nothing previously enforced they agree, and a decided-but-unfilled
             // trade (no priceable option, already in position, wrong window) was silently dropped
             // with zero record. Now every rejected fire is logged so it's visible, not vanished.
-            if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            if(balR.current<=1){addM({t:ts,mindset:"account depleted",reasoning:`Fired ${dec.decision} but account equity is depleted — no more trades this session.`,decision:"WAIT",score:confR.current.score,edgeState:"ACCOUNT_ZERO",confTrend:"—"});}
+            else if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(mLn<45){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but no option was priceable in the $0.13-$0.28 band this tick — no fill possible.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else{const stopSpot=isC?Math.min(m.spySpot-0.55,m.fep-0.25):Math.max(m.spySpot+0.55,m.fep+0.25);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.8),m.spySpot+1.8):Math.max(Math.min(m.putWall,m.spySpot-0.8),m.spySpot-1.8);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:"AI"};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
+            else{const stopSpot=isC?Math.min(m.spySpot-0.55,m.fep-0.25):Math.max(m.spySpot+0.55,m.fep+0.25);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.8),m.spySpot+1.8):Math.max(Math.min(m.putWall,m.spySpot-0.8),m.spySpot-1.8);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:"AI",size:balR.current};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
           }
         })
         .catch(e=>addM({t:fmt.time(m.h,m.m),mindset:"API/parse error",reasoning:e.message||"unknown error",decision:"WAIT",score:0,edgeState:"ERROR",confTrend:"—"}))
@@ -727,7 +728,7 @@ export default function App(){
     if(!engR.current)return;clearInterval(ivR.current);setRunning(false);
     const eng=engR.current;let m=eng.peek();
     while(!(m.h>=SESSION_END_H)){m=eng.tick();tickR.current++;const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);if(posR.current&&m.isTradeable){const np=priceOpt(m.spySpot,posR.current.strike,m.iv,mL,posR.current.isCall);posR.current={...posR.current,current:np};}}
-    if(posR.current){const p=posR.current,r=(p.current/p.entry-1)*100;balR.current*=(1+r/100);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:fmt.pct(r),pnl:r}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
+    if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
     setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);
   },[]);
 
@@ -755,6 +756,7 @@ export default function App(){
   const topColors={discovery:T.accent,pin:T.yellow,transition:T.purple,macro:T.red};
   const topColor=topColors[topS[0]];
   const posPnl=pos?(pos.current/pos.entry-1)*100:0;
+  const posDollar=pos?((pos.size||balR.current)*(pos.current/pos.entry-1)):0;
   const mLeft=mkt?(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m):390;
   const isPremarket=mkt?.isPremarket||false;
   const lastM=mindsetLog[mindsetLog.length-1];
@@ -893,7 +895,7 @@ export default function App(){
 
       {pos&&<div style={{margin:"6px 14px 0",padding:"7px 12px",background:posPnl>=0?T.accentDim:T.redDim,border:`1px solid ${posPnl>=0?T.accent:T.red}40`,borderRadius:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:8,color:T.muted}}>OPEN · {pos.entryTime}</div><div style={{fontSize:12,fontWeight:700}}>{pos.strike}{pos.isCall?"C":"P"} · ${pos.entry.toFixed(2)}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>${pos.current.toFixed(2)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)}</div></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>${pos.current.toFixed(2)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)} · {posDollar>=0?"+":""}{fmt.bal(posDollar)}</div></div>
       </div>}
 
       <div style={{flex:1,overflowY:"auto",paddingBottom:20}}>

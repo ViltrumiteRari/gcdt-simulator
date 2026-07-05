@@ -482,11 +482,13 @@ function buildOptionChain(spot,iv,mL,width=80,ctx=null){
 }
 function selectContract(chain,isCall,mode='swing'){
   const list=isCall?chain.calls:chain.puts;
-  const cfg=mode==='pin'?{ideal:0.22,min:0.10,max:0.50,maxDist:14.0,delta:0.02}:mode==='expansion'?{ideal:0.20,min:0.06,max:0.50,maxDist:28.0,delta:0.01}:mode==='scalp'?{ideal:0.20,min:0.08,max:0.50,maxDist:22.0,delta:0.01}:{ideal:0.20,min:0.06,max:0.50,maxDist:28.0,delta:0.01};
-  let candidates=list.filter(o=>o.distance<=cfg.maxDist&&o.price>=cfg.min&&o.price<=cfg.max&&Math.abs(o.delta)>=cfg.delta&&(isCall?o.strike>chain.spot:o.strike<chain.spot));
-  if(candidates.length===0)candidates=list.filter(o=>o.distance<=cfg.maxDist+8&&o.price>=0.02&&o.price<=0.50&&(isCall?o.strike>chain.spot:o.strike<chain.spot));
-  candidates=candidates.map(o=>({...o,score:Math.abs(o.price-cfg.ideal)+o.distance*0.018-Math.abs(o.delta)*0.05})).sort((a,b)=>a.score-b.score);
-  return candidates[0]?{strike:candidates[0].strike,price:candidates[0].price,delta:candidates[0].delta,distance:candidates[0].distance,side:isCall?'CALL':'PUT'}:null;
+  const cfg=mode==='pin'?{idealPrice:0.28,targetDelta:0.18,minDelta:0.10,maxDist:5}:mode==='expansion'?{idealPrice:0.24,targetDelta:0.14,minDelta:0.08,maxDist:8}:{idealPrice:0.26,targetDelta:0.16,minDelta:0.09,maxDist:6};
+  const directional=o=>isCall?o.strike>=chain.spot-0.5:o.strike<=chain.spot+0.5;
+  let candidates=list.filter(o=>directional(o)&&o.distance<=cfg.maxDist&&o.price>=0.08&&o.price<=0.50&&Math.abs(o.delta)>=cfg.minDelta);
+  if(!candidates.length)candidates=list.filter(o=>directional(o)&&o.distance<=10&&o.price>=0.05&&o.price<=0.50&&Math.abs(o.delta)>=0.05);
+  candidates=candidates.map(o=>({...o,score:Math.abs(o.price-cfg.idealPrice)*1.8+Math.abs(Math.abs(o.delta)-cfg.targetDelta)*2.2+o.distance*0.035})).sort((a,b)=>a.score-b.score);
+  const x=candidates[0];
+  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?'CALL':'PUT'}:null;
 }
 function findStrike(spot,iv,mL,isCall,mode='swing'){
   return selectContract(buildOptionChain(spot,iv,mL,80),isCall,mode);
@@ -533,15 +535,15 @@ RECENT:\n${rH}
 THESIS WEIGHTS: ${thesisStr}
 
 RULES:
-- Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis, not a default.
-- YOU are the sole market-decision authority. SCALP EDGE, LOCAL GUIDE, MARKET BRAIN, accelerator, GEX, divergence, and historical analogues are evidence only. If your final decision is BUY_CALL or BUY_PUT, execution code must not reinterpret or veto that market judgment.
-- Ideal entry is a $0.15-$0.25 OTM contract, never above $0.50. Prefer 1-3 high-quality trades, not constant firing.
+- Maintain CALL, PUT, and WAIT, but update them proportionally to what price has actually done. A sustained multi-dollar decline must materially increase PUT and reduce CALL unless there is concrete reversal evidence; a sustained rise must do the opposite. The SPX-SPY ITS gap indicates lead/lag, not direction—direction comes from their slopes and price response.
+- YOU are the sole market-decision authority. Indicators and historical analogues are evidence only. Seek asymmetric entries before a move is fully completed; explicitly penalize chasing after a greater-than-$2 three-tick impulse unless a new continuation leg is beginning with a nearby invalidation.
+- Contract quality matters more than getting the cheapest lottery ticket. Use the supplied contract, which targets useful delta and reasonable moneyness under $0.50. Never request a farther strike merely because it is cheaper.
 - 0DTE option price is path-dependent: expansion creates sensitivity. A stalled move can crush an expanded contract fast, and a second leg only deserves holding if it pushes faster or breaks further levels than the first leg. Expanded contracts can still run from .80 to 2.50+ on true continuation.
 - SPY near/ITM active strikes usually have tight liquidity because the underlying is massively traded. Do not assume huge spreads on close liquid strikes; friction is mostly on stale/far OTM contracts or when momentum dies.
 - EOD clock: around 2:45 the game changes, 3:00 theta is brutal, 3:30 is death-zone, and 3:45 is cleanup/RH lockout. After 3:45 no new Robinhood-style entries, only forced cleanup/management.
-- Before entry, define invalidation. If the option goes against you around 5-8% or spot fails the thesis level, SELL immediately.
+- For each simulated entry, return case-specific fields: trade_confidence, invalidation_spot, max_loss_pct, and target_spot. Lower-confidence setups use tighter simulated risk; stronger structural setups may use wider room, but the invalidating evidence must be explicit.
 - Track SPX to SPY lead-lag. SPX moving first can reveal a 1-2 tick window before SPY reflects it. Treat it as an early-warning hypothesis, not an automatic entry. If SPX is moving down and SPY is catching down, suppress CALL unless SPY has reclaimed FEP/flip and bounced. If SPX is moving up and SPY is catching up, suppress PUT unless SPY has rejected a level.
-- Exit: first wrong signal wins. Sell on accel peak and roll, FEP catch, GEX regime shift, opposite thesis overtaking, lead-lag contradiction, or option loss near -6%. Take profits around +35% unless momentum is still expanding.
+- Manage each open simulated trade from its original thesis. Exit when its stated invalidation occurs, when the contract reaches its case-specific maximum loss, or when continuation quality materially fails. Do not turn a target into a stop or invent a new threshold after entry.
 - No entries: premarket, already in position, no account equity, no clean contract under $0.50, or RH cleanup window after 3:45. After 3:00 only take exceptional momentum with instant invalidation.
 - GEX defines how much dealer structure may matter; it is never a universal permission threshold. Weak GEX can mean freer price discovery. Strong GEX can imply pinning or violent hedging. Interpret it jointly with actual price response instead of demanding arbitrary GEX percentages.${repeatStr}
 - CRITICAL — decision/journal consistency: "decision" is the ONLY market judgment that executes. If journal_entry describes firing or entering, decision MUST equal BUY_CALL or BUY_PUT. Once you choose BUY_CALL or BUY_PUT, code will execute unless filling is literally impossible: premarket/closed session, existing position, depleted account, or no valid affordable contract.
@@ -550,14 +552,16 @@ RULES:
 ${rulesStr}
 
 Respond ONLY valid JSON:
-{"decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR"}`;
+{"decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"closest analogue used and key difference, or none"}`;
   const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
   if(!resp.ok)throw new Error(`API ${resp.status}`);
   const data=await resp.json();
-  const raw=typeof data==="string"?data:JSON.stringify(data);
-  const match=raw.match(/\{[\s\S]*\}/);
+  const payload=typeof data==="string"?data:(data.content??data.text??data.response??data.output??data);
+  if(typeof payload==="object"&&payload?.decision)return{...payload,callOpt,putOpt};
+  const raw=String(typeof payload==="string"?payload:JSON.stringify(payload)).replace(/```json|```/g,"").trim();
+  const start=raw.indexOf("{"),end=raw.lastIndexOf("}");
   let parsed;
-  try{parsed=match?JSON.parse(match[0]):data;}catch(e){throw new Error(`JSON parse failed: ${e.message} — raw: ${raw.slice(0,80)}`);}
+  try{parsed=start>=0&&end>start?JSON.parse(raw.slice(start,end+1)):JSON.parse(raw);}catch(e){throw new Error(`JSON parse failed: ${e.message} — raw: ${raw.slice(0,120)}`);}
   if(!parsed.decision)throw new Error(`missing decision field — raw: ${raw.slice(0,80)}`);
   return{...parsed,callOpt,putOpt};
 }
@@ -750,6 +754,9 @@ function updateMarketBrain(m,hist,prev){
   const hi=Math.max(...recent.map(x=>x.spySpot)),lo=Math.min(...recent.map(x=>x.spySpot));
   const d3=p3?last.spySpot-p3.spySpot:0,d6=p6?last.spySpot-p6.spySpot:0,acc=m.accelerator||0;
   const div=(m.itsSpx??m.itsComposite??0)-(m.itsSpy??0);
+  const spx3=p3?(last.itsSPX??0)-(p3.itsSPX??0):0,spy3=p3?(last.itsSPY??0)-(p3.itsSPY??0):0;
+  const sessionStart=h[0]?.spySpot??last.spySpot,sessionMove=last.spySpot-sessionStart;
+  const directionalAgreement=spx3*spy3>0?1:0;
   const aboveFlip=recent.slice(-6).filter(x=>x.spySpot>=m.gammaFlip).length/6;
   const belowFlip=recent.slice(-6).filter(x=>x.spySpot<=m.gammaFlip).length/6;
   const aboveFep=recent.slice(-6).filter(x=>x.spySpot>=m.fep).length/6;
@@ -757,13 +764,14 @@ function updateMarketBrain(m,hist,prev){
   const highProximity=clamp(1-(hi-last.spySpot)/Math.max(.35,span*.35),0,1);
   const lowProximity=clamp(1-(last.spySpot-lo)/Math.max(.35,span*.35),0,1);
   const upProgress=clamp(Math.max(0,d6)/Math.max(.5,span),0,1),downProgress=clamp(Math.max(0,-d6)/Math.max(.5,span),0,1);
-  const upConfirm=clamp((Math.max(0,div)/2+Math.max(0,m.callDom-.5)*2)/2,0,1);
-  const downConfirm=clamp((Math.max(0,-div)/2+Math.max(0,.5-m.callDom)*2)/2,0,1);
+  const upConfirm=clamp((Math.max(0,spx3)/1.5+Math.max(0,spy3)/1.5+Math.max(0,m.callDom-.5)*2+directionalAgreement*.25)/2.5,0,1);
+  const downConfirm=clamp((Math.max(0,-spx3)/1.5+Math.max(0,-spy3)/1.5+Math.max(0,.5-m.callDom)*2+directionalAgreement*.25)/2.5,0,1);
   const aboveQuality=signedQuality(clamp((last.spySpot-m.gammaFlip)/Math.max(.5,span),0,1),aboveFlip,upProgress,upConfirm);
   const belowQuality=signedQuality(clamp((m.gammaFlip-last.spySpot)/Math.max(.5,span),0,1),belowFlip,downProgress,downConfirm);
   b.aboveFlipQuality=smooth(b.aboveFlipQuality,aboveQuality,.3);b.belowFlipQuality=smooth(b.belowFlipQuality,belowQuality,.3);
-  const bullishInputs=clamp((Math.max(0,div)/2)+(Math.max(0,m.callDom-.5)*2)+(aboveFep*.6)+(aboveFlip*.6),0,2.5);
-  const bearishInputs=clamp((Math.max(0,-div)/2)+(Math.max(0,.5-m.callDom)*2)+(belowFep*.6)+(belowFlip*.6),0,2.5);
+  const sessionUp=clamp(Math.max(0,sessionMove)/4,0,1.5),sessionDown=clamp(Math.max(0,-sessionMove)/4,0,1.5);
+  const bullishInputs=clamp((Math.max(0,spx3)/1.4)+(Math.max(0,spy3)/1.4)+(Math.max(0,m.callDom-.5)*2)+(aboveFep*.7)+(aboveFlip*.7)+sessionUp,0,4);
+  const bearishInputs=clamp((Math.max(0,-spx3)/1.4)+(Math.max(0,-spy3)/1.4)+(Math.max(0,.5-m.callDom)*2)+(belowFep*.7)+(belowFlip*.7)+sessionDown,0,4);
   const effort=Math.max(.1,acc/10),upEfficiency=clamp(Math.max(0,d3)/(effort*1.5),0,1),downEfficiency=clamp(Math.max(0,-d3)/(effort*1.5),0,1);
   const bullResponse=clamp(upEfficiency+aboveQuality*.7,0,1.7),bearResponse=clamp(downEfficiency+belowQuality*.7,0,1.7);
   b.bullResponse=smooth(b.bullResponse,bullResponse,.25);b.bearResponse=smooth(b.bearResponse,bearResponse,.25);
@@ -772,9 +780,9 @@ function updateMarketBrain(m,hist,prev){
   b.highPressure=smooth(b.highPressure,highRejectPressure,.18);b.lowPressure=smooth(b.lowPressure,lowRejectPressure,.18);
   const bullFailure=clamp(bullishInputs/2.2-b.bullResponse*.55,0,1);
   const bearFailure=clamp(bearishInputs/2.2-b.bearResponse*.55,0,1);
-  const bullRaw=clamp(22+bullishInputs*18+b.aboveFlipQuality*22+b.lowPressure*16+bearFailure*18-b.highPressure*14-b.belowFlipQuality*18,0,88);
-  const bearRaw=clamp(22+bearishInputs*18+b.belowFlipQuality*22+b.highPressure*16+bullFailure*18-b.lowPressure*14-b.aboveFlipQuality*18,0,88);
-  b.bullPressure=smooth(b.bullPressure,bullRaw,.16);b.bearPressure=smooth(b.bearPressure,bearRaw,.16);
+  const bullRaw=clamp(15+bullishInputs*16+b.aboveFlipQuality*20+b.lowPressure*12+bearFailure*12-b.highPressure*12-b.belowFlipQuality*14,0,95);
+  const bearRaw=clamp(15+bearishInputs*16+b.belowFlipQuality*20+b.highPressure*12+bullFailure*12-b.lowPressure*12-b.aboveFlipQuality*14,0,95);
+  b.bullPressure=smooth(b.bullPressure,bullRaw,.24);b.bearPressure=smooth(b.bearPressure,bearRaw,.24);
   const edge=b.bullPressure-b.bearPressure;b.active=Math.abs(edge)<9?"WAIT":edge>0?"CALL":"PUT";b.confidence=Math.round(Math.max(b.bullPressure,b.bearPressure));
   const build=acc>=ACCEL_BUILD_MIN&&acc<=ACCEL_BUILD_MAX&&h.slice(-4,-1).length>=2&&h.slice(-4,-1).every((x,i,a)=>i===0||x.accel>=a[i-1].accel-.2)&&(h.at(-2)?.accel??0)<acc;
   const locationCall=last.spySpot<=Math.max(m.gammaFlip,m.fep)+.8||b.lowPressure>.42;
@@ -788,7 +796,7 @@ function updateMarketBrain(m,hist,prev){
   b.expectedResponse=b.active==="CALL"?"sustained acceptance above dealer center with improving upside efficiency":b.active==="PUT"?"sustained rejection of dealer center with improving downside efficiency":"continued evidence accumulation without forcing direction";
   b.actualResponse=`3t ${d3>=0?"+":""}${d3.toFixed(2)}, 6t ${d6>=0?"+":""}${d6.toFixed(2)}, accel ${acc.toFixed(1)}`;
   b.invalidation=b.active==="CALL"?`bull pressure below 50 or below-flip quality above 0.60`:b.active==="PUT"?`bear pressure below 50 or above-flip quality above 0.60`:"none";
-  b.summary=`${b.active} ${b.confidence}% | bullP ${b.bullPressure.toFixed(0)} bearP ${b.bearPressure.toFixed(0)} | highP ${b.highPressure.toFixed(2)} lowP ${b.lowPressure.toFixed(2)} | aboveQ ${b.aboveFlipQuality.toFixed(2)} belowQ ${b.belowFlipQuality.toFixed(2)} | bullResp ${b.bullResponse.toFixed(2)} bearResp ${b.bearResponse.toFixed(2)} | ${b.actualResponse}`;
+  b.summary=`${b.active} ${b.confidence}% | bullP ${b.bullPressure.toFixed(0)} bearP ${b.bearPressure.toFixed(0)} | session ${sessionMove>=0?"+":""}${sessionMove.toFixed(2)} | ITS3 SPX ${spx3>=0?"+":""}${spx3.toFixed(2)} SPY ${spy3>=0?"+":""}${spy3.toFixed(2)} | highP ${b.highPressure.toFixed(2)} lowP ${b.lowPressure.toFixed(2)} | aboveQ ${b.aboveFlipQuality.toFixed(2)} belowQ ${b.belowFlipQuality.toFixed(2)} | bullResp ${b.bullResponse.toFixed(2)} bearResp ${b.bearResponse.toFixed(2)} | ${b.actualResponse}`;
   return b;
 }
 function brainPrompt(b){return `SESSION PRESSURE MODEL\n${b.summary}\nEXPECTED: ${b.expectedResponse}\nINVALIDATION: ${b.invalidation}\nENTRY WINDOW: ${b.entryReady?b.entrySide+" READY for "+b.readyTicks+" ticks — "+b.entryReason:"NOT READY — "+b.entryReason}\nInterpret structure continuously. A single missed level or one countertrend tick is not a failed auction. Pressure must accumulate through persistence, acceptance quality, response efficiency, and meaningful location. Do not invent extra confirmation after ENTRY WINDOW is ready.`;}
@@ -863,7 +871,7 @@ export default function App(){
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
     const octx=optionCtx(m,candR.current,optionMemoryR.current);
     const chain=buildOptionChain(m.spySpot,m.iv,mL,80,octx);setOptionChain(chain);
-    if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),spotTarget=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity),llNow=computeLeadLag(m,candR.current),leadWrong=p.isCall&&llNow.dir==='DOWN'&&llNow.state==='SPY_CATCHING_UP'||!p.isCall&&llNow.dir==='UP'&&llNow.state==='SPY_CATCHING_UP';
+    if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};setPos({...posR.current});const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100,spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity),lossFail=optPnl<=-(p.maxLossPct??8),spotTargetRaw=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity),profitTarget=optPnl>=(p.takeProfitPct??35),spotTarget=spotTargetRaw&&optPnl>0,llNow=computeLeadLag(m,candR.current),leadWrong=p.isCall&&llNow.dir==='DOWN'&&llNow.state==='SPY_CATCHING_UP'||!p.isCall&&llNow.dir==='UP'&&llNow.state==='SPY_CATCHING_UP';
       leadWrongTicksR.current=leadWrong?leadWrongTicksR.current+1:0;
       const leadSustained=leadWrongTicksR.current>=LEAD_LAG_SUSTAIN_TICKS;
       const th=thesisR.current,thesisOpposes=p.isCall?th.entryBias==='PUT':th.entryBias==='CALL';
@@ -871,8 +879,8 @@ export default function App(){
       const signalCount=[leadSustained,thesisOpposes,wallAgainst].filter(Boolean).length,heldTicks=tickR.current-(p.entryTick??tickR.current);
       const signalExit=heldTicks>=SIGNAL_EXIT_MIN_HOLD_TICKS&&signalCount>=2;
       setBal(size*(p.current/p.entry));
-      if(!spotFail&&!spotTarget&&!signalExit&&signalCount>0)addJournal(fmt.time(m.h,m.m),`SIGNAL_EXIT_EVAL ${signalCount}/3 — lead:${leadSustained?'yes':'no'} thesis:${thesisOpposes?'yes':'no'} wall:${wallAgainst?'yes':'no'} hold:${heldTicks}/${SIGNAL_EXIT_MIN_HOLD_TICKS}.`);
-      if(spotFail||spotTarget||signalExit){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);if(p.planType==='PIN_RANGE'){if(optPnl>=0)sessionModelR.current.pinWins++;else sessionModelR.current.pinLosses++;}const why=spotFail?'STOP':spotTarget?'TARGET':`SIGNAL_2_OF_3 lead:${leadSustained} thesis:${thesisOpposes} wall:${wallAgainst}`;logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)} ${why}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar,exitType:why}];setTradeLog([...logR.current]);posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);return;}
+      if(!spotFail&&!lossFail&&!spotTarget&&!profitTarget&&!signalExit&&signalCount>0)addJournal(fmt.time(m.h,m.m),`SIGNAL_EXIT_EVAL ${signalCount}/3 — lead:${leadSustained?'yes':'no'} thesis:${thesisOpposes?'yes':'no'} wall:${wallAgainst?'yes':'no'} hold:${heldTicks}/${SIGNAL_EXIT_MIN_HOLD_TICKS}.`);
+      if(spotFail||lossFail||spotTarget||profitTarget||signalExit){const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);if(p.planType==='PIN_RANGE'){if(optPnl>=0)sessionModelR.current.pinWins++;else sessionModelR.current.pinLosses++;}const why=spotFail?'SPOT_INVALIDATION':lossFail?'OPTION_MAX_LOSS':profitTarget?'OPTION_TARGET':spotTarget?'SPOT_TARGET_PROFIT':`SIGNAL_2_OF_3 lead:${leadSustained} thesis:${thesisOpposes} wall:${wallAgainst}`;logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`AUTO-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)} ${why}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar,exitType:why}];setTradeLog([...logR.current]);posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);return;}
       prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;}
     if(m.h>=SESSION_END_H){
       if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
@@ -940,6 +948,7 @@ export default function App(){
           lastWaitReasonR.current=dec.reasoning||"";
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
+          if(dec.memory_used&&dec.memory_used!=="none")addJournal(ts,`MEMORY_USED ${dec.memory_used}`);
           if(dec.decision==="SELL"&&posR.current){
             const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;
             balR.current=size*(p.current/p.entry);
@@ -1007,7 +1016,7 @@ export default function App(){
 
   const saveSession=useCallback(async()=>{
     const r=((balR.current-STARTING_BALANCE)/STARTING_BALANCE)*100,cl=logR.current.filter(l=>l.pnl!==undefined),ws=cl.filter(l=>(l.pnl||0)>=0);
-    const signalTotal=sessionModelR.current.accelFollow+sessionModelR.current.accelFail,signalCleanliness=signalTotal?sessionModelR.current.accelFollow/signalTotal:0,tradeFollowThrough=cl.length?cl.filter(t=>(t.pnl||0)>0||String(t.exitType||"").startsWith("TARGET")).length/cl.length:0;
+    const signalTotal=sessionModelR.current.accelFollow+sessionModelR.current.accelFail,signalCleanliness=signalTotal?sessionModelR.current.accelFollow/signalTotal:0,tradeFollowThrough=cl.length?cl.filter(t=>(t.pnl||0)>0).length/cl.length:0;
     const sess={id:Date.now(),signalCleanliness,tradeFollowThrough,marketBrain:marketBrainR.current,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
     const upd=[sess,...sessions];setSessions(upd);storageSet("sessions",upd);setSaved(true);
     setThinking(true);
@@ -1084,7 +1093,7 @@ export default function App(){
       </div>
       <div style={{padding:16}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          {[["FINAL",fmt.bal(s.balance)],["RETURN",fmt.pct(s.returnPct)],["WIN RATE",s.winRate],["TRADES",String(s.trades.length)],["SIGNAL CLEAN",`${((s.signalCleanliness||0)*100).toFixed(0)}%`],["FOLLOW THROUGH",`${((s.tradeFollowThrough||0)*100).toFixed(0)}%`],["SESSION THESIS",`${s.marketBrain?.active||"WAIT"} ${s.marketBrain?.confidence||0}%`]].map(([l,v])=>(
+          {[["FINAL",fmt.bal(s.balance)],["RETURN",fmt.pct(s.returnPct)],["WIN RATE",s.winRate],["TRADES",String(s.trades.filter(t=>t.pnl!==undefined).length)],["SIGNAL CLEAN",`${((s.signalCleanliness||0)*100).toFixed(0)}%`],["FOLLOW THROUGH",`${((s.tradeFollowThrough||0)*100).toFixed(0)}%`],["SESSION THESIS",`${s.marketBrain?.active||"WAIT"} ${s.marketBrain?.confidence||0}%`]].map(([l,v])=>(
             <div key={l} style={{padding:"10px 12px",background:T.surface,borderRadius:6,border:`1px solid ${T.border}`}}><div style={{fontSize:9,color:T.muted,marginBottom:3}}>{l}</div><div style={{fontSize:13,fontWeight:700}}>{v}</div></div>
           ))}
         </div>

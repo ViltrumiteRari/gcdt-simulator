@@ -690,70 +690,63 @@ function storageSet(key,val){try{localStorage.setItem(STORAGE_KEY+"_"+key,JSON.s
 
 
 function createMarketBrain(){return{
-  tick:0,events:[],attempts:{high:0,low:0,flipFail:0,fepFail:0},
-  bull:{score:50,status:"FORMING",name:"upside continuation",evidence:[],invalidations:[]},
-  bear:{score:50,status:"FORMING",name:"downside continuation",evidence:[],invalidations:[]},
-  active:"WAIT",confidence:0,entryReady:false,entrySide:"WAIT",entryReason:"",
-  primaryScenario:"insufficient structure",alternateScenario:"",invalidation:"",
-  expectedResponse:"",actualResponse:"",efficiency:{up:0,down:0},summary:"No mature session thesis yet."
+  tick:0,active:"WAIT",confidence:0,
+  bullPressure:0,bearPressure:0,bullResponse:0,bearResponse:0,
+  highPressure:0,lowPressure:0,aboveFlipQuality:0,belowFlipQuality:0,
+  entryReady:false,entrySide:"WAIT",entryReason:"",readyTicks:0,
+  expectedResponse:"",actualResponse:"",invalidation:"",summary:"No mature session pressure yet."
 };}
-function brainStatus(score,prev){if(score>=72)return prev==="FAILED"?"REACTIVATED":"CONFIRMED";if(score>=60)return prev==="WEAKENING"?"REACTIVATED":"STRENGTHENING";if(score<=28)return"FAILED";if(score<=42)return"WEAKENING";return"FORMING";}
-function pushBrainEvent(brain,type,side,detail,tick){const last=brain.events.at(-1);if(last&&last.type===type&&last.side===side&&tick-last.tick<3)return;brain.events=[...brain.events.slice(-39),{tick,type,side,detail}];}
+function smooth(prev,next,a=.22){return prev*(1-a)+next*a;}
+function signedQuality(distance,timeRatio,followThrough,confirmation){return clamp(distance*.35+timeRatio*.25+followThrough*.25+confirmation*.15,0,1);}
 function updateMarketBrain(m,hist,prev){
-  const b={...prev,tick:(prev.tick||0)+1,attempts:{...prev.attempts},bull:{...prev.bull,evidence:[]},bear:{...prev.bear,evidence:[]},efficiency:{...prev.efficiency}};
-  const h=hist.slice(-60),last=h.at(-1),p3=h.at(-4),p6=h.at(-7),prior=h.slice(0,-1);
-  if(!last||prior.length<8)return b;
-  const recent=prior.slice(-30),sessionHigh=Math.max(...prior.map(x=>x.spySpot)),sessionLow=Math.min(...prior.map(x=>x.spySpot));
-  const resistance=Math.max(...recent.map(x=>x.spySpot)),support=Math.min(...recent.map(x=>x.spySpot));
-  const nearHigh=last.spySpot>=sessionHigh-0.35,nearLow=last.spySpot<=sessionLow+0.35;
-  const highTouches=prior.slice(-20).filter(x=>x.spySpot>=sessionHigh-0.35).length;
-  const lowTouches=prior.slice(-20).filter(x=>x.spySpot<=sessionLow+0.35).length;
-  const rejectedHigh=highTouches>=2&&p3&&p3.spySpot>=sessionHigh-0.45&&last.spySpot<sessionHigh-0.8;
-  const rejectedLow=lowTouches>=2&&p3&&p3.spySpot<=sessionLow+0.45&&last.spySpot>sessionLow+0.8;
-  const flipAbove=h.slice(-3).every(x=>x.spySpot>=m.gammaFlip),flipBelow=h.slice(-3).every(x=>x.spySpot<=m.gammaFlip);
-  const fepAbove=h.slice(-3).every(x=>x.spySpot>=m.fep),fepBelow=h.slice(-3).every(x=>x.spySpot<=m.fep);
-  const failedReclaim=h.slice(-8).some((x,i,a)=>i>0&&a[i-1].spySpot<m.gammaFlip&&x.spySpot>=m.gammaFlip)&&last.spySpot<m.gammaFlip;
-  const failedBreak=h.slice(-8).some((x,i,a)=>i>0&&a[i-1].spySpot>m.gammaFlip&&x.spySpot<=m.gammaFlip)&&last.spySpot>m.gammaFlip;
-  const d3=p3?last.spySpot-p3.spySpot:0,d6=p6?last.spySpot-p6.spySpot:0;
-  const div=(m.itsSpx??m.itsComposite??0)-(m.itsSpy??0),acc=m.accelerator||0;
-  const bullishInputs=(div>0.45?1:0)+(m.callDom>0.56?1:0)+(flipAbove?1:0)+(fepAbove?1:0);
-  const bearishInputs=(div<-0.45?1:0)+(m.callDom<0.44?1:0)+(flipBelow?1:0)+(fepBelow?1:0);
-  const bullFailure=bullishInputs>=2&&acc>=7&&d3<0.2;
-  const bearFailure=bearishInputs>=2&&acc>=7&&d3>-0.2;
-  const upEff=acc>0?Math.max(0,d3)/acc:0,downEff=acc>0?Math.max(0,-d3)/acc:0;
-  b.efficiency={up:b.efficiency.up*.75+upEff*.25,down:b.efficiency.down*.75+downEff*.25};
-  let bull=b.bull.score*.94,bear=b.bear.score*.94;
-  if(div>0.45){bull+=6;b.bull.evidence.push("SPX leadership");}if(div<-0.45){bear+=6;b.bear.evidence.push("SPY leading/caution");}
-  if(flipAbove){bull+=5;b.bull.evidence.push("flip acceptance");}if(flipBelow){bear+=5;b.bear.evidence.push("flip acceptance below");}
-  if(fepAbove){bull+=4;b.bull.evidence.push("FEP held above");}if(fepBelow){bear+=4;b.bear.evidence.push("FEP held below");}
-  if(d6>1){bull+=5;b.bull.evidence.push("positive six-tick progress");}if(d6<-1){bear+=5;b.bear.evidence.push("negative six-tick progress");}
-  if(rejectedHigh){bear+=18;bull-=14;b.attempts.high++;b.bear.evidence.push("repeated high rejection");pushBrainEvent(b,"FAILED_HIGH","PUT",`attempt ${b.attempts.high} rejected near ${sessionHigh.toFixed(2)}`,b.tick);}
-  if(rejectedLow){bull+=18;bear-=14;b.attempts.low++;b.bull.evidence.push("repeated low rejection");pushBrainEvent(b,"FAILED_LOW","CALL",`attempt ${b.attempts.low} rejected near ${sessionLow.toFixed(2)}`,b.tick);}
-  if(failedReclaim){bear+=16;bull-=10;b.attempts.flipFail++;b.bear.evidence.push("failed flip reclaim");pushBrainEvent(b,"FAILED_RECLAIM","PUT",`flip ${m.gammaFlip.toFixed(2)} rejected`,b.tick);}
-  if(failedBreak){bull+=16;bear-=10;b.attempts.flipFail++;b.bull.evidence.push("failed flip breakdown");pushBrainEvent(b,"FAILED_BREAK","CALL",`flip ${m.gammaFlip.toFixed(2)} reclaimed`,b.tick);}
-  if(bullFailure){bear+=13;bull-=11;b.bear.evidence.push("bullish inputs failed to create price progress");pushBrainEvent(b,"EXPECTED_RESPONSE_FAILED","PUT","bullish structure produced no upside",b.tick);}
-  if(bearFailure){bull+=13;bear-=11;b.bull.evidence.push("bearish inputs failed to create price progress");pushBrainEvent(b,"EXPECTED_RESPONSE_FAILED","CALL","bearish structure produced no downside",b.tick);}
-  if(nearHigh&&acc>=11){bull-=8;bear+=5;b.bear.evidence.push("climax at resistance");}
-  if(nearLow&&acc>=11){bear-=8;bull+=5;b.bull.evidence.push("climax at support");}
-  bull=clamp(bull,0,100);bear=clamp(bear,0,100);
-  b.bull={...b.bull,score:bull,status:brainStatus(bull,b.bull.status),invalidations:[`hold below ${m.gammaFlip.toFixed(2)}`,`failed reclaim after breakdown`]};
-  b.bear={...b.bear,score:bear,status:brainStatus(bear,b.bear.status),invalidations:[`hold above ${m.gammaFlip.toFixed(2)}`,`successful high acceptance`]};
-  const edge=bull-bear;b.active=Math.abs(edge)<10?"WAIT":edge>0?"CALL":"PUT";b.confidence=Math.round(Math.max(bull,bear));
-  const build=acc>=5&&acc<=9.5&&h.slice(-3).every((x,i,a)=>i===0||x.accel>=a[i-1].accel-0.15);
-  const transitionCall=b.active==="CALL"&&(failedBreak||rejectedLow||(!nearHigh&&flipAbove&&d3>0));
-  const transitionPut=b.active==="PUT"&&(failedReclaim||rejectedHigh||(!nearLow&&flipBelow&&d3<0));
-  b.entryReady=b.confidence>=64&&build&&(transitionCall||transitionPut);b.entrySide=b.entryReady?b.active:"WAIT";
-  b.entryReason=b.entryReady?`${b.active} thesis ${b.confidence}% with structure transition before climax; accel ${acc.toFixed(1)} building.`:"Thesis not aligned with a pre-climax structural transition.";
-  b.expectedResponse=b.active==="CALL"?"accept above flip/FEP and convert resistance into support":b.active==="PUT"?"reject reclaim attempts and expand below flip/FEP":"wait for one side to fail despite favorable inputs";
+  const b={...prev,tick:(prev.tick||0)+1};
+  const h=hist.slice(-80),last=h.at(-1),p3=h.at(-4),p6=h.at(-7);if(!last||h.length<12)return b;
+  const recent=h.slice(-30),span=Math.max(.5,Math.max(...recent.map(x=>x.spySpot))-Math.min(...recent.map(x=>x.spySpot)));
+  const hi=Math.max(...recent.map(x=>x.spySpot)),lo=Math.min(...recent.map(x=>x.spySpot));
+  const d3=p3?last.spySpot-p3.spySpot:0,d6=p6?last.spySpot-p6.spySpot:0,acc=m.accelerator||0;
+  const div=(m.itsSpx??m.itsComposite??0)-(m.itsSpy??0);
+  const aboveFlip=recent.slice(-6).filter(x=>x.spySpot>=m.gammaFlip).length/6;
+  const belowFlip=recent.slice(-6).filter(x=>x.spySpot<=m.gammaFlip).length/6;
+  const aboveFep=recent.slice(-6).filter(x=>x.spySpot>=m.fep).length/6;
+  const belowFep=recent.slice(-6).filter(x=>x.spySpot<=m.fep).length/6;
+  const highProximity=clamp(1-(hi-last.spySpot)/Math.max(.35,span*.35),0,1);
+  const lowProximity=clamp(1-(last.spySpot-lo)/Math.max(.35,span*.35),0,1);
+  const upProgress=clamp(Math.max(0,d6)/Math.max(.5,span),0,1),downProgress=clamp(Math.max(0,-d6)/Math.max(.5,span),0,1);
+  const upConfirm=clamp((Math.max(0,div)/2+Math.max(0,m.callDom-.5)*2)/2,0,1);
+  const downConfirm=clamp((Math.max(0,-div)/2+Math.max(0,.5-m.callDom)*2)/2,0,1);
+  const aboveQuality=signedQuality(clamp((last.spySpot-m.gammaFlip)/Math.max(.5,span),0,1),aboveFlip,upProgress,upConfirm);
+  const belowQuality=signedQuality(clamp((m.gammaFlip-last.spySpot)/Math.max(.5,span),0,1),belowFlip,downProgress,downConfirm);
+  b.aboveFlipQuality=smooth(b.aboveFlipQuality,aboveQuality,.3);b.belowFlipQuality=smooth(b.belowFlipQuality,belowQuality,.3);
+  const bullishInputs=clamp((Math.max(0,div)/2)+(Math.max(0,m.callDom-.5)*2)+(aboveFep*.6)+(aboveFlip*.6),0,2.5);
+  const bearishInputs=clamp((Math.max(0,-div)/2)+(Math.max(0,.5-m.callDom)*2)+(belowFep*.6)+(belowFlip*.6),0,2.5);
+  const effort=Math.max(.1,acc/10),upEfficiency=clamp(Math.max(0,d3)/(effort*1.5),0,1),downEfficiency=clamp(Math.max(0,-d3)/(effort*1.5),0,1);
+  const bullResponse=clamp(upEfficiency+aboveQuality*.7,0,1.7),bearResponse=clamp(downEfficiency+belowQuality*.7,0,1.7);
+  b.bullResponse=smooth(b.bullResponse,bullResponse,.25);b.bearResponse=smooth(b.bearResponse,bearResponse,.25);
+  const highRejectPressure=highProximity*clamp((.35-upProgress)+Math.max(0,-d3)/Math.max(.5,span),0,1);
+  const lowRejectPressure=lowProximity*clamp((.35-downProgress)+Math.max(0,d3)/Math.max(.5,span),0,1);
+  b.highPressure=smooth(b.highPressure,highRejectPressure,.18);b.lowPressure=smooth(b.lowPressure,lowRejectPressure,.18);
+  const bullFailure=clamp(bullishInputs/2.2-b.bullResponse*.55,0,1);
+  const bearFailure=clamp(bearishInputs/2.2-b.bearResponse*.55,0,1);
+  const bullRaw=clamp(22+bullishInputs*18+b.aboveFlipQuality*22+b.lowPressure*16+bearFailure*18-b.highPressure*14-b.belowFlipQuality*18,0,88);
+  const bearRaw=clamp(22+bearishInputs*18+b.belowFlipQuality*22+b.highPressure*16+bullFailure*18-b.lowPressure*14-b.aboveFlipQuality*18,0,88);
+  b.bullPressure=smooth(b.bullPressure,bullRaw,.16);b.bearPressure=smooth(b.bearPressure,bearRaw,.16);
+  const edge=b.bullPressure-b.bearPressure;b.active=Math.abs(edge)<9?"WAIT":edge>0?"CALL":"PUT";b.confidence=Math.round(Math.max(b.bullPressure,b.bearPressure));
+  const build=acc>=5&&acc<=9.5&&h.slice(-3).every((x,i,a)=>i===0||x.accel>=a[i-1].accel-.2);
+  const locationCall=last.spySpot<=Math.max(m.gammaFlip,m.fep)+.8||b.lowPressure>.42;
+  const locationPut=last.spySpot>=Math.min(m.gammaFlip,m.fep)-.8||b.highPressure>.42;
+  const pressureAligned=b.active==="CALL"?b.bullPressure>=62&&b.bullPressure-b.bearPressure>=12:b.active==="PUT"?b.bearPressure>=62&&b.bearPressure-b.bullPressure>=12:false;
+  const responseAligned=b.active==="CALL"?(b.lowPressure>.28||bearFailure>.35||b.aboveFlipQuality>.48):(b.highPressure>.28||bullFailure>.35||b.belowFlipQuality>.48);
+  const freshReady=pressureAligned&&responseAligned&&build&&(b.active==="CALL"?locationCall:locationPut);
+  if(freshReady){b.entryReady=true;b.entrySide=b.active;b.readyTicks=4;b.entryReason=`${b.active} pressure ${Math.round(b.active==="CALL"?b.bullPressure:b.bearPressure)} with gradual structural pressure, weak opposing response, and accel ${acc.toFixed(1)} building.`;}
+  else if(b.readyTicks>0&&b.entrySide===b.active&&acc<11){b.readyTicks--;b.entryReady=true;}
+  else{b.entryReady=false;b.entrySide="WAIT";b.readyTicks=0;b.entryReason="Pressure, response quality, location, and timing are not yet jointly aligned.";}
+  b.expectedResponse=b.active==="CALL"?"sustained acceptance above dealer center with improving upside efficiency":b.active==="PUT"?"sustained rejection of dealer center with improving downside efficiency":"continued evidence accumulation without forcing direction";
   b.actualResponse=`3t ${d3>=0?"+":""}${d3.toFixed(2)}, 6t ${d6>=0?"+":""}${d6.toFixed(2)}, accel ${acc.toFixed(1)}`;
-  b.primaryScenario=b.active==="CALL"?`failed downside auction -> hold above ${m.gammaFlip.toFixed(2)} -> test ${resistance.toFixed(2)}`:b.active==="PUT"?`failed upside auction -> reject ${m.gammaFlip.toFixed(2)} reclaim -> test ${support.toFixed(2)}`:"range persists until repeated attempts create a failed auction";
-  b.alternateScenario=b.active==="CALL"?`loss of ${m.gammaFlip.toFixed(2)} reactivates bearish failed-reclaim thesis`:`reclaim and hold above ${m.gammaFlip.toFixed(2)} reactivates bullish thesis`;
-  b.invalidation=b.active==="CALL"?`three-tick hold below ${m.gammaFlip.toFixed(2)}`:b.active==="PUT"?`three-tick hold above ${m.gammaFlip.toFixed(2)}`:"none";
-  const recentEvents=b.events.slice(-4).map(e=>e.type+":"+e.side).join(", ")||"none";
-  b.summary=`Active ${b.active} ${b.confidence}% | bull ${bull.toFixed(0)} ${b.bull.status} | bear ${bear.toFixed(0)} ${b.bear.status} | events ${recentEvents} | expected ${b.expectedResponse} | actual ${b.actualResponse}`;
+  b.invalidation=b.active==="CALL"?`bull pressure below 50 or below-flip quality above 0.60`:b.active==="PUT"?`bear pressure below 50 or above-flip quality above 0.60`:"none";
+  b.summary=`${b.active} ${b.confidence}% | bullP ${b.bullPressure.toFixed(0)} bearP ${b.bearPressure.toFixed(0)} | highP ${b.highPressure.toFixed(2)} lowP ${b.lowPressure.toFixed(2)} | aboveQ ${b.aboveFlipQuality.toFixed(2)} belowQ ${b.belowFlipQuality.toFixed(2)} | bullResp ${b.bullResponse.toFixed(2)} bearResp ${b.bearResponse.toFixed(2)} | ${b.actualResponse}`;
   return b;
 }
-function brainPrompt(b){return `SESSION MARKET BRAIN\n${b.summary}\nPRIMARY: ${b.primaryScenario}\nALTERNATE: ${b.alternateScenario}\nINVALIDATION: ${b.invalidation}\nENTRY WINDOW: ${b.entryReady?b.entrySide+" READY — "+b.entryReason:"NOT READY — "+b.entryReason}\nBULL EVIDENCE: ${b.bull.evidence.join("; ")||"none"}\nBEAR EVIDENCE: ${b.bear.evidence.join("; ")||"none"}\nYou must reason from this developing session story. Do not reset the thesis because of one countertrend tick. Repeated failed attempts, failed expected responses, and failed reclaims are stronger evidence than a fresh indicator spike.`;}
+function brainPrompt(b){return `SESSION PRESSURE MODEL\n${b.summary}\nEXPECTED: ${b.expectedResponse}\nINVALIDATION: ${b.invalidation}\nENTRY WINDOW: ${b.entryReady?b.entrySide+" READY for "+b.readyTicks+" ticks — "+b.entryReason:"NOT READY — "+b.entryReason}\nInterpret structure continuously. A single missed level or one countertrend tick is not a failed auction. Pressure must accumulate through persistence, acceptance quality, response efficiency, and meaningful location. Do not invent extra confirmation after ENTRY WINDOW is ready.`;}
 
 export default function App(){
   const[screen,setScreen]=useState("home");
@@ -853,7 +846,7 @@ export default function App(){
     let nextGate=chopGateR.current;if(nextGate==='OFF'&&((((m.gexInfluence||0)>=CHOP_PIN_ON)&&pinRising)||failedRecent>=3))nextGate='ON';else if((nextGate==='ON'&&(m.gexInfluence||0)<CHOP_PIN_OFF&&holdSide)||(nextGate==='ON'&&wallExpand))nextGate='OFF';
     if(nextGate!==chopGateR.current){chopGateR.current=nextGate;setChopGate(nextGate);addJournal(c.t,`CHOP_GATE ${nextGate} — pin ${((m.gexInfluence||0)*100).toFixed(0)}%, failed crosses ${failedRecent}, holdSide ${holdSide}, wallExpand ${wallExpand}.`);}prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;
     const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
-    if(nextBrain.active!==priorBrain.active||nextBrain.bull.status!==priorBrain.bull.status||nextBrain.bear.status!==priorBrain.bear.status||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
+    if(nextBrain.active!==priorBrain.active||Math.abs(nextBrain.bullPressure-priorBrain.bullPressure)>=8||Math.abs(nextBrain.bearPressure-priorBrain.bearPressure)>=8||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
     const np=computeProbs(m,candR.current),nc=computeConf(m,np),nt=computeTheses(m,candR.current,thesisR.current);
     probR.current=np;confR.current=nc;thesisR.current=nt;setProbs({...np});setConfData({...nc});setThesisData({...nt});
@@ -896,7 +889,7 @@ export default function App(){
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`,marketBrainR.current)
         .then(dec=>{
           const mb=marketBrainR.current;
-          if(!posR.current&&mb.entryReady&&dec.decision==="WAIT"){dec={...dec,decision:mb.entrySide==="CALL"?"BUY_CALL":"BUY_PUT",mindset:"MARKET_BRAIN_REACTIVATION",reasoning:`${mb.entryReason} Primary scenario: ${mb.primaryScenario}. This is an anticipatory structural entry, not a completed-move chase.`};addJournal(ts,`THESIS_REACTIVATION ${mb.entrySide} — ${mb.entryReason}`);}
+          if(!posR.current&&mb.entryReady&&dec.decision==="WAIT"){dec={...dec,decision:mb.entrySide==="CALL"?"BUY_CALL":"BUY_PUT",mindset:"MARKET_BRAIN_REACTIVATION",reasoning:`${mb.entryReason} Expected behavior: ${mb.expectedResponse}. This is a pressure-aligned anticipatory entry, not a completed-move chase.`};addJournal(ts,`THESIS_REACTIVATION ${mb.entrySide} — ${mb.entryReason}`);}
           const aiSide=dec.decision==="BUY_CALL"?"CALL":dec.decision==="BUY_PUT"?"PUT":"WAIT";
           if(!posR.current&&aiSide!=="WAIT"&&mb.active!=="WAIT"&&aiSide!==mb.active&&mb.confidence>=72){addJournal(ts,`THESIS_CONFLICT_BLOCK AI:${aiSide} active:${mb.active} ${mb.confidence}% — one countertrend tick cannot erase the session thesis.`);dec={...dec,decision:"WAIT",mindset:"THESIS_CONFLICT",reasoning:`Active ${mb.active} thesis remains ${mb.confidence}% and has not reached its structural invalidation: ${mb.invalidation}.`};}
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);

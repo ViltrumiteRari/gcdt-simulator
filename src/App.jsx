@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 
 
-const BUILD_ID = "v17-option-engine-20260705";
+const BUILD_ID = "v18-unified-intent-20260705";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 0;
@@ -694,43 +694,70 @@ function extractTraderPayload(data){
   };
   return walk(data);
 }
-function buildFallbackDecision(m,pos,det,brain,thesis,chain){
+function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf){
   if(pos){
     const pnl=(pos.current/pos.entry-1)*100;
     const invalid=pos.isCall?m.spySpot<=(pos.stopSpot??-Infinity):m.spySpot>=(pos.stopSpot??Infinity);
-    if(invalid||pnl<=-(pos.maxLossPct??8)){
-      return normalizeTraderDecision({decision:"SELL",reasoning:invalid?"Fallback exit: spot invalidated the original thesis.":"Fallback exit: contract reached its case-specific loss tolerance.",mindset:"validated fallback risk",journal_entry:"AI response failed; deterministic safety exit executed.",edge_state:"EXITING",confidence_trend:"DECAYING",memory_used:"none"});
-    }
-    return normalizeTraderDecision({decision:"HOLD",reasoning:"AI response failed; fallback holds because the original invalidation has not occurred.",mindset:"validated fallback hold",journal_entry:"",edge_state:"IN_TRADE",confidence_trend:"UNCLEAR",memory_used:"none"});
+    const lossHit=pnl<=-(pos.maxLossPct??8);
+    const targetHit=pnl>=(pos.takeProfitPct??35);
+    const action=invalid||lossHit||targetHit?"EXIT":"HOLD";
+    return{action,direction:pos.isCall?"CALL":"PUT",readiness:100,confidence:pos.tradeConfidence||70,contract:{strike:pos.strike,price:pos.current,delta:null,quality:"OPEN"},blockers:[],supportingFactors:[`Open ${pos.isCall?"CALL":"PUT"} position`,`${pnl>=0?"+":""}${pnl.toFixed(1)}% option P/L`],invalidation:pos.stopSpot,target:pos.targetSpot,maxLossPct:pos.maxLossPct,source:"OPEN_POSITION"};
   }
-  const side=det?.dir;
-  const brainAligned=side&&side!=="WAIT"&&brain?.active===side;
-  const strongGuide=(det?.score||0)>=55;
-  const strongBrain=(brain?.confidence||0)>=45;
-  if(!m.isTradeable||side==="WAIT"||!brainAligned||!strongGuide||!strongBrain){
-    return normalizeTraderDecision({decision:"WAIT",reasoning:"AI response failed; fallback found no aligned high-quality directional setup.",mindset:"validated fallback wait",journal_entry:"",edge_state:"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
-  }
+  const side=brain?.active&&brain.active!=="WAIT"?brain.active:(thesis?.entryBias&&thesis.entryBias!=="WAIT"?thesis.entryBias:det?.dir||"WAIT");
   const isCall=side==="CALL";
-  const opt=selectContract(chain,isCall,det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp");
-  if(!opt){
-    return normalizeTraderDecision({decision:"WAIT",reasoning:"AI response failed; directional setup existed but no quality contract met delta, moneyness, and price constraints.",mindset:"no valid contract",journal_entry:"",edge_state:"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
-  }
-  const confidence=clamp(Math.round(((det.score||0)+(brain.confidence||0))/2),45,88);
-  return normalizeTraderDecision({
-    decision:isCall?"BUY_CALL":"BUY_PUT",
-    reasoning:`AI response failed; fallback executed aligned ${side} setup from local guide ${det.score} and unified brain ${brain.confidence}%.`,
-    mindset:"validated deterministic fallback",
-    journal_entry:`AI unavailable; aligned ${side} fallback executed with a quality contract.`,
-    edge_state:"ENTRY_READY",
-    confidence_trend:"BUILDING",
-    trade_confidence:confidence,
-    invalidation_spot:isCall?m.spySpot-(0.25+confidence/220):m.spySpot+(0.25+confidence/220),
-    target_spot:isCall?m.spySpot+(0.55+confidence/120):m.spySpot-(0.55+confidence/120),
-    max_loss_pct:clamp(5+(confidence-45)*0.16,5,12),
-    memory_used:"none"
-  });
+  const mode=det?.mode==="PIN_RANGE"?"pin":det?.mode==="GEX_EXPANSION"?"expansion":"scalp";
+  const contract=side!=="WAIT"?selectContract(chain,isCall,mode):null;
+  const recent=hist.slice(-8),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0;
+  const dir=side==="CALL"?1:side==="PUT"?-1:0;
+  const aligned3=dir*move3>0.18,aligned6=dir*move6>0.35;
+  const persistence=[aligned3,aligned6].filter(Boolean).length;
+  const brainConfidence=clamp(Number(brain?.confidence)||0,0,100);
+  const edge=Math.abs((brain?.bullPressure||0)-(brain?.bearPressure||0));
+  const locationOk=side==="CALL"?m.spySpot>=Math.min(m.fep,m.gammaFlip)-0.15:side==="PUT"?m.spySpot<=Math.max(m.fep,m.gammaFlip)+0.15:false;
+  const response=side==="CALL"?(brain?.bullResponse||0):(brain?.bearResponse||0);
+  const responseOk=response>=0.45;
+  const accelOk=m.accelerator>=4.2;
+  const guideAligned=det?.dir===side;
+  const contractScore=!contract?0:contract.tier==="QUALITY"?100:72;
+  const chaseRisk=dir!==0&&dir*move3>2.2&&Math.abs(move3)>Math.abs(move6)*0.72;
+  const factors=[
+    {label:`Market brain ${side}`,passed:side!=="WAIT",weight:20,value:brainConfidence},
+    {label:"Directional edge",passed:edge>=10,weight:15,value:edge},
+    {label:"Price persistence",passed:persistence>=1,weight:18,value:persistence*50},
+    {label:"FEP / flip location",passed:locationOk,weight:14,value:locationOk?100:0},
+    {label:"Response quality",passed:responseOk,weight:13,value:Math.round(response*100)},
+    {label:"Acceleration active",passed:accelOk,weight:8,value:Math.round(m.accelerator/12*100)},
+    {label:"Local playbook agrees",passed:guideAligned,weight:5,value:guideAligned?100:0},
+    {label:"Contract available",passed:!!contract,weight:7,value:contractScore},
+  ];
+  let readiness=Math.round(factors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
+  if(contract?.tier==="ADAPTIVE")readiness-=5;
+  if(chaseRisk)readiness-=12;
+  readiness=clamp(readiness,0,100);
+  const blockers=[];
+  for(const f of factors)if(!f.passed)blockers.push(f.label);
+  if(chaseRisk)blockers.push("Chase risk after completed impulse");
+  if(!m.isTradeable)blockers.unshift("Market not tradeable");
+  const qualityThreshold=contract?.tier==="ADAPTIVE"?86:78;
+  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&readiness>=qualityThreshold&&brainConfidence>=45&&edge>=10;
+  const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
+  const confidence=clamp(Math.round(readiness*.58+brainConfidence*.32+(contractScore||0)*.10),0,98);
+  return{action,direction:side==="WAIT"?null:side,readiness,confidence,contract:contract?{strike:contract.strike,price:contract.price,delta:contract.delta,quality:contract.tier}:null,blockers,supportingFactors:factors.filter(f=>f.passed).map(f=>f.label),invalidation:null,target:null,maxLossPct:null,threshold:qualityThreshold,chaseRisk,source:"UNIFIED_INTENT",diagnostics:{brainConfidence,edge,persistence,response,guideAligned,contractScore,legacyDetScore:det?.score??null}};
 }
-
+function buildFallbackDecision(m,pos,intent){
+  if(pos){
+    const pnl=(pos.current/pos.entry-1)*100;
+    const invalid=pos.isCall?m.spySpot<=(pos.stopSpot??-Infinity):m.spySpot>=(pos.stopSpot??Infinity);
+    if(invalid||pnl<=-(pos.maxLossPct??8))return normalizeTraderDecision({decision:"SELL",reasoning:invalid?"Fallback exit: spot invalidated the original thesis.":"Fallback exit: contract reached its case-specific loss tolerance.",mindset:"validated fallback risk",journal_entry:"AI response failed; deterministic safety exit executed.",edge_state:"EXITING",confidence_trend:"DECAYING",memory_used:"none"});
+    return normalizeTraderDecision({decision:"HOLD",reasoning:"AI response failed; unified intent remains HOLD because no exit condition is active.",mindset:"validated fallback hold",journal_entry:"",edge_state:"IN_TRADE",confidence_trend:"UNCLEAR",memory_used:"none"});
+  }
+  if(!intent||!String(intent.action).startsWith("BUY_")){
+    const failed=(intent?.blockers||[]).slice(0,4).join(", ")||"readiness below threshold";
+    return normalizeTraderDecision({decision:"WAIT",reasoning:`AI response failed; unified intent is ${intent?.action||"WAIT"} at ${intent?.readiness||0}% readiness. Blockers: ${failed}.`,mindset:"validated fallback wait",journal_entry:"",edge_state:intent?.action||"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
+  }
+  const isCall=intent.action==="BUY_CALL",confidence=intent.confidence||65;
+  return normalizeTraderDecision({decision:intent.action,reasoning:`AI response failed; fallback executed canonical ${intent.direction} intent at ${intent.readiness}% readiness with ${intent.contract?.quality||"UNKNOWN"} contract.`,mindset:"validated unified fallback",journal_entry:`AI unavailable; unified ${intent.direction} intent executed.`,edge_state:"ENTRY_READY",confidence_trend:"BUILDING",trade_confidence:confidence,invalidation_spot:isCall?m.spySpot-(0.25+confidence/220):m.spySpot+(0.25+confidence/220),target_spot:isCall?m.spySpot+(0.55+confidence/120):m.spySpot-(0.55+confidence/120),max_loss_pct:clamp(5+(confidence-45)*0.16,5,12),memory_used:"none"});
+}
 
 
 
@@ -936,21 +963,27 @@ function ThesisBar({label,score,mom,color,scalpEdge}){
     <div style={{height:3,background:"#1e2530",borderRadius:2}}><div style={{height:"100%",width:`${score}%`,background:color,borderRadius:2,transition:"width 0.4s"}}/></div>
   </div>;
 }
-function ThesisPanel({thesis}){
-  const biasColor=thesis.entryBias==="CALL"?"#00d4a8":thesis.entryBias==="PUT"?"#ff4060":"#f0c040";
-  return<div style={{background:"#0e1117",borderRadius:8,border:`1px solid #1a2030`,margin:"0 14px 8px",padding:12}}>
+function TradeIntentPanel({intent}){
+  const action=intent?.action||"WAIT",dir=intent?.direction;
+  const color=action.includes("CALL")?T.accent:action.includes("PUT")?T.red:action==="EXIT"?T.yellow:T.yellow;
+  const label=action.replaceAll("_"," ");
+  const readiness=intent?.readiness||0;
+  return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}55`,margin:"0 14px 8px",padding:12}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-      <span style={{fontSize:9,color:"#4a5568",letterSpacing:"0.1em"}}>UNIFIED DIRECTIONAL STATE</span>
-      <span style={{fontSize:10,fontWeight:700,color:biasColor}}>{thesis.state} · EDGE {thesis.edgeScore}</span>
+      <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>TRADE INTENT</span>
+      <span style={{fontSize:12,fontWeight:800,color}}>{label}</span>
     </div>
-    <ThesisBar label="CALL" score={thesis.scores.call} mom={thesis.momentum.call} color="#00d4a8" scalpEdge={thesis.scalpEdge&&thesis.scalpDir==="CALL"}/>
-    <ThesisBar label="PUT" score={thesis.scores.put} mom={thesis.momentum.put} color="#ff4060" scalpEdge={thesis.scalpEdge&&thesis.scalpDir==="PUT"}/>
-    <ThesisBar label="WAIT" score={thesis.scores.wait} mom={thesis.momentum.wait} color="#f0c040"/>
-    {thesis.call.needs?.length>0&&<div style={{fontSize:7,color:"#00d4a8",marginTop:4}}>CALL needs: {thesis.call.needs.slice(0,2).join(" · ")}</div>}
-    {thesis.put.needs?.length>0&&<div style={{fontSize:7,color:"#ff4060",marginTop:2}}>PUT needs: {thesis.put.needs.slice(0,2).join(" · ")}</div>}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+      <span style={{fontSize:8,color:T.muted}}>READINESS</span><span style={{fontSize:18,fontWeight:800,color}}>{readiness}%</span>
+    </div>
+    <div style={{height:6,background:T.dim,borderRadius:4,overflow:"hidden",marginBottom:9}}><div style={{height:"100%",width:`${readiness}%`,background:color,transition:"width .35s"}}/></div>
+    {intent?.contract&&<div style={{padding:"7px 8px",background:T.surface2,borderRadius:5,marginBottom:8,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color}}>{intent.contract.strike}{dir==="PUT"?"P":"C"} @ ${intent.contract.price.toFixed(2)}</span><span style={{fontSize:8,color:T.muted}}>Δ{intent.contract.delta==null?"—":intent.contract.delta.toFixed(2)} · {intent.contract.quality}</span></div>}
+    <div style={{fontSize:8,color:T.muted,marginBottom:4}}>SUPPORT</div>
+    {(intent?.supportingFactors||[]).slice(0,5).map((x,i)=><div key={i} style={{fontSize:8,color:T.accent,marginBottom:2}}>✓ {x}</div>)}
+    {(intent?.blockers||[]).length>0&&<><div style={{fontSize:8,color:T.muted,margin:"7px 0 4px"}}>BLOCKERS</div>{intent.blockers.slice(0,5).map((x,i)=><div key={i} style={{fontSize:8,color:T.red,marginBottom:2}}>✕ {x}</div>)}</>}
+    <div style={{marginTop:8,fontSize:7,color:T.dim}}>Execution threshold: {intent?.threshold??"—"}% · Canonical confidence: {intent?.confidence??0}%</div>
   </div>;
 }
-
 
 
 
@@ -1140,6 +1173,7 @@ export default function App(){
   const[optionChain,setOptionChain]=useState(null);
   const[probs,setProbs]=useState({discovery:25,pin:25,transition:25,macro:25});
   const[confData,setConfData]=useState({score:50,factors:[]});
+  const[tradeIntentData,setTradeIntentData]=useState({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Waiting for market data"],supportingFactors:[]});
   const[timeline,setTimeline]=useState([]);
   const[timelineOpen,setTimelineOpen]=useState(false);
   const[thinking,setThinking]=useState(false);
@@ -1165,7 +1199,7 @@ export default function App(){
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
   const journalR=useRef([]),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
-  const confR=useRef({score:50,factors:[]}),tickR=useRef(0),thinkR=useRef(false);
+  const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
   const thesisHistR=useRef([]),prevAccelR=useRef(0),lastAiTickR=useRef(-99),repeatWaitR=useRef(0),lastWaitReasonR=useRef("");
@@ -1255,6 +1289,7 @@ export default function App(){
     if(top!==lastSR.current){lastSR.current=top;tlR.current=[...tlR.current,{t:fmt.time(m.h,m.m),state:top,probs:{...np}}];setTimeline([...tlR.current]);}
     const accelCrossed=m.accelerator>=7.4&&prevAccelR.current<7.4;
     const det=computeDeterministicPlan(m,candR.current,np,nt);
+    const intent=buildTradeIntent(m,candR.current,nextBrain,nt,det,chain,posR.current,nc);tradeIntentR.current=intent;setTradeIntentData(intent);
     const leadLag=computeLeadLag(m,candR.current);
     const sm=sessionModelR.current;
     if(leadLag.state!==sm.lastLeadState){if(leadLag.opportunity)sm.leadOpp++;if(leadLag.state==='SPY_CATCHING_UP')sm.leadCatch++;if(leadLag.state==='SPY_REJECTING_SPX')sm.leadReject++;sm.lastLeadState=leadLag.state;}
@@ -1263,8 +1298,8 @@ export default function App(){
     const localDir=det.dir;
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
-    if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} armed (${det.score}): ${det.reason}. ${leadLag.text}.`:`No local entry. ${det.reason}. ${leadLag.text}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
-    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Guide ${localDir} (${det.score}): ${det.reason}. ${leadLag.text}${opt?` | suggested ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)} ${opt.tier}`:" | no <=$0.50 contract"}. AI has discretion; no auto-entry.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
+    if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} context: ${det.reason}. ${leadLag.text}. Unified intent ${intent.action} ${intent.readiness}%.`:`No local entry. ${det.reason}. ${leadLag.text}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
+    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Playbook ${localDir}: ${det.reason}. ${leadLag.text}${opt?` | candidate ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)} ${opt.tier}`:" | no valid contract"}. Unified intent ${intent.action} ${intent.readiness}%; blockers: ${(intent.blockers||[]).slice(0,3).join(", ")||"none"}.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
@@ -1314,13 +1349,13 @@ export default function App(){
             }
           }
       };
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`,marketBrainR.current)
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nCANONICAL TRADE INTENT: ${intent.action} | direction ${intent.direction||"NONE"} | readiness ${intent.readiness}% | confidence ${intent.confidence}% | contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"} | blockers ${(intent.blockers||[]).join(", ")||"none"}. Treat this as the single execution state; do not invent separate hidden gates.\n${leadLag.text}`,marketBrainR.current)
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time(m.h,m.m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);
           addM({t:ts,mindset:"AI response failure",reasoning:raw,decision:"FALLBACK",score:confR.current.score,edgeState:"ERROR_RECOVERED",confTrend:"UNCLEAR"});
           addJournal(ts,`AI_RESPONSE_FAILURE ${raw}`);
-          const fallback=buildFallbackDecision(m,posR.current,det,marketBrainR.current,thesisR.current,chain);
+          const fallback=buildFallbackDecision(m,posR.current,tradeIntentR.current);
           addJournal(ts,`FALLBACK_DECISION ${fallback.decision} — ${fallback.reasoning}`);
           applyDecision(fallback,"FALLBACK");
         })
@@ -1342,7 +1377,7 @@ export default function App(){
     archetypeIdR.current=mode==="seed"?sess.archetype:null;
     const label=mode==="replay"?`${SPX_JUL1.label} · ${SPX_JUL1.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
-    setPos(null);posR.current=null;setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];
+    setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];
     setJournal([]);journalR.current=[];setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
@@ -1541,7 +1576,7 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:running?T.accent:done?T.muted:T.yellow,boxShadow:running?`0 0 6px ${T.accent}`:"none"}}/>
-            <span style={{fontSize:9,fontWeight:700,color:T.accent}}>GCDT · FS OS v3</span>
+            <span style={{fontSize:9,fontWeight:700,color:T.accent}}>GCDT · FS OS v3 · v18</span>
             {isPremarket&&<span style={{fontSize:7,color:T.yellow,border:`1px solid ${T.yellow}40`,padding:"1px 4px",borderRadius:2}}>PRE</span>}
             {mkt?.synthData&&<span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}40`,padding:"1px 4px",borderRadius:2}}>SYNTH</span>}
             {thinking&&<span style={{fontSize:9,color:T.yellow}}>◈</span>}
@@ -1631,7 +1666,7 @@ export default function App(){
 
 
 
-        {mkt&&<ThesisPanel thesis={thesisData}/>} 
+        {mkt&&<TradeIntentPanel intent={tradeIntentData}/>} 
         {mkt&&<OptionChainPanel chain={optionChain} pos={pos}/>}
 
 
@@ -1651,22 +1686,6 @@ export default function App(){
             <div style={{height:3,background:T.dim,borderRadius:2}}><div style={{height:"100%",width:`${gexInf*100}%`,background:gexInf>0.7?T.red:gexInf<0.28?T.accent:T.yellow,borderRadius:2,transition:"width 0.5s"}}/></div>
           </div>
           <div style={{height:1,background:T.border,margin:"10px 0"}}/>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-            <span style={{fontSize:9,color:T.muted}}>CONVICTION</span>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              {lastM&&<span style={{fontSize:8,color:lastM.confTrend==="BUILDING"?T.accent:lastM.confTrend==="DECAYING"?T.red:T.yellow}}>{lastM.confTrend}</span>}
-              <span style={{fontSize:17,fontWeight:700,color:confData.score>65?T.accent:confData.score<40?T.red:T.yellow}}>{confData.score}</span>
-            </div>
-          </div>
-          <Spark data={confHist} color={confData.score>65?T.accent:confData.score<40?T.red:T.yellow} h={42} w={308} fill={true}/>
-          {confData.factors.length>0&&<div style={{marginTop:8}}>
-            {confData.factors.slice(0,5).map((f,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3,paddingBottom:3,borderBottom:i<confData.factors.length-1?`1px solid ${T.dim}`:"none"}}>
-                <span style={{fontSize:8,color:T.muted}}>{f.label}</span>
-                <span style={{fontSize:9,fontWeight:700,color:f.delta>0?T.accent:T.red}}>{f.delta>0?"+":""}{f.delta}</span>
-              </div>
-            ))}
-          </div>}
           <div style={{marginTop:8}}>
             <button onClick={()=>setTimelineOpen(o=>!o)} style={{background:"none",border:"none",color:T.muted,cursor:"pointer",fontSize:9,padding:0,display:"flex",alignItems:"center",gap:4}}>
               <span>{timelineOpen?"▼":"▶"}</span><span>REGIME TIMELINE ({timeline.length})</span>

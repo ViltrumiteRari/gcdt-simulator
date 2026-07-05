@@ -888,11 +888,12 @@ export default function App(){
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`,marketBrainR.current)
         .then(dec=>{
+          const ts=fmt.time(m.h,m.m);
           const mb=marketBrainR.current;
           if(!posR.current&&mb.entryReady&&dec.decision==="WAIT"){dec={...dec,decision:mb.entrySide==="CALL"?"BUY_CALL":"BUY_PUT",mindset:"MARKET_BRAIN_REACTIVATION",reasoning:`${mb.entryReason} Expected behavior: ${mb.expectedResponse}. This is a pressure-aligned anticipatory entry, not a completed-move chase.`};addJournal(ts,`THESIS_REACTIVATION ${mb.entrySide} — ${mb.entryReason}`);}
           const aiSide=dec.decision==="BUY_CALL"?"CALL":dec.decision==="BUY_PUT"?"PUT":"WAIT";
           if(!posR.current&&aiSide!=="WAIT"&&mb.active!=="WAIT"&&aiSide!==mb.active&&mb.confidence>=72){addJournal(ts,`THESIS_CONFLICT_BLOCK AI:${aiSide} active:${mb.active} ${mb.confidence}% — one countertrend tick cannot erase the session thesis.`);dec={...dec,decision:"WAIT",mindset:"THESIS_CONFLICT",reasoning:`Active ${mb.active} thesis remains ${mb.confidence}% and has not reached its structural invalidation: ${mb.invalidation}.`};}
-          const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
+          const mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
           lastWaitReasonR.current=dec.reasoning||"";
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});

@@ -5,7 +5,8 @@ const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 0;
 const OPEN_H = 9, OPEN_M = 30;
 const TRADER_API = "https://firstsignal-os.vercel.app/api/trader";
-const STORAGE_KEY = "gcdt_v13";
+const STORAGE_KEY = "gcdt_shared";
+const LEGACY_STORAGE_KEYS = ["gcdt_v14","gcdt_v13"];
 const SIGNAL_EXIT_MIN_HOLD_TICKS=5;
 const LEAD_LAG_SUSTAIN_TICKS=3;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
@@ -482,16 +483,32 @@ function buildOptionChain(spot,iv,mL,width=80,ctx=null){
 }
 function selectContract(chain,isCall,mode='swing'){
   const list=isCall?chain.calls:chain.puts;
-  const cfg=mode==='pin'?{idealPrice:0.28,targetDelta:0.18,minDelta:0.10,maxDist:5}:mode==='expansion'?{idealPrice:0.24,targetDelta:0.14,minDelta:0.08,maxDist:8}:{idealPrice:0.26,targetDelta:0.16,minDelta:0.09,maxDist:6};
+  const cfg=mode==='pin'?{idealPrice:0.32,targetDelta:0.20,minDelta:0.12,maxDist:4.5}:mode==='expansion'?{idealPrice:0.30,targetDelta:0.18,minDelta:0.10,maxDist:6}:{idealPrice:0.31,targetDelta:0.19,minDelta:0.11,maxDist:5};
   const directional=o=>isCall?o.strike>=chain.spot-0.5:o.strike<=chain.spot+0.5;
-  let candidates=list.filter(o=>directional(o)&&o.distance<=cfg.maxDist&&o.price>=0.08&&o.price<=0.50&&Math.abs(o.delta)>=cfg.minDelta);
-  if(!candidates.length)candidates=list.filter(o=>directional(o)&&o.distance<=10&&o.price>=0.05&&o.price<=0.50&&Math.abs(o.delta)>=0.05);
-  candidates=candidates.map(o=>({...o,score:Math.abs(o.price-cfg.idealPrice)*1.8+Math.abs(Math.abs(o.delta)-cfg.targetDelta)*2.2+o.distance*0.035})).sort((a,b)=>a.score-b.score);
+  const candidates=list.filter(o=>directional(o)&&o.distance<=cfg.maxDist&&o.price>=0.08&&o.price<=0.50&&Math.abs(o.delta)>=cfg.minDelta).map(o=>({...o,score:Math.abs(o.price-cfg.idealPrice)*1.8+Math.abs(Math.abs(o.delta)-cfg.targetDelta)*2.4+o.distance*0.045})).sort((a,b)=>a.score-b.score);
   const x=candidates[0];
   return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?'CALL':'PUT'}:null;
 }
 function findStrike(spot,iv,mL,isCall,mode='swing'){
   return selectContract(buildOptionChain(spot,iv,mL,80),isCall,mode);
+}
+
+function unifyDirectionalState(thesis,brain,prev){
+  const bull=clamp(Number(brain?.bullPressure)||0,0,100),bear=clamp(Number(brain?.bearPressure)||0,0,100),edge=Math.abs(bull-bear),waitRaw=clamp(62-edge*1.15,10,68),scores=norm3(bull+4,bear+4,waitRaw),momentum=thesisMomentum(scores,prev?.scores),active=bull>bear?"CALL":bear>bull?"PUT":"WAIT",confidence=Math.max(bull,bear),entryBias=confidence>=45&&edge>=8?active:"WAIT";
+  return{...thesis,scores,momentum,entryBias,state:entryBias==="WAIT"?(active==="WAIT"?"NO_EDGE":`${active}_BUILDING`):`ENTRY_READY_${entryBias}`,edgeScore:Math.round(edge),source:"MARKET_BRAIN_UNIFIED"};
+}
+function normalizeTraderDecision(obj){
+  const allowed=new Set(["WAIT","WAITING","BUY_CALL","BUY_PUT","SELL","HOLD"]);if(!obj||typeof obj!=="object")throw new Error("AI response was not an object");const decision=String(obj.decision||"").toUpperCase();if(!allowed.has(decision))throw new Error(`invalid decision: ${String(obj.decision)}`);
+  return{decision,reasoning:String(obj.reasoning||"").slice(0,600),mindset:String(obj.mindset||"").slice(0,240),journal_entry:String(obj.journal_entry||"").slice(0,600),edge_state:String(obj.edge_state||"NO_EDGE"),confidence_trend:String(obj.confidence_trend||"UNCLEAR"),trade_confidence:Number.isFinite(Number(obj.trade_confidence))?clamp(Number(obj.trade_confidence),0,100):0,invalidation_spot:Number.isFinite(Number(obj.invalidation_spot))?Number(obj.invalidation_spot):null,target_spot:Number.isFinite(Number(obj.target_spot))?Number(obj.target_spot):null,max_loss_pct:Number.isFinite(Number(obj.max_loss_pct))?clamp(Number(obj.max_loss_pct),3,20):null,memory_used:String(obj.memory_used||"none").slice(0,300)};
+}
+function extractTraderPayload(data){
+  const seen=new Set();const walk=v=>{if(v==null)return null;if(typeof v==="object"){if(seen.has(v))return null;seen.add(v);if(v.decision)return v;for(const k of ["content","text","response","output","result","message","data","choices"]){const hit=walk(v[k]);if(hit)return hit;}if(Array.isArray(v)){for(const x of v){const hit=walk(x);if(hit)return hit;}}return null;}if(typeof v==="string"){const raw=v.replace(/```json|```/gi,"").trim(),s=raw.indexOf("{"),e=raw.lastIndexOf("}");if(s>=0&&e>s){try{return JSON.parse(raw.slice(s,e+1));}catch{}}try{return JSON.parse(raw);}catch{return null;}}return null;};return walk(data);
+}
+function buildFallbackDecision(m,pos,det,brain,thesis,chain){
+  if(pos){const pnl=(pos.current/pos.entry-1)*100,invalid=pos.isCall?m.spySpot<=(pos.stopSpot??-Infinity):m.spySpot>=(pos.stopSpot??Infinity);if(invalid||pnl<=-(pos.maxLossPct??8))return normalizeTraderDecision({decision:"SELL",reasoning:invalid?"Fallback exit: spot invalidated the original thesis.":"Fallback exit: contract reached its case-specific loss tolerance.",mindset:"validated fallback risk",journal_entry:"AI response failed; deterministic safety exit executed.",edge_state:"EXITING",confidence_trend:"DECAYING",memory_used:"none"});return normalizeTraderDecision({decision:"HOLD",reasoning:"AI response failed; fallback holds because the original invalidation has not occurred.",mindset:"validated fallback hold",journal_entry:"",edge_state:"IN_TRADE",confidence_trend:"UNCLEAR",memory_used:"none"});}
+  const side=det?.dir,brainAligned=side&&side!=="WAIT"&&brain?.active===side,strongGuide=(det?.score||0)>=55,strongBrain=(brain?.confidence||0)>=45;if(!m.isTradeable||side==="WAIT"||!brainAligned||!strongGuide||!strongBrain)return normalizeTraderDecision({decision:"WAIT",reasoning:"AI response failed; fallback found no aligned high-quality directional setup.",mindset:"validated fallback wait",journal_entry:"",edge_state:"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
+  const isCall=side==="CALL",opt=selectContract(chain,isCall,det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp");if(!opt)return normalizeTraderDecision({decision:"WAIT",reasoning:"AI response failed; directional setup existed but no quality contract met delta, moneyness, and price constraints.",mindset:"no valid contract",journal_entry:"",edge_state:"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
+  const confidence=clamp(Math.round(((det.score||0)+(brain.confidence||0))/2),45,88);return normalizeTraderDecision({decision:isCall?"BUY_CALL":"BUY_PUT",reasoning:`AI response failed; fallback executed aligned ${side} setup from local guide ${det.score} and unified brain ${brain.confidence}%.`,mindset:"validated deterministic fallback",journal_entry:`AI unavailable; aligned ${side} fallback executed with a quality contract.`,edge_state:"ENTRY_READY",confidence_trend:"BUILDING",trade_confidence:confidence,invalidation_spot:isCall?m.spySpot-(0.25+confidence/220):m.spySpot+(0.25+confidence/220),target_spot:isCall?m.spySpot+(0.55+confidence/120):m.spySpot-(0.55+confidence/120),max_loss_pct:clamp(5+(confidence-45)*0.16,5,12),memory_used:"none"});
 }
 
 async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain){
@@ -532,7 +549,7 @@ ${optStr}
 
 RECENT:\n${rH}
 
-THESIS WEIGHTS: ${thesisStr}
+UNIFIED DIRECTIONAL STATE: ${thesisStr}
 
 RULES:
 - Maintain CALL, PUT, and WAIT, but update them proportionally to what price has actually done. A sustained multi-dollar decline must materially increase PUT and reduce CALL unless there is concrete reversal evidence; a sustained rise must do the opposite. The SPX-SPY ITS gap indicates lead/lag, not direction—direction comes from their slopes and price response.
@@ -555,15 +572,11 @@ Respond ONLY valid JSON:
 {"decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"closest analogue used and key difference, or none"}`;
   const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
   if(!resp.ok)throw new Error(`API ${resp.status}`);
-  const data=await resp.json();
-  const payload=typeof data==="string"?data:(data.content??data.text??data.response??data.output??data);
-  if(typeof payload==="object"&&payload?.decision)return{...payload,callOpt,putOpt};
-  const raw=String(typeof payload==="string"?payload:JSON.stringify(payload)).replace(/```json|```/g,"").trim();
-  const start=raw.indexOf("{"),end=raw.lastIndexOf("}");
-  let parsed;
-  try{parsed=start>=0&&end>start?JSON.parse(raw.slice(start,end+1)):JSON.parse(raw);}catch(e){throw new Error(`JSON parse failed: ${e.message} — raw: ${raw.slice(0,120)}`);}
-  if(!parsed.decision)throw new Error(`missing decision field — raw: ${raw.slice(0,80)}`);
-  return{...parsed,callOpt,putOpt};
+  const rawText=await resp.text();
+  let data;try{data=JSON.parse(rawText);}catch{data=rawText;}
+  const payload=extractTraderPayload(data);
+  if(!payload){const err=new Error(`AI_SCHEMA_FAILURE raw:${rawText.slice(0,500)}`);err.rawResponse=rawText;throw err;}
+  return{...normalizeTraderDecision(payload),callOpt,putOpt};
 }
 
 async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
@@ -650,7 +663,7 @@ function ThesisPanel({thesis}){
   const biasColor=thesis.entryBias==="CALL"?"#00d4a8":thesis.entryBias==="PUT"?"#ff4060":"#f0c040";
   return<div style={{background:"#0e1117",borderRadius:8,border:`1px solid #1a2030`,margin:"0 14px 8px",padding:12}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-      <span style={{fontSize:9,color:"#4a5568",letterSpacing:"0.1em"}}>THESIS WEIGHTS</span>
+      <span style={{fontSize:9,color:"#4a5568",letterSpacing:"0.1em"}}>UNIFIED DIRECTIONAL STATE</span>
       <span style={{fontSize:10,fontWeight:700,color:biasColor}}>{thesis.state} · EDGE {thesis.edgeScore}</span>
     </div>
     <ThesisBar label="CALL" score={thesis.scores.call} mom={thesis.momentum.call} color="#00d4a8" scalpEdge={thesis.scalpEdge&&thesis.scalpDir==="CALL"}/>
@@ -700,7 +713,7 @@ function OptionChainPanel({chain,pos}){
     </div>
   </div>;
 }
-function storageGet(key,def){try{const v=localStorage.getItem(STORAGE_KEY+"_"+key);return v?JSON.parse(v):def;}catch{return def;}}
+function storageGet(key,def){try{const current=localStorage.getItem(STORAGE_KEY+"_"+key);if(current)return JSON.parse(current);for(const legacy of LEGACY_STORAGE_KEYS){const v=localStorage.getItem(legacy+"_"+key);if(v){const parsed=JSON.parse(v);localStorage.setItem(STORAGE_KEY+"_"+key,JSON.stringify(parsed));return parsed;}}return def;}catch{return def;}}
 function storageSet(key,val){try{localStorage.setItem(STORAGE_KEY+"_"+key,JSON.stringify(val));}catch{}}
 
 
@@ -901,7 +914,7 @@ export default function App(){
     const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
     if(nextBrain.active!==priorBrain.active||Math.abs(nextBrain.bullPressure-priorBrain.bullPressure)>=8||Math.abs(nextBrain.bearPressure-priorBrain.bearPressure)>=8||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
-    const np=computeProbs(m,candR.current),nc=computeConf(m,np),nt=computeTheses(m,candR.current,thesisR.current);
+    const np=computeProbs(m,candR.current),nc=computeConf(m,np),rawThesis=computeTheses(m,candR.current,thesisR.current),nt=unifyDirectionalState(rawThesis,nextBrain,thesisR.current);
     probR.current=np;confR.current=nc;thesisR.current=nt;setProbs({...np});setConfData({...nc});setThesisData({...nt});
     setConfHist(prev=>[...prev.slice(-150),nc.score]);
     setItsSPXHist(prev=>[...prev.slice(-150),m.itsSPX]);
@@ -940,6 +953,7 @@ export default function App(){
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`,marketBrainR.current)
+        .catch(e=>{const ts=fmt.time(m.h,m.m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);addM({t:ts,mindset:"AI response failure",reasoning:raw,decision:"FALLBACK",score:confR.current.score,edgeState:"ERROR_RECOVERED",confTrend:"UNCLEAR"});addJournal(ts,`AI_RESPONSE_FAILURE ${raw}`);const fallback=buildFallbackDecision(m,posR.current,det,marketBrainR.current,thesisR.current,chain);addJournal(ts,`FALLBACK_DECISION ${fallback.decision} — ${fallback.reasoning}`);return fallback;})
         .then(dec=>{
           const ts=fmt.time(m.h,m.m);
           const mb=marketBrainR.current;

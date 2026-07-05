@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 
+
+
+const BUILD_ID = "v17-option-engine-20260705";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 0;
@@ -12,6 +15,8 @@ const SIGNAL_EXIT_MIN_HOLD_TICKS=5;
 const LEAD_LAG_SUSTAIN_TICKS=3;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
 const ACCEL_SCALE_MAX=12,ACCEL_EXTREME_HIGH=8.8,ACCEL_EXTREME_LOW=2,ACCEL_BUILD_MIN=4.2,ACCEL_BUILD_MAX=8.7,ACCEL_RETEST_MAX=6.8;
+
+
 
 
 const SPX_JUL1 = {
@@ -34,6 +39,8 @@ const SPX_JUL1 = {
     { time: "15:59", spot: 7487.62, gex: -1011022100000,callDom: 0.02, maxGamma: 7485 },
   ],
 };
+
+
 
 
 // v12.1: MECHANICAL RULE-LAYER FIXES
@@ -72,14 +79,20 @@ const REAL_ARCHETYPES=[
 ];
 
 
+
+
 function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
 function lerp(a,b,t){return a+(b-a)*t;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 
 
+
+
 const fmt={bal:v=>v>=1e6?`$${(v/1e6).toFixed(3)}M`:v>=1000?`$${(v/1e3).toFixed(1)}K`:`$${v.toFixed(0)}`,pct:v=>`${v>=0?"+":""}${v.toFixed(1)}%`,time:(h,m)=>`${h}:${String(m).padStart(2,"0")}`,gex:v=>`${(v/1e9).toFixed(1)}B`};
 const T={bg:"#07090c",surface:"#0e1117",surface2:"#141920",border:"#1a2030",accent:"#00d4a8",accentDim:"#00d4a818",red:"#ff4060",redDim:"#ff406018",yellow:"#f0c040",yellowDim:"#f0c04018",purple:"#a78bfa",text:"#dde4f0",muted:"#4a5568",dim:"#1e2530"};
 const SC={discovery:"#00d4a8",pin:"#f0c040",transition:"#a78bfa",macro:"#ff4060"};
+
+
 
 
 function evolveTrack(prevGex,prevCallDom,gexRange,callDomRange,sharedForce,corr,idioScale){
@@ -99,6 +112,8 @@ function applyScriptedDecouple(arche,tick,spyCallDom,spxCallDom){
 }
 
 
+
+
 function interpolateSPX(snapshots,currentMin){
   const mins=snapshots.map(s=>timeToMin(s.time));
   if(currentMin<=mins[0])return{...snapshots[0],synth:false};
@@ -108,6 +123,8 @@ function interpolateSPX(snapshots,currentMin){
   const a=snapshots[i],b=snapshots[i+1],ease=t*t*(3-2*t);
   return{spot:lerp(a.spot,b.spot,ease)+(Math.random()-0.5)*0.8,gex:lerp(a.gex,b.gex,ease)+(Math.random()-0.5)*Math.abs(a.gex)*0.015,callDom:lerp(a.callDom,b.callDom,ease),maxGamma:ease<0.5?a.maxGamma:b.maxGamma,synth:Math.abs(currentMin-mins[i])>2&&Math.abs(currentMin-mins[i+1])>2};
 }
+
+
 
 
 function accelWindow(m,hist,dir){
@@ -133,6 +150,8 @@ function accelWindow(m,hist,dir){
 }
 
 
+
+
 function itsFromGex(callDom,gex,prevIts){
   const gexFactor=gex>0?Math.min(1,gex/2e11):Math.max(-0.3,gex/5e10);
   const target=1+callDom*11+gexFactor*2;
@@ -140,7 +159,11 @@ function itsFromGex(callDom,gex,prevIts){
 }
 
 
+
+
 function wRand(choices){const r=Math.random();let cum=0;for(const[v,w]of choices){cum+=w;if(r<cum)return v;}return choices[choices.length-1][0];}
+
+
 
 
 function createSeedEngine(forceArcheId){
@@ -231,6 +254,8 @@ function createSeedEngine(forceArcheId){
 }
 
 
+
+
 function createReplayEngine(replayData){
   const snapshots=replayData.snapshots,openMin=OPEN_H*60+OPEN_M,spyRatio=10;
   let s={spySpot:snapshots[0].spot/spyRatio,spxSpot:snapshots[0].spot,gammaFlip:snapshots[0].spot/spyRatio-0.5,callWall:snapshots[0].maxGamma/spyRatio+1,putWall:snapshots[0].spot/spyRatio-6,fep:snapshots[0].spot/spyRatio-0.3,accelerator:4.2,netGex:snapshots[0].gex/spyRatio,netGexSpx:snapshots[0].gex,itsSPX:itsFromGex(snapshots[0].callDom,snapshots[0].gex,5.5),itsSPY:4.2,callDom:snapshots[0].callDom,callDomSpyEst:snapshots[0].callDom,ndf:0.1,dealerPct:25,iv:13.5,pcr:0.85,gexInfluence:0.08,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spxCallDomBuffer:[snapshots[0].callDom,snapshots[0].callDom,snapshots[0].callDom]};
@@ -267,6 +292,8 @@ function createReplayEngine(replayData){
 }
 
 
+
+
 function computeProbs(mkt,hist){
   const div=mkt.itsSPX-mkt.itsSPY,ac=mkt.accelerator,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3;
   let D=0,H=0,M=0;
@@ -279,6 +306,8 @@ function computeProbs(mkt,hist){
   const Tr=Math.max(0,100-(D+H+M)*0.72),tot=D+H+M+Tr;
   return{discovery:Math.round(D/tot*100),pin:Math.round(H/tot*100),transition:Math.round(Tr/tot*100),macro:Math.round(M/tot*100)};
 }
+
+
 
 
 function computeConf(mkt,probs){
@@ -306,10 +335,14 @@ function computeConf(mkt,probs){
 }
 
 
+
+
 function norm3(call,put,wait){const c=Math.max(1,call),p=Math.max(1,put),w=Math.max(1,wait),tot=c+p+w;return{call:Math.round(c/tot*100),put:Math.round(p/tot*100),wait:Math.round(w/tot*100)};}
 function thesisMomentum(curr,prev){if(!prev)return{call:0,put:0,wait:0};return{call:curr.call-prev.call,put:curr.put-prev.put,wait:curr.wait-prev.wait};}
 function pushReason(arr,label,delta){arr.push({label,delta});}
 function computeEdgeScore(scores){const vals=[scores.call,scores.put,scores.wait].sort((a,b)=>b-a);return vals[0]-vals[1];}
+
+
 
 
 // v9: full rebalance. v8 lowered the threshold but left the weight accumulation itself
@@ -330,6 +363,8 @@ function computeTheses(mkt,hist,prev){
   const callReasons=[],putReasons=[],waitReasons=[],callNeeds=[],putNeeds=[],callInvalid=[],putInvalid=[];
 
 
+
+
   if(div>0.5){call+=14;put-=4;wait-=6;pushReason(callReasons,"SPX ITS leading SPY",14);}
   else if(div<-0.5){put+=8;call-=6;wait+=4;pushReason(putReasons,"SPY leading / call caution",8);pushReason(waitReasons,"retail-led caution",4);}
   else{wait+=4;pushReason(waitReasons,"ITS convergence / unclear leadership",4);}
@@ -340,6 +375,8 @@ function computeTheses(mkt,hist,prev){
   if(fg>0.6&&priceSlope>0){call+=9;put-=4;pushReason(callReasons,"spot above FEP with upward slope",9);}
   else if(fg<-0.6&&priceSlope<0){put+=9;call-=4;pushReason(putReasons,"spot below FEP with downward slope",9);}
   else if(Math.abs(fg)<0.35){wait+=4;pushReason(waitReasons,"spot anchored to FEP",4);}
+
+
 
 
   if(netGex>0&&gi>0.65){wait+=8;call-=3;put-=3;pushReason(waitReasons,"dominant positive GEX pin risk",8);}
@@ -356,10 +393,14 @@ function computeTheses(mkt,hist,prev){
   if(mLeft<35){wait+=8;call-=3;put-=3;pushReason(waitReasons,"final theta endgame",8);}
 
 
+
+
   if(belowFepCount>=4&&priceSlope<-0.6){put+=22;wait-=12;call-=8;pushReason(putReasons,"persistent downside acceptance below FEP",22);}
   if(aboveFepCount>=4&&priceSlope>0.6){call+=22;wait-=12;put-=8;pushReason(callReasons,"persistent upside acceptance above FEP",22);}
   if(priceSlope<-2.0){put+=18;wait-=10;call-=8;pushReason(putReasons,"multi-tick selloff slope",18);}
   if(priceSlope>2.0){call+=18;wait-=10;put-=8;pushReason(callReasons,"multi-tick squeeze slope",18);}
+
+
 
 
   if(call<65){if(!(div>0.5))callNeeds.push("SPX ITS lead / institutional confirmation");if(!(priceSlope>0))callNeeds.push("upward price acceptance");if(!(ac>6)&&!(aboveFepCount>=4&&priceSlope>0.6))callNeeds.push("accelerator expansion OR persistent upside acceptance");}
@@ -368,6 +409,8 @@ function computeTheses(mkt,hist,prev){
   if(priceSlope<-0.6)callInvalid.push("price slope turning down");
   if(div>0.9&&priceSlope>0)putInvalid.push("institutional upside leadership");
   if(priceSlope>0.6)putInvalid.push("price slope turning up");
+
+
 
 
   const scores=norm3(call,put,wait);
@@ -384,6 +427,8 @@ function computeTheses(mkt,hist,prev){
   const state=entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":scores.wait>=45&&scores.call<65&&scores.put<65?"WAIT_DOMINANT":scores.call>=45&&scores.call>=scores.put?"CALL_BUILDING":scores.put>=45?"PUT_BUILDING":"NO_EDGE";
   return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
 }
+
+
 
 
 function computeLeadLag(mkt,hist){
@@ -454,74 +499,132 @@ function effectiveIv(spot,strike,iv,mL,isCall){
   const otm=isCall?Math.max(0,strike-spot):Math.max(0,spot-strike);
   const otmPct=spot>0?otm/spot:0;
   const timeFrac=clamp(mL/390,0,1);
-  const baseDiscount=otm>0?clamp(0.03+otmPct*5+timeFrac*0.01,0.03,0.12):0;
-  const putSkew=!isCall&&otm>0?clamp(0.01+otmPct*4,0.01,0.05):0;
-  const callDiscount=isCall?baseDiscount:0;
-  return Math.max(4,isCall?iv*(1-callDiscount):iv*(1+putSkew));
+  const baseDiscount=otm>0?clamp(0.015+otmPct*3.2+timeFrac*0.006,0.015,0.075):0;
+  const putSkew=!isCall&&otm>0?clamp(0.008+otmPct*3.5,0.008,0.045):0;
+  return Math.max(4,isCall?iv*(1-baseDiscount):iv*(1+putSkew));
+}
+function optionPathState(mkt,hist){
+  const h=hist||[],p1=h.at(-2)||h.at(-1)||mkt,p3=h.at(-4)||p1,p6=h.at(-7)||p3;
+  const move1=mkt.spySpot-(p1.spySpot??mkt.spySpot);
+  const move3=mkt.spySpot-(p3.spySpot??mkt.spySpot);
+  const move6=mkt.spySpot-(p6.spySpot??mkt.spySpot);
+  let flatTicks=0;
+  for(let i=h.length-1;i>=0&&Math.abs((h[i].spySpot??mkt.spySpot)-mkt.spySpot)<0.18;i--)flatTicks++;
+  const prevAccel=p1.accel??p1.accelerator??mkt.accelerator??0;
+  return{
+    move1,move3,move6,
+    velocity:move3/Math.max(1,Math.min(3,h.length-1||1)),
+    accel:mkt.accelerator||0,
+    accelSlope:(mkt.accelerator||0)-prevAccel,
+    flatTicks,
+    iv:mkt.iv,
+    prevIv:p1.iv??mkt.iv,
+    minutesElapsed:Math.max(1,(p1.h!=null?((mkt.h*60+mkt.m)-(p1.h*60+p1.m)):1))
+  };
+}
+function pathAdjustedIv(baseIv,isCall,path){
+  if(!path)return baseIv;
+  const dir=isCall?1:-1;
+  const favorable3=dir*(path.move3||0);
+  const favorable6=dir*(path.move6||0);
+  const impulse=clamp(Math.max(0,favorable3)*0.020+Math.max(0,favorable6)*0.010,0,0.12);
+  const accelBoost=clamp(((path.accel||0)-5)/7,0,1)*clamp(Math.max(0,favorable3)/2,0,1)*0.05;
+  const accelSlopeBoost=clamp((path.accelSlope||0)/3,0,1)*clamp(Math.max(0,favorable3),0,2)*0.02;
+  const stallCrush=clamp(Math.max(0,(path.flatTicks||0)-2)*0.018,0,0.20);
+  const adverseCrush=clamp(Math.max(0,-favorable3)*0.035,0,0.16);
+  return Math.max(3.5,baseIv*(1+impulse+accelBoost+accelSlopeBoost-stallCrush-adverseCrush));
 }
 function priceOpt(spot,strike,iv,mL,isCall,ctx=null){
-  if(mL<=0)return Math.max(0.01,isCall?Math.max(0,spot-strike):Math.max(0,strike-spot));
-  const TT=mL/(252*390),sig=effectiveIv(spot,strike,iv,mL,isCall)/100,sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq),d2=d1-sig*sq;
-  const raw=Math.max(0.01,Math.round((isCall?spot*ncdf(d1)-strike*ncdf(d2):strike*ncdf(-d2)-spot*ncdf(-d1))*100)/100);
-  return applyOptionPath(raw,spot,strike,mL,isCall,ctx);
+  const intrinsic=Math.max(0,isCall?spot-strike:strike-spot);
+  if(mL<=0)return Math.max(0.01,Math.round(intrinsic*100)/100);
+  const baseIv=effectiveIv(spot,strike,iv,mL,isCall);
+  const adjustedIv=pathAdjustedIv(baseIv,isCall,ctx?.path);
+  const TT=Math.max(1/(252*390*60),mL/(252*390)),sig=Math.max(0.01,adjustedIv/100),sq=Math.sqrt(TT);
+  const d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq),d2=d1-sig*sq;
+  const theoretical=Math.max(intrinsic,Math.max(0.005,isCall?spot*ncdf(d1)-strike*ncdf(d2):strike*ncdf(-d2)-spot*ncdf(-d1)));
+  return applyOptionPath(theoretical,spot,strike,mL,isCall,ctx);
 }
-function optDelta(spot,strike,iv,mL,isCall){
+function optDelta(spot,strike,iv,mL,isCall,ctx=null){
   if(mL<=0)return isCall?(spot>strike?1:0):(spot<strike?-1:0);
-  const TT=mL/(252*390),sig=Math.max(0.01,effectiveIv(spot,strike,iv,mL,isCall)/100),sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq);
+  const baseIv=effectiveIv(spot,strike,iv,mL,isCall),sig=Math.max(0.01,pathAdjustedIv(baseIv,isCall,ctx?.path)/100);
+  const TT=Math.max(1/(252*390*60),mL/(252*390)),sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq);
   return isCall?ncdf(d1):ncdf(d1)-1;
 }
 function optionCtx(mkt,hist,memory){
-  const prev=hist[hist.length-1]||mkt;
-  const spyMove=mkt.spySpot-(prev.spySpot??mkt.spySpot);
-  return{spyMove,accel:mkt.accelerator||0,memory:memory||{}};
+  return{path:optionPathState(mkt,hist),memory:memory||{}};
 }
 function applyOptionPath(raw,spot,strike,mL,isCall,ctx){
-  if(!ctx)return raw;
-  const prev=ctx.prev||{},prevPrice=prev.price??raw,peak=prev.peak??Math.max(prevPrice,raw);
-  const move=ctx.spyMove||0,speed=Math.abs(move),favorable=isCall?move>0:move<0;
-  const dist=Math.abs(strike-spot),near=clamp(1-dist/8,0,1),accel=clamp(((ctx.accel||0)-5)/7,0,1);
-  let px=raw;
-  if(favorable){
-    const chase=clamp(speed*0.75+accel*0.35+near*0.28,0,1.35);
-    px=Math.max(raw,prevPrice*(1+chase*0.28),raw*(1+chase));
-    if(speed>0.45&&near>0.2)px=Math.max(px,raw*(1+clamp(speed*1.2+accel*0.65,0,1.8)));
-    if(prevPrice>=0.65&&speed>0.35&&near>0.25)px=Math.max(px,peak*(1+clamp(speed*0.55+accel*0.28+near*0.18,0.08,0.75)));
-  }else if(speed>0.05){
-    const stallCut=clamp(speed*0.42+(near?0.08:0)+accel*0.06,0.06,0.42);
-    px=Math.min(raw,prevPrice*(1-stallCut));
-    px=Math.max(px,raw*0.72);
-  }
-  if(!favorable&&peak>prevPrice&&speed<0.18)px=Math.min(px,peak*0.74);
-  if(prevPrice>=0.65&&!favorable)px=Math.min(px,peak*0.72);
+  const intrinsic=Math.max(0,isCall?spot-strike:strike-spot);
+  if(!ctx)return Math.max(0.01,Math.round(Math.max(intrinsic,raw)*100)/100);
+  const prev=ctx.prev||{},prevPrice=Number.isFinite(prev.price)?prev.price:raw;
+  const prevSpot=Number.isFinite(prev.spot)?prev.spot:spot;
+  const prevMins=Number.isFinite(prev.mL)?prev.mL:mL+1;
+  const path=ctx.path||{};
+  const dir=isCall?1:-1;
+  const favorable1=dir*(spot-prevSpot),favorable3=dir*(path.move3||0),favorable6=dir*(path.move6||0);
+  const dist=Math.abs(strike-spot),near=clamp(1-dist/8,0,1);
+  const trendStrength=clamp(Math.max(0,favorable3)/1.5+Math.max(0,favorable6)/3,0,1.6);
+  const impulseStrength=clamp(Math.max(0,favorable1)*0.9+Math.max(0,path.accelSlope||0)*0.08,0,1.2);
+  const stall=clamp((path.flatTicks||0)/8,0,1);
+  const adverse=clamp(Math.max(0,-favorable1)*0.8+Math.max(0,-favorable3)*0.22,0,1);
+  const elapsed=Math.max(0,prevMins-mL);
+  const lateTheta=clamp((120-mL)/105,0,1);
+  const thetaDrag=clamp(elapsed*(0.004+lateTheta*0.018)*(1-near*0.35),0,0.35);
+  let pathMultiplier=1+trendStrength*(0.08+near*0.12)+impulseStrength*(0.05+near*0.08);
+  pathMultiplier*=1-stall*(0.10+lateTheta*0.22);
+  pathMultiplier*=1-adverse*(0.16+lateTheta*0.18);
+  pathMultiplier*=1-thetaDrag;
+  const pathValue=Math.max(intrinsic,raw*clamp(pathMultiplier,0.45,2.6));
+  const continuityWeight=clamp(0.18+Math.abs(favorable1)*0.35+trendStrength*0.14,0.18,0.72);
+  let px=prevPrice*(1-continuityWeight)+pathValue*continuityWeight;
+  if(Math.abs(favorable1)<0.03&&stall>0.5)px=Math.min(px,prevPrice*(1-(0.03+lateTheta*0.10)));
+  px=Math.max(intrinsic,px);
   return Math.max(0.01,Math.round(px*100)/100);
 }
-
-
 function buildOptionChain(spot,iv,mL,width=80,ctx=null){
   const base=Math.round(spot*2)/2,strikes=[];
   for(let i=-width;i<=width;i++)strikes.push(Math.round((base+i*0.5)*2)/2);
-  const row=strike=>{const ck=`C${strike}`,pk=`P${strike}`,cp=priceOpt(spot,strike,iv,mL,true,ctx?{...ctx,prev:ctx.memory?.[ck]}:null),pp=priceOpt(spot,strike,iv,mL,false,ctx?{...ctx,prev:ctx.memory?.[pk]}:null);if(ctx?.memory){ctx.memory[ck]={price:cp,peak:Math.max(ctx.memory[ck]?.peak||cp,cp)};ctx.memory[pk]={price:pp,peak:Math.max(ctx.memory[pk]?.peak||pp,pp)};}return{strike,distance:Math.abs(strike-spot),call:{strike,side:'CALL',price:cp,delta:optDelta(spot,strike,iv,mL,true)},put:{strike,side:'PUT',price:pp,delta:optDelta(spot,strike,iv,mL,false)}}};
+  const row=strike=>{
+    const ck=`C${strike}`,pk=`P${strike}`;
+    const cctx=ctx?{...ctx,prev:ctx.memory?.[ck]}:null,pctx=ctx?{...ctx,prev:ctx.memory?.[pk]}:null;
+    const cp=priceOpt(spot,strike,iv,mL,true,cctx),pp=priceOpt(spot,strike,iv,mL,false,pctx);
+    const cd=optDelta(spot,strike,iv,mL,true,cctx),pd=optDelta(spot,strike,iv,mL,false,pctx);
+    if(ctx?.memory){
+      ctx.memory[ck]={price:cp,spot,mL,iv,peak:Math.max(ctx.memory[ck]?.peak||cp,cp)};
+      ctx.memory[pk]={price:pp,spot,mL,iv,peak:Math.max(ctx.memory[pk]?.peak||pp,pp)};
+    }
+    return{strike,distance:Math.abs(strike-spot),call:{strike,side:'CALL',price:cp,delta:cd},put:{strike,side:'PUT',price:pp,delta:pd}};
+  };
   const rows=strikes.map(row);
   return{spot,iv,mL,rows,calls:rows.map(r=>({...r.call,distance:r.distance})),puts:rows.map(r=>({...r.put,distance:r.distance}))};
 }
 function selectContract(chain,isCall,mode='swing'){
   const list=isCall?chain.calls:chain.puts;
   const cfg=mode==='pin'
-    ?{idealPrice:0.32,targetDelta:0.20,minDelta:0.12,maxDist:4.5}
+    ?{idealPrice:0.30,targetDelta:0.18,minDelta:0.10,maxDist:5}
     :mode==='expansion'
-      ?{idealPrice:0.30,targetDelta:0.18,minDelta:0.10,maxDist:6}
-      :{idealPrice:0.31,targetDelta:0.19,minDelta:0.11,maxDist:5};
+      ?{idealPrice:0.24,targetDelta:0.14,minDelta:0.08,maxDist:7}
+      :{idealPrice:0.27,targetDelta:0.16,minDelta:0.09,maxDist:6};
   const directional=o=>isCall?o.strike>=chain.spot-0.5:o.strike<=chain.spot+0.5;
-  const candidates=list
-    .filter(o=>directional(o)&&o.distance<=cfg.maxDist&&o.price>=0.08&&o.price<=0.50&&Math.abs(o.delta)>=cfg.minDelta)
-    .map(o=>({...o,score:Math.abs(o.price-cfg.idealPrice)*1.8+Math.abs(Math.abs(o.delta)-cfg.targetDelta)*2.4+o.distance*0.045}))
-    .sort((a,b)=>a.score-b.score);
+  const score=o=>Math.abs(o.price-cfg.idealPrice)*1.5+Math.abs(Math.abs(o.delta)-cfg.targetDelta)*2.1+o.distance*0.035;
+  let tier="QUALITY";
+  let candidates=list.filter(o=>directional(o)&&o.distance<=cfg.maxDist&&o.price>=0.06&&o.price<=0.50&&Math.abs(o.delta)>=cfg.minDelta);
+  if(!candidates.length){
+    tier="ADAPTIVE";
+    const expectedMove=chain.spot*(chain.iv/100)*Math.sqrt(Math.max(1,chain.mL)/(252*390));
+    const adaptiveMaxDist=clamp(expectedMove*2.05,7,18);
+    const adaptiveMinDelta=clamp(0.060-(expectedMove/chain.spot)*2.0,0.02,0.05);
+    candidates=list.filter(o=>directional(o)&&o.distance<=adaptiveMaxDist&&o.price>=0.02&&o.price<=0.50&&Math.abs(o.delta)>=adaptiveMinDelta);
+  }
+  candidates=candidates.map(o=>({...o,score:score(o)+(tier==="ADAPTIVE"?0.12:0)})).sort((a,b)=>a.score-b.score);
   const x=candidates[0];
-  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?'CALL':'PUT'}:null;
+  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?'CALL':'PUT',tier}:null;
 }
-function findStrike(spot,iv,mL,isCall,mode='swing'){
-  return selectContract(buildOptionChain(spot,iv,mL,80),isCall,mode);
+function findStrike(spot,iv,mL,isCall,mode='swing',ctx=null){
+  return selectContract(buildOptionChain(spot,iv,mL,80,ctx),isCall,mode);
 }
+
+
 
 
 
@@ -563,6 +666,10 @@ function normalizeTraderDecision(obj){
     max_loss_pct:Number.isFinite(Number(obj.max_loss_pct))?clamp(Number(obj.max_loss_pct),3,20):null,
     memory_used:String(obj.memory_used||"none").slice(0,300)
   };
+}
+function isSemanticAiFailure(dec){
+  const s=`${dec?.reasoning||""} ${dec?.mindset||""} ${dec?.journal_entry||""}`.toLowerCase();
+  return /parse error|json parse|invalid json|schema failure|api error|model error|failed to parse|malformed response/.test(s);
 }
 function extractTraderPayload(data){
   const seen=new Set();
@@ -625,19 +732,24 @@ function buildFallbackDecision(m,pos,det,brain,thesis,chain){
 }
 
 
+
+
 async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<45,eodPhase=mL<=15?'CLEANUP/RH_LOCK':mL<=30?'DEATH_ZONE':mL<=60?'BRUTAL_THETA':mL<=75?'GAME_CHANGING':'NORMAL',div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
   const gexStr=`${mkt.netGex>0?"PINNING":"AMPLIFYING"} ${(gi*100).toFixed(0)}% ${gi>0.7?"[DOMINANT]":gi<0.3?"[WEAK]":"[MODERATE]"}`;
-  const callOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,true,th.scalpEdge?"scalp":"swing"):null;
-  const putOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,false,th.scalpEdge?"scalp":"swing"):null;
+  const aiOptCtx=optionCtx(mkt,hist,{});
+  const callOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,true,th.scalpEdge?"scalp":"swing",aiOptCtx):null;
+  const putOpt=!theta&&!pos&&mkt.isTradeable?findStrike(mkt.spySpot,mkt.iv,mL,false,th.scalpEdge?"scalp":"swing",aiOptCtx):null;
   const optStr=mkt.isPremarket?"PREMARKET — observe only"
     :callOpt||putOpt?`PRE-PRICED:\n${callOpt?`CALL: ${callOpt.strike}C @ $${callOpt.price.toFixed(2)}`:"CALL: none"}\n${putOpt?`PUT: ${putOpt.strike}P @ $${putOpt.price.toFixed(2)}`:"PUT: none"}`
     :pos?"MANAGE POSITION":"NO ENTRIES";
   const rH=hist.slice(-8).map(c=>`${c.t} SPY:${c.spySpot.toFixed(2)} SPX-ITS:${c.itsSPX.toFixed(2)} SPY-ITS:${c.itsSPY.toFixed(2)} DIV:${(c.itsSPX-c.itsSPY).toFixed(2)} ACCEL:${c.accel.toFixed(1)}`).join("\n");
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
   const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
+
+
 
 
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
@@ -647,15 +759,23 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
 BAL:$${bal.toFixed(0)} | ${posStr}
 
 
+
+
 SESSION JOURNAL:
 ${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}
+
+
 
 
 ${sessionSummary||"Session just opened."}
 
 
+
+
 REGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})
 CONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}
+
+
 
 
 SPY: $${mkt.spySpot.toFixed(2)} | SPX: ${mkt.spxSpot.toFixed(0)}
@@ -665,31 +785,41 @@ GEX: ${gexStr} | ACCEL: ${mkt.accelerator.toFixed(2)} | NDF: ${mkt.ndf.toFixed(3
 FEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}
 
 
+
+
 ${optStr}
+
+
 
 
 RECENT:\n${rH}
 
 
+
+
 UNIFIED DIRECTIONAL STATE: ${thesisStr}
+
+
 
 
 RULES:
 - Maintain CALL, PUT, and WAIT, but update them proportionally to what price has actually done. A sustained multi-dollar decline must materially increase PUT and reduce CALL unless there is concrete reversal evidence; a sustained rise must do the opposite. The SPX-SPY ITS gap indicates lead/lag, not direction—direction comes from their slopes and price response.
 - YOU are the sole market-decision authority. Indicators and historical analogues are evidence only. Seek asymmetric entries before a move is fully completed; explicitly penalize chasing after a greater-than-$2 three-tick impulse unless a new continuation leg is beginning with a nearby invalidation.
-- Contract quality matters more than getting the cheapest lottery ticket. Use the supplied contract, which targets useful delta and reasonable moneyness under $0.50. Never request a farther strike merely because it is cheaper.
+- Contract prices are dynamically simulated from spot, time remaining, IV/skew, multi-tick momentum, acceleration, stalling, and adverse movement. Use the supplied contract. QUALITY is preferred; ADAPTIVE may widen only within roughly 2.05 expected moves, keeps a dynamic delta floor of about 0.02-0.05, and never exceeds $0.50. This allows morning/IV-expansion contracts to sit farther away without permitting absurd lottery strikes. Never invent another strike.
 - 0DTE option price is path-dependent: expansion creates sensitivity. A stalled move can crush an expanded contract fast, and a second leg only deserves holding if it pushes faster or breaks further levels than the first leg. Expanded contracts can still run from .80 to 2.50+ on true continuation.
 - SPY near/ITM active strikes usually have tight liquidity because the underlying is massively traded. Do not assume huge spreads on close liquid strikes; friction is mostly on stale/far OTM contracts or when momentum dies.
 - EOD clock: around 2:45 the game changes, 3:00 theta is brutal, 3:30 is death-zone, and 3:45 is cleanup/RH lockout. After 3:45 no new Robinhood-style entries, only forced cleanup/management.
 - For each simulated entry, return case-specific fields: trade_confidence, invalidation_spot, max_loss_pct, and target_spot. Lower-confidence setups use tighter simulated risk; stronger structural setups may use wider room, but the invalidating evidence must be explicit.
 - Track SPX to SPY lead-lag. SPX moving first can reveal a 1-2 tick window before SPY reflects it. Treat it as an early-warning hypothesis, not an automatic entry. If SPX is moving down and SPY is catching down, suppress CALL unless SPY has reclaimed FEP/flip and bounced. If SPX is moving up and SPY is catching up, suppress PUT unless SPY has rejected a level.
 - Manage each open simulated trade from its original thesis. Exit when its stated invalidation occurs, when the contract reaches its case-specific maximum loss, or when continuation quality materially fails. Do not turn a target into a stop or invent a new threshold after entry.
-- No entries: premarket, already in position, no account equity, no clean contract under $0.50, or RH cleanup window after 3:45. After 3:00 only take exceptional momentum with instant invalidation.
-- GEX defines how much dealer structure may matter; it is never a universal permission threshold. Weak GEX can mean freer price discovery. Strong GEX can imply pinning or violent hedging. Interpret it jointly with actual price response instead of demanding arbitrary GEX percentages.${repeatStr}
+- No entries: premarket, already in position, no account equity, no valid QUALITY or ADAPTIVE contract under $0.50, or RH cleanup window after 3:45. After 3:00 only take exceptional momentum with instant invalidation.
+- GEX defines how much dealer structure may matter; it is never a universal permission threshold. Weak GEX can mean freer price discovery. Strong GEX can imply pinning or violent hedging. Interpret it jointly with actual price response instead of demanding arbitrary GEX percentages. Do not demand undefined "institutional confirmation" after direction, response, location, and local guide already align. A strong aligned move with a nearby invalidation is actionable.${repeatStr}
 - CRITICAL — decision/journal consistency: "decision" is the ONLY market judgment that executes. If journal_entry describes firing or entering, decision MUST equal BUY_CALL or BUY_PUT. Once you choose BUY_CALL or BUY_PUT, code will execute unless filling is literally impossible: premarket/closed session, existing position, depleted account, or no valid affordable contract.
 - CRITICAL — only write a NEW journal_entry if something material changed since the last entry above (thesis leader flipped, a level was crossed/approached, accel crossed 7 or 9, ITS lead flipped sign, a trade fired/closed). If nothing material changed, set journal_entry to an empty string "" — do not manufacture a fresh narrative every check just because you were asked again.
 - You do not know exact elapsed durations beyond what's given to you in "Price has held within 15c..." above. Never invent a duration in minutes yourself — use the provided number or omit duration language entirely.
 ${rulesStr}
+
+
 
 
 Respond ONLY valid JSON:
@@ -705,8 +835,16 @@ Respond ONLY valid JSON:
     err.rawResponse=rawText;
     throw err;
   }
-  return{...normalizeTraderDecision(payload),callOpt,putOpt};
+  const normalized=normalizeTraderDecision(payload);
+  if(isSemanticAiFailure(normalized)){
+    const err=new Error(`AI_SEMANTIC_FAILURE ${normalized.reasoning||normalized.mindset}`);
+    err.rawResponse=rawText;
+    throw err;
+  }
+  return{...normalized,callOpt,putOpt};
 }
+
+
 
 
 async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
@@ -724,12 +862,16 @@ async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
 }
 
 
+
+
 function Spark({data,color,h=36,w=120,fill=false}){
   if(!data||data.length<2)return<div style={{width:w,height:h,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:8,color:"#4a5568"}}>--</span></div>;
   const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
   const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mn)/rng)*(h-4)-2}`).join(" ");
   return<svg width={w} height={h} style={{display:"block"}}>{fill&&<polygon points={`0,${h} ${pts} ${w},${h}`} fill={color} opacity={0.12}/>}<polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/></svg>;
 }
+
+
 
 
 function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,callTrigger,putTrigger,callStop,putStop}){
@@ -782,6 +924,8 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
 }
 
 
+
+
 function ThesisBar({label,score,mom,color,scalpEdge}){
   const arrow=mom>0?"▲":mom<0?"▼":"→";
   return<div style={{marginBottom:6}}>
@@ -808,6 +952,8 @@ function ThesisPanel({thesis}){
 }
 
 
+
+
 function StateBars({probs}){
   const colors={discovery:"#00d4a8",pin:"#f0c040",transition:"#a78bfa",macro:"#ff4060"};
   const labels={discovery:"DISCOVERY",pin:"PIN/CHOP",transition:"TRANSITION",macro:"MACRO"};
@@ -825,6 +971,8 @@ function StateBars({probs}){
     </div>
   );
 }
+
+
 
 
 function OptionChainPanel({chain,pos}){
@@ -868,6 +1016,10 @@ function storageSet(key,val){try{localStorage.setItem(STORAGE_KEY+"_"+key,JSON.s
 
 
 
+
+
+
+
 function memoryFeature(t,b){return{
   accel:t.accel||0,div:t.div||0,gex:t.gexInf||0,
   fepGap:(t.spySpot||0)-(t.fep||0),its:(t.itsSPY||0),
@@ -901,6 +1053,8 @@ function historicalMemoryPrompt(mkt,brain){
   const favorable=a.filter(x=>x.mfe>=Math.max(.7,Math.abs(x.mae)*1.25)&&x.end>0).length;
   return`HISTORICAL MEMORY — nearest saved decision moments (${favorable}/${a.length} favorable over next 12 ticks):\n${a.map((x,i)=>`${i+1}. ${x.session} ${x.t} ${x.side} sim:${(1/(1+x.distance)).toFixed(2)} MFE:${x.mfe.toFixed(2)} MAE:${x.mae.toFixed(2)} END:${x.end.toFixed(2)} — ${x.reason||x.decision}`).join("\n")}\nUse these as weighted analogues, not rules. Explain material differences. Never let one anecdote override current structure, and never self-modify thresholds from this small sample.`;
 }
+
+
 
 
 function createMarketBrain(){return{
@@ -967,6 +1121,8 @@ function updateMarketBrain(m,hist,prev){
 function brainPrompt(b){return `SESSION PRESSURE MODEL\n${b.summary}\nEXPECTED: ${b.expectedResponse}\nINVALIDATION: ${b.invalidation}\nENTRY WINDOW: ${b.entryReady?b.entrySide+" READY for "+b.readyTicks+" ticks — "+b.entryReason:"NOT READY — "+b.entryReason}\nInterpret structure continuously. A single missed level or one countertrend tick is not a failed auction. Pressure must accumulate through persistence, acceptance quality, response efficiency, and meaningful location. Do not invent extra confirmation after ENTRY WINDOW is ready.`;}
 
 
+
+
 export default function App(){
   const[screen,setScreen]=useState("home");
   const[sessionMode,setSessionMode]=useState(null);
@@ -1004,6 +1160,8 @@ export default function App(){
   const[chopGate,setChopGate]=useState("OFF");
 
 
+
+
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
   const journalR=useRef([]),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
@@ -1026,14 +1184,20 @@ export default function App(){
   const[callTrigger,setCallTrigger]=useState(null),[putTrigger,setPutTrigger]=useState(null),[callStop,setCallStop]=useState(null),[putStop,setPutStop]=useState(null);
 
 
+
+
   const addM=useCallback(e=>{const key=`${e.edgeState}|${e.decision}|${e.mindset}|${String(e.reasoning||'').slice(0,80)}`;if((e.edgeState||'').startsWith('LOCAL')&&key===lastMindsetKeyR.current)return;lastMindsetKeyR.current=key;mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
+
+
 
 
   useEffect(()=>{
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
     window.addEventListener("beforeunload",handler);return()=>window.removeEventListener("beforeunload",handler);
   },[done,sessionLabel,sessionMode]);
+
+
 
 
   const doTick=useCallback(eng=>{
@@ -1100,7 +1264,7 @@ export default function App(){
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
     prevAccelR.current=m.accelerator;
     if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} armed (${det.score}): ${det.reason}. ${leadLag.text}.`:`No local entry. ${det.reason}. ${leadLag.text}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
-    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Guide ${localDir} (${det.score}): ${det.reason}. ${leadLag.text}${opt?` | suggested ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)}`:" | no <=$0.50 contract"}. AI has discretion; no auto-entry.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
+    if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Guide ${localDir} (${det.score}): ${det.reason}. ${leadLag.text}${opt?` | suggested ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)} ${opt.tier}`:" | no <=$0.50 contract"}. AI has discretion; no auto-entry.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
@@ -1165,7 +1329,11 @@ export default function App(){
   },[aiFreq,addM,addJournal,rules.approved]);
 
 
+
+
   useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>doTick(engR.current),Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
+
+
 
 
   const startSession=useCallback((mode)=>{
@@ -1186,6 +1354,8 @@ export default function App(){
   },[]);
 
 
+
+
   const resumeSession=useCallback(()=>{
     const sv=storageGet("interrupted",null);if(!sv)return;
     balR.current=sv.bal;setBal(sv.bal);if(sv.pos){posR.current=sv.pos;setPos(sv.pos);}
@@ -1199,6 +1369,8 @@ export default function App(){
   },[]);
 
 
+
+
   const fastFwd=useCallback(()=>{
     if(!engR.current)return;clearInterval(ivR.current);setRunning(false);
     const eng=engR.current;let m=eng.peek();
@@ -1206,6 +1378,8 @@ export default function App(){
     if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
     setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);
   },[]);
+
+
 
 
   const saveSession=useCallback(async()=>{
@@ -1219,6 +1393,8 @@ export default function App(){
   },[sessions,sessionLabel]);
 
 
+
+
   const handlePatch=useCallback((action,denyNote="")=>{
     const prop=patchProposals[patchIdx];if(!prop)return;
     const nr={...rules};
@@ -1228,6 +1404,8 @@ export default function App(){
     setRules(nr);storageSet("rules",nr);
     if(patchIdx<patchProposals.length-1){setPatchIdx(i=>i+1);setPatchDenyNote("");}else{setScreen("home");}
   },[rules,patchProposals,patchIdx]);
+
+
 
 
   const pnl=((bal-STARTING_BALANCE)/STARTING_BALANCE)*100;
@@ -1241,6 +1419,8 @@ export default function App(){
   const lastM=mindsetLog[mindsetLog.length-1];
   const div=mkt?(mkt.itsSPX-mkt.itsSPY):0;
   const divColor=div>0.5?T.accent:div<-0.5?T.red:T.yellow;
+
+
 
 
   if(screen==="home")return(
@@ -1265,6 +1445,8 @@ export default function App(){
   );
 
 
+
+
   if(screen==="sessions")return(
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"monospace",color:T.text}}>
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
@@ -1282,6 +1464,8 @@ export default function App(){
       </div>
     </div>
   );
+
+
 
 
   if(screen==="review"&&reviewSess){const s=reviewSess;return(
@@ -1306,6 +1490,8 @@ export default function App(){
   );}
 
 
+
+
   if(screen==="rulebook")return(
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"monospace",color:T.text,overflowY:"auto"}}>
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
@@ -1321,6 +1507,8 @@ export default function App(){
       </div>
     </div>
   );
+
+
 
 
   if(screen==="patch"){const prop=patchProposals[patchIdx];return(
@@ -1343,6 +1531,8 @@ export default function App(){
       <button onClick={()=>setScreen("home")} style={{marginTop:16,padding:"8px 20px",background:"transparent",color:T.muted,border:`1px solid ${T.border}`,borderRadius:4,fontFamily:"monospace",fontSize:9,cursor:"pointer"}}>SKIP ALL → HOME</button>
     </div>
   );}
+
+
 
 
   return(
@@ -1379,10 +1569,14 @@ export default function App(){
       </div>
 
 
+
+
       {pos&&<div style={{margin:"6px 14px 0",padding:"7px 12px",background:posPnl>=0?T.accentDim:T.redDim,border:`1px solid ${posPnl>=0?T.accent:T.red}40`,borderRadius:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:8,color:T.muted}}>OPEN · {pos.entryTime}</div><div style={{fontSize:12,fontWeight:700}}>{pos.strike}{pos.isCall?"C":"P"} · ${pos.entry.toFixed(2)}</div></div>
         <div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>${pos.current.toFixed(2)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)} · {posDollar>=0?"+":""}{fmt.bal(posDollar)}</div></div>
       </div>}
+
+
 
 
       <div style={{flex:1,overflowY:"auto",paddingBottom:20}}>
@@ -1394,6 +1588,8 @@ export default function App(){
             <div style={{textAlign:"right"}}><div style={{fontSize:10,fontWeight:700,color:mkt.netGex>0?T.accent:T.red}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:7,color:mkt.netGex>0?T.accent:T.red}}>{mkt.netGex>0?"PIN":"AMP"} {(gexInf*100).toFixed(0)}%</div></div>
           </div>
         </div>}
+
+
 
 
         {mkt&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
@@ -1433,8 +1629,12 @@ export default function App(){
         </div>}
 
 
+
+
         {mkt&&<ThesisPanel thesis={thesisData}/>} 
         {mkt&&<OptionChainPanel chain={optionChain} pos={pos}/>}
+
+
 
 
         {mkt&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
@@ -1485,6 +1685,8 @@ export default function App(){
         </div>}
 
 
+
+
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1511,6 +1713,8 @@ export default function App(){
         </div>
 
 
+
+
         {tradeLog.length>0&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{fontSize:9,color:T.muted,letterSpacing:"0.1em",marginBottom:8}}>TRADE LOG</div>
           {tradeLog.map((t,i)=>(
@@ -1522,10 +1726,14 @@ export default function App(){
         </div>}
 
 
+
+
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{fontSize:8,color:T.muted,marginBottom:5}}>SPEED · {speed}x</div>
           <input type="range" min="0.5" max="10" step="0.5" value={speed} onChange={e=>setSpeed(Number(e.target.value))} style={{width:"100%",accentColor:T.accent}}/>
         </div>
+
+
 
 
         {done&&<div style={{background:pnl>=0?T.accentDim:T.redDim,borderRadius:8,border:`1px solid ${pnl>=0?T.accent:T.red}40`,margin:"0 14px 8px",padding:16,textAlign:"center"}}>

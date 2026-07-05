@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const BUILD_ID = "v21-session-trader-20260705";
+const BUILD_ID = "v22-state-safe-trader-20260705";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 0;
@@ -601,59 +601,80 @@ function createSessionTradeMemory(){
     lastExit:null,
     consecutiveFailures:{CALL:0,PUT:0},
     sameThesisAttempts:{CALL:0,PUT:0},
+    episodes:{},
     totalEntries:0
   };
 }
+function tradeEpisodeKey(side,m,det){
+  const loc=side==="CALL"
+    ?(m.spySpot>=Math.max(m.fep,m.gammaFlip)?"ABOVE_CORE":"BELOW_CORE")
+    :(m.spySpot<=Math.min(m.fep,m.gammaFlip)?"BELOW_CORE":"ABOVE_CORE");
+  return`${side}|${det?.mode||"UNKNOWN"}|${loc}`;
+}
 function recordTradeOutcome(memory,pos,m,pnl,reason,tick){
-  const side=pos.isCall?"CALL":"PUT",won=pnl>0;
+  const side=pos.isCall?"CALL":"PUT",won=pnl>0,episodeKey=pos.episodeKey||`${side}|UNKNOWN`;
   const item={
-    side,strike:pos.strike,entrySpot:pos.entrySpot,exitSpot:m.spySpot,
+    id:pos.id,side,strike:pos.strike,entrySpot:pos.entrySpot,exitSpot:m.spySpot,
     entryPrice:pos.entry,exitPrice:pos.current,pnl,reason,tick,
     entryTick:pos.entryTick,holdTicks:tick-(pos.entryTick??tick),
     entryThesis:pos.entryThesis||"",expectedPath:pos.expectedPath||"",
     maxFavorableSpot:pos.maxFavorableSpot,maxAdverseSpot:pos.maxAdverseSpot,
-    attribution:pos.lastAttribution||null
+    attribution:pos.lastAttribution||null,episodeKey,
+    progress:(pos.isCall?1:-1)*(m.spySpot-pos.entrySpot)
   };
-  const attempts=[...(memory?.attempts||[]),item].slice(-12);
+  const attempts=[...(memory?.attempts||[]),item].slice(-20);
   const failures={...(memory?.consecutiveFailures||{CALL:0,PUT:0})};
   failures[side]=won?0:(failures[side]||0)+1;
-  if(won)failures[side==="CALL"?"PUT":"CALL"]=Math.max(0,(failures[side==="CALL"?"PUT":"CALL"]||0)-1);
+  const episodes={...(memory?.episodes||{})};
+  const prior=episodes[episodeKey]||{entries:0,wins:0,losses:0,lastExitTick:-999,lastExitSpot:null,lastResult:null};
+  episodes[episodeKey]={
+    ...prior,
+    entries:prior.entries+1,
+    wins:prior.wins+(won?1:0),
+    losses:prior.losses+(won?0:1),
+    lastExitTick:tick,lastExitSpot:m.spySpot,lastResult:won?"WIN":"LOSS",lastReason:reason
+  };
   return{
     ...(memory||createSessionTradeMemory()),
-    attempts,lastExit:item,
-    consecutiveFailures:failures,
+    attempts,lastExit:item,consecutiveFailures:failures,episodes,
     totalEntries:memory?.totalEntries||attempts.length
   };
 }
 function tradeMemorySnapshot(memory,m){
   const attempts=memory?.attempts||[],last=memory?.lastExit;
   if(!attempts.length)return"SESSION TRADE MEMORY: no completed trades yet.";
-  const recent=attempts.slice(-4).map((x,i)=>`${i+1}. ${x.side} ${x.strike} ${x.pnl>=0?"+":""}${x.pnl.toFixed(1)}% | entry SPY ${x.entrySpot.toFixed(2)} exit ${x.exitSpot.toFixed(2)} | ${x.reason} | held ${x.holdTicks} ticks`).join("\n");
+  const recent=attempts.slice(-6).map((x,i)=>`${i+1}. ${x.side} ${x.strike} ${x.pnl>=0?"+":""}${x.pnl.toFixed(1)}% | entry SPY ${x.entrySpot.toFixed(2)} exit ${x.exitSpot.toFixed(2)} | ${x.reason} | episode ${x.episodeKey} | held ${x.holdTicks} ticks`).join("\n");
   return`SESSION TRADE MEMORY:
 ${recent}
 Same-direction failure streak: CALL ${memory.consecutiveFailures?.CALL||0}, PUT ${memory.consecutiveFailures?.PUT||0}.
 Last exit: ${last?`${last.side} at SPY ${last.exitSpot.toFixed(2)} because ${last.reason}`:"none"}.
-Use this tactically: do not repeat the same thesis unless genuinely new evidence appears.`;
+Treat repeated entries from the same episode as one mature thesis. A winner does not automatically reset the episode.`;
 }
-function evaluateReentry(memory,side,m,hist){
-  const last=memory?.lastExit;
-  if(!last||last.side!==side||last.pnl>0)return{allowed:true,newEvidence:["No failed same-side attempt requires reset"]};
-  const dir=side==="CALL"?1:-1;
-  const sinceExit=dir*(m.spySpot-last.exitSpot);
-  const recent=hist.slice(-8);
-  const move4=recent.length>=5?dir*(m.spySpot-recent.at(-5).spySpot):0;
-  const newExtreme=side==="CALL"
-    ? m.spySpot>Math.max(last.entrySpot,last.exitSpot)+(0.30)
-    : m.spySpot<Math.min(last.entrySpot,last.exitSpot)-(0.30);
-  const accelReset=(m.accelerator||0)>=Math.max(5.5,(last.entryAccel||0)+0.8);
-  const oppositeReset=last.reason==="SPOT_INVALIDATION"&&sinceExit>=0.55;
+function evaluateReentry(memory,side,m,hist,episodeKey){
+  const recent=(memory?.attempts||[]).filter(x=>x.side===side).slice(-6);
+  const episode=memory?.episodes?.[episodeKey];
+  if(!recent.length&&!episode)return{allowed:true,newEvidence:["first attempt in this session episode"],episodeKey};
+  const last=recent.at(-1),dir=side==="CALL"?1:-1;
+  const ticksSince=last?.tick!=null&&m.tick!=null?m.tick-last.tick:999;
+  const sinceExit=last?dir*(m.spySpot-last.exitSpot):0;
+  const h=hist.slice(-10);
+  const move4=h.length>=5?dir*(m.spySpot-h.at(-5).spySpot):0;
+  const move8=h.length>=9?dir*(m.spySpot-h.at(-9).spySpot):0;
+  const newExtreme=last?(side==="CALL"
+    ?m.spySpot>Math.max(last.entrySpot,last.exitSpot)+(last.pnl>0?0.55:0.35)
+    :m.spySpot<Math.min(last.entrySpot,last.exitSpot)-(last.pnl>0?0.55:0.35)):true;
+  const freshLeg=move4>=0.65&&move8>=0.75;
+  const accelReset=(m.accelerator||0)>=6.2;
+  const resetDistance=Math.abs(sinceExit)>=0.55;
+  const episodeEntries=episode?.entries||0;
+  const cooldownNeeded=last?.pnl>0?5:3;
   const evidence=[];
-  if(newExtreme)evidence.push("new directional extreme beyond failed attempt");
-  if(move4>=0.55)evidence.push("fresh four-tick directional leg");
-  if(accelReset)evidence.push("accelerator re-expanded");
-  if(oppositeReset)evidence.push("reclaimed beyond prior invalidation");
-  const cooldown=(last.tick!=null&&m.tick!=null)?m.tick-last.tick:999;
-  return{allowed:evidence.length>0&&cooldown>=2,newEvidence:evidence,cooldown};
+  if(newExtreme)evidence.push("new extreme beyond prior episode");
+  if(freshLeg)evidence.push("fresh multi-tick leg");
+  if(accelReset&&resetDistance)evidence.push("accelerator and price reset");
+  const matureEpisode=episodeEntries>=2;
+  const allowed=ticksSince>=cooldownNeeded&&evidence.length>0&&(!matureEpisode||evidence.length>=2);
+  return{allowed,newEvidence:evidence,ticksSince,cooldownNeeded,episodeEntries,matureEpisode,episodeKey};
 }
 function optionPnlAttribution(pos,m,mL,ctx){
   const prevPrice=pos.current,prevSpot=pos.lastSpot??pos.entrySpot,prevIv=pos.lastIv??m.iv;
@@ -663,20 +684,41 @@ function optionPnlAttribution(pos,m,mL,ctx){
   const late=clamp((150-mL)/140,0,1);
   const thetaContribution=-prevPrice*(0.0025+late*0.014);
   const ivContribution=prevPrice*ivMove*0.010;
-  const rawPrice=priceOpt(m.spySpot,pos.strike,m.iv,mL,pos.isCall,ctx);
-  let reconciled=rawPrice;
   const favorable=(pos.isCall?1:-1)*spotMove;
+  const gammaContribution=Math.sign(favorable)*Math.min(prevPrice*0.20,Math.abs(spotMove)*Math.abs(spotMove)*0.035);
+  const path=chainSideState(ctx?.path,pos.isCall);
+  const momentumVolContribution=prevPrice*clamp(path.impulse*0.08+path.continuation*0.05-path.adverse*0.07,-0.18,0.22);
+  const compressionContribution=-prevPrice*clamp(path.stall*0.10+(path.state==="CRUSHED"?0.12:0),0,0.22);
+  const rawPrice=priceOpt(m.spySpot,pos.strike,m.iv,mL,pos.isCall,ctx);
+  const explained=prevPrice+spotContribution+thetaContribution+ivContribution+gammaContribution+momentumVolContribution+compressionContribution;
+  const rawResidual=rawPrice-explained;
+  const residualCap=Math.max(0.015,prevPrice*0.18);
+  const boundedResidual=clamp(rawResidual,-residualCap,residualCap);
+  let reconciled=explained+boundedResidual;
   const flat=Math.abs(spotMove)<0.06&&Math.abs(ivMove)<0.35;
-  if(flat&&reconciled>prevPrice*1.04)reconciled=prevPrice*1.04;
-  const explained=prevPrice+spotContribution+thetaContribution+ivContribution;
-  if(favorable>0.12&&reconciled<explained-prevPrice*0.12)reconciled=explained-prevPrice*0.12;
+  if(flat)reconciled=clamp(reconciled,prevPrice*0.94,prevPrice*1.04);
+  if(favorable>0.12)reconciled=Math.max(reconciled,prevPrice+Math.max(0,spotContribution)*0.55-prevPrice*0.10);
   reconciled=Math.max(0.01,Math.round(reconciled*100)/100);
   return{
     price:reconciled,rawPrice,delta,spotMove,ivMove,
-    spotContribution,thetaContribution,ivContribution,
-    residual:reconciled-prevPrice-spotContribution-thetaContribution-ivContribution,
+    spotContribution,thetaContribution,ivContribution,gammaContribution,
+    momentumVolContribution,compressionContribution,
+    residual:boundedResidual,rawResidual,residualCapped:Math.abs(rawResidual)>residualCap,
     flat,favorable
   };
+}
+function intentSignature(intent){
+  if(!intent)return"NONE";
+  const c=intent.contract;
+  return[
+    intent.action,intent.direction||"NONE",
+    c?`${c.strike}:${Number(c.price).toFixed(2)}:${c.quality}`:"NO_CONTRACT",
+    intent.executionReadiness??intent.readiness??0,
+    (intent.blockers||[]).join("|")
+  ].join("~");
+}
+function decisionContextCurrent(ctx,currentTick,currentIntent,currentPosition){
+  return!!ctx&&ctx.tick===currentTick&&ctx.intentSig===intentSignature(currentIntent)&&ctx.positionId===(currentPosition?.id||null);
 }
 
 function unifyDirectionalState(thesis,brain,prev){
@@ -752,8 +794,12 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     const oppositeBrain=brain?.active&&brain.active!==side&&brain.confidence>=48;
     const oppositeThesis=thesis?.entryBias&&thesis.entryBias!=="WAIT"&&thesis.entryBias!==side;
     const adverseSpot=(pos.isCall?-1:1)*(m.spySpot-pos.entrySpot);
-    const hardLoss=pnl<=-60;
-    const action=invalid||hardLoss||(oppositeBrain&&oppositeThesis&&adverseSpot>0.25)?"EXIT":"HOLD";
+    const heldTicks=(m.tick??0)-(pos.entryTick??(m.tick??0));
+    const dirProgress=(pos.isCall?1:-1)*(m.spySpot-pos.entrySpot);
+    const pathDeadlineMiss=heldTicks>=(pos.pathDeadlineTicks??5)&&dirProgress<(pos.minExpectedProgress??0.20);
+    const vehicleFailure=pnl<=-(pos.vehicleFailurePct??38)&&dirProgress<0.15;
+    const hardLoss=pnl<=-(pos.catastrophicLossPct??50);
+    const action=invalid||vehicleFailure||hardLoss||pathDeadlineMiss||(oppositeBrain&&oppositeThesis&&adverseSpot>0.25)?"EXIT":"HOLD";
     const attribution=pos.lastAttribution;
     return{
       action,direction:side,setupQuality:action==="EXIT"?25:78,executionReadiness:100,readiness:100,
@@ -806,7 +852,8 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   if(chaseRisk)setupQuality-=12;
   setupQuality=clamp(setupQuality,0,100);
 
-  const reentry=side!=="WAIT"?evaluateReentry(tradeMemory,side,m,hist):{allowed:true,newEvidence:[]};
+  const episodeKey=side!=="WAIT"?tradeEpisodeKey(side,m,det):null;
+  const reentry=side!=="WAIT"?evaluateReentry(tradeMemory,side,m,hist,episodeKey):{allowed:true,newEvidence:[]};
   const contractQuality=!contract?0:contract.tier==="QUALITY"?100:76;
   let executionReadiness=Math.round(setupQuality*0.80+contractQuality*0.20);
   const blockers=[];
@@ -836,7 +883,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     contract:contract?{strike:contract.strike,price:contract.price,delta:contract.delta,quality:contract.tier,distance:contract.distance}:null,
     bestRejected:rejected?{strike:rejected.strike,price:rejected.price,delta:rejected.delta,distance:rejected.distance,reasons:rejected.reasons}:null,
     blockers,supportingFactors:marketFactors.filter(f=>f.passed).map(f=>f.label),
-    threshold,chaseRisk,whyNow,source:"SESSION_AWARE_INTENT",
+    threshold,chaseRisk,whyNow,episodeKey,source:"SESSION_AWARE_INTENT",
     diagnostics:{brainConfidence,edge,persistence,response,contractQuality,brainSide,localSide,localMove,reentry}
   };
 }
@@ -857,7 +904,7 @@ function buildFallbackDecision(m,pos,intent,tradeMemory){
       edge_state:"IN_TRADE",confidence_trend:"STABLE",memory_used:"session trade memory"
     });
   }
-  if(!intent||!String(intent.action).startsWith("BUY_")){
+  if(!intent||!String(intent.action).startsWith("BUY_")||intent.executionReadiness<88){
     const failed=(intent?.blockers||[]).slice(0,5).join(", ")||"readiness below threshold";
     return normalizeTraderDecision({
       decision:"WAIT",
@@ -1272,6 +1319,7 @@ export default function App(){
   const sessionModelR=useRef({leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99});
   const optionMemoryR=useRef({});
   const tradeMemoryR=useRef(createSessionTradeMemory());
+  const decisionSeqR=useRef(0),activeDecisionR=useRef(null),positionSeqR=useRef(0);
   const marketBrainR=useRef(createMarketBrain());
   const[marketBrain,setMarketBrain]=useState(()=>createMarketBrain());
   const chopGateR=useRef("OFF"),pinHistR=useRef([]),flipCrossR=useRef([]),lastFlipSideR=useRef(null),leadWrongTicksR=useRef(0),prevCallWallR=useRef(null),prevPutWallR=useRef(null);
@@ -1306,37 +1354,41 @@ export default function App(){
       posR.current={...p0,current:attr.price,peakPrice,peakPnl,lastSpot:m.spySpot,lastIv:m.iv,lastAttribution:attr,maxFavorableSpot,maxAdverseSpot};
       setPos({...posR.current});
       const p=posR.current,size=p.size||balR.current,optPnl=(p.current/p.entry-1)*100;
+      const side=p.isCall?"CALL":"PUT",dir=p.isCall?1:-1;
+      const heldTicks=tickR.current-(p.entryTick??tickR.current);
+      const spotProgress=dir*(m.spySpot-p.entrySpot);
       const spotFail=p.isCall?m.spySpot<=(p.stopSpot??-Infinity):m.spySpot>=(p.stopSpot??Infinity);
       const spotTargetRaw=p.isCall?m.spySpot>=(p.targetSpot??Infinity):m.spySpot<=(p.targetSpot??-Infinity);
       const llNow=computeLeadLag(m,candR.current);
       const leadWrong=p.isCall&&llNow.dir==='DOWN'&&llNow.state==='SPY_CATCHING_UP'||!p.isCall&&llNow.dir==='UP'&&llNow.state==='SPY_CATCHING_UP';
       leadWrongTicksR.current=leadWrong?leadWrongTicksR.current+1:0;
       const leadSustained=leadWrongTicksR.current>=LEAD_LAG_SUSTAIN_TICKS;
-      const brainNow=marketBrainR.current,side=p.isCall?"CALL":"PUT";
+      const brainNow=marketBrainR.current;
       const brainOpposes=brainNow.active&&brainNow.active!=="WAIT"&&brainNow.active!==side&&brainNow.confidence>=48;
       const th=thesisR.current,thesisOpposes=p.isCall?th.entryBias==='PUT':th.entryBias==='CALL';
       const wallAgainst=p.isCall?(prevCallWallR.current!=null&&m.callWall<prevCallWallR.current):(prevPutWallR.current!=null&&m.putWall>prevPutWallR.current);
-      const adverseSpot=(p.isCall?-1:1)*(m.spySpot-p.entrySpot);
+      const adverseSpot=-spotProgress;
       const oppositeCount=[leadSustained,brainOpposes,thesisOpposes,wallAgainst,adverseSpot>0.35].filter(Boolean).length;
-      const heldTicks=tickR.current-(p.entryTick??tickR.current);
-      const softLoss=optPnl<=-(p.maxLossPct??22)&&heldTicks>=6&&oppositeCount>=2;
-      const catastrophicLoss=optPnl<=-60;
+      const pathDeadlineMiss=heldTicks>=(p.pathDeadlineTicks??5)&&spotProgress<(p.minExpectedProgress??0.20);
+      const responsiveness=(Math.abs(attr.delta)||0)*(Math.abs(attr.spotMove)||0);
+      const vehicleFailure=optPnl<=-(p.vehicleFailurePct??38)&&(spotProgress<0.15||responsiveness<0.01);
+      const catastrophicLoss=optPnl<=-(p.catastrophicLossPct??50);
       const signalExit=heldTicks>=SIGNAL_EXIT_MIN_HOLD_TICKS&&oppositeCount>=3;
       const trailingProfit=peakPnl>=40&&(peakPnl-optPnl)>=Math.max(18,peakPnl*0.35)&&heldTicks>=3;
       const spotTarget=spotTargetRaw&&optPnl>0&&heldTicks>=3;
       setBal(size*(p.current/p.entry));
-      if(Math.abs(attr.price-p0.current)>=0.03||Math.abs(attr.spotMove)>=0.15){
-        addJournal(fmt.time(m.h,m.m),`OPTION_ATTR ${p.strike}${p.isCall?"C":"P"} ${p0.current.toFixed(2)}→${attr.price.toFixed(2)} | spot ${attr.spotMove>=0?"+":""}${attr.spotMove.toFixed(2)} contributes ${attr.spotContribution>=0?"+":""}${attr.spotContribution.toFixed(3)} | theta ${attr.thetaContribution.toFixed(3)} | IV ${attr.ivContribution>=0?"+":""}${attr.ivContribution.toFixed(3)} | residual ${attr.residual>=0?"+":""}${attr.residual.toFixed(3)}.`);
+      if(Math.abs(attr.price-p0.current)>=0.03||Math.abs(attr.spotMove)>=0.15||attr.residualCapped){
+        addJournal(fmt.time(m.h,m.m),`OPTION_ATTR ${p.strike}${p.isCall?"C":"P"} ${p0.current.toFixed(2)}→${attr.price.toFixed(2)} | spot ${attr.spotContribution>=0?"+":""}${attr.spotContribution.toFixed(3)} | gamma ${attr.gammaContribution>=0?"+":""}${attr.gammaContribution.toFixed(3)} | theta ${attr.thetaContribution.toFixed(3)} | IV ${attr.ivContribution>=0?"+":""}${attr.ivContribution.toFixed(3)} | momentum-vol ${attr.momentumVolContribution>=0?"+":""}${attr.momentumVolContribution.toFixed(3)} | compression ${attr.compressionContribution.toFixed(3)} | residual ${attr.residual>=0?"+":""}${attr.residual.toFixed(3)}${attr.residualCapped?" CAPPED":""}.`);
       }
-      if(!spotFail&&!softLoss&&!catastrophicLoss&&!signalExit&&!trailingProfit&&!spotTarget&&oppositeCount>0){
-        addJournal(fmt.time(m.h,m.m),`POSITION_REVIEW ${side} opposite evidence ${oppositeCount}/5, hold ${heldTicks}/${SIGNAL_EXIT_MIN_HOLD_TICKS}, option ${fmt.pct(optPnl)}, spot thesis ${spotFail?"invalid":"intact"}.`);
+      if(!spotFail&&!vehicleFailure&&!catastrophicLoss&&!pathDeadlineMiss&&!signalExit&&!trailingProfit&&!spotTarget&&oppositeCount>0){
+        addJournal(fmt.time(m.h,m.m),`POSITION_REVIEW ${side} opposite ${oppositeCount}/5, held ${heldTicks}, progress ${spotProgress>=0?"+":""}${spotProgress.toFixed(2)}, option ${fmt.pct(optPnl)}, deadline ${p.pathDeadlineTicks??5}.`);
       }
-      if(spotFail||softLoss||catastrophicLoss||signalExit||trailingProfit||spotTarget){
+      if(spotFail||vehicleFailure||catastrophicLoss||pathDeadlineMiss||signalExit||trailingProfit||spotTarget){
         const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);
-        const why=spotFail?'SPOT_INVALIDATION':catastrophicLoss?'CATASTROPHIC_CONTRACT_FAILURE':softLoss?'THESIS_WEAK_PLUS_OPTION_LOSS':trailingProfit?'TRAILING_PROFIT':spotTarget?'SPOT_TARGET_PROFIT':`CONFIRMED_OPPOSITE_CONTROL_${oppositeCount}`;
+        const why=spotFail?'SPOT_INVALIDATION':pathDeadlineMiss?'EXPECTED_PATH_TIMEOUT':vehicleFailure?'VEHICLE_FAILURE':catastrophicLoss?'CATASTROPHIC_FLOOR':trailingProfit?'TRAILING_PROFIT':spotTarget?'SPOT_TARGET_PROFIT':`CONFIRMED_OPPOSITE_CONTROL_${oppositeCount}`;
         logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`THESIS-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)} ${why}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar,exitType:why,entrySpot:p.entrySpot,exitSpot:m.spySpot}];
         tradeMemoryR.current=recordTradeOutcome(tradeMemoryR.current,p,m,optPnl,why,tickR.current);
-        setTradeLog([...logR.current]);posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);return;
+        setTradeLog([...logR.current]);posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);activeDecisionR.current=null;return;
       }
       prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;
     }
@@ -1393,6 +1445,8 @@ export default function App(){
     if((tickR.current%aiFreq===0||spikeReady)&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
+      const requestCtx={id:++decisionSeqR.current,tick:tickR.current,intentSig:intentSignature(intent),positionId:posR.current?.id||null};
+      activeDecisionR.current=requestCtx;
       // v10: ground "how long has this been flat" in a real computed number instead of letting
       // the AI guess a duration it can't actually verify (it only ever sees ~8 candles). Count
       // consecutive recent ticks within 15c of current spot, from actual candle history.
@@ -1400,6 +1454,11 @@ export default function App(){
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
       const applyDecision=(dec,source="AI")=>{
           const ts=fmt.time(m.h,m.m);
+          if(!decisionContextCurrent(requestCtx,tickR.current,tradeIntentR.current,posR.current)){
+            addM({t:ts,mindset:"stale decision discarded",reasoning:`Request ${requestCtx.id} from tick ${requestCtx.tick} no longer matches tick ${tickR.current}, current intent, or position.`,decision:"WAIT",score:confR.current.score,edgeState:"STALE_DECISION_DISCARDED",confTrend:"—"});
+            addJournal(ts,`STALE_DECISION_DISCARDED request:${requestCtx.id} requestTick:${requestCtx.tick} currentTick:${tickR.current} requestIntent:${requestCtx.intentSig} currentIntent:${intentSignature(tradeIntentR.current)} requestPosition:${requestCtx.positionId||"NONE"} currentPosition:${posR.current?.id||"NONE"}.`);
+            return;
+          }
           const mb=marketBrainR.current;
           const mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
@@ -1437,9 +1496,9 @@ export default function App(){
               let stopSpot=Number(dec.invalidation_spot),targetSpot=Number(dec.target_spot);
               if(!Number.isFinite(stopSpot)||(isC?stopSpot>=m.spySpot:stopSpot<=m.spySpot))stopSpot=isC?m.spySpot-(0.25+tc/220):m.spySpot+(0.25+tc/220);
               if(!Number.isFinite(targetSpot)||(isC?targetSpot<=m.spySpot:targetSpot>=m.spySpot))targetSpot=isC?m.spySpot+(0.55+tc/120):m.spySpot-(0.55+tc/120);
-              posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,maxLossPct,takeProfitPct,tradeConfidence:tc,planType:det.mode,size:balR.current,entryTick:tickR.current,entryAccel:m.accelerator,lastSpot:m.spySpot,lastIv:m.iv,peakPrice:opt.price,peakPnl:0,maxFavorableSpot:m.spySpot,maxAdverseSpot:m.spySpot,entryThesis:`${snapshotIntent.direction} ${snapshotIntent.setupQuality}% setup`,expectedPath:isC?`hold above ${stopSpot.toFixed(2)} then press toward ${targetSpot.toFixed(2)}`:`hold below ${stopSpot.toFixed(2)} then press toward ${targetSpot.toFixed(2)}`};
+              posR.current={id:`P${++positionSeqR.current}`,strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,maxLossPct,noiseTolerancePct:22,vehicleFailurePct:38,catastrophicLossPct:50,pathDeadlineTicks:tc>=85?5:4,minExpectedProgress:tc>=85?0.24:0.18,takeProfitPct,tradeConfidence:tc,planType:det.mode,size:balR.current,entryTick:tickR.current,entryAccel:m.accelerator,lastSpot:m.spySpot,lastIv:m.iv,peakPrice:opt.price,peakPnl:0,maxFavorableSpot:m.spySpot,maxAdverseSpot:m.spySpot,episodeKey:snapshotIntent.episodeKey||tradeEpisodeKey(isC?"CALL":"PUT",m,det),entryThesis:`${snapshotIntent.direction} ${snapshotIntent.setupQuality}% setup`,expectedPath:isC?`within ${tc>=85?5:4} ticks hold above ${stopSpot.toFixed(2)} and gain at least ${tc>=85?"0.24":"0.18"} before pressing toward ${targetSpot.toFixed(2)}`:`within ${tc>=85?5:4} ticks hold below ${stopSpot.toFixed(2)} and gain at least ${tc>=85?"0.24":"0.18"} before pressing toward ${targetSpot.toFixed(2)}`};
               setPos({...posR.current});
-              logR.current=[...logR.current,{t:ts,action:`CANONICAL FILL ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} ${opt.tier||opt.quality||"QUALITY"} invalidation ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)} maxLoss ${maxLossPct.toFixed(1)}% confidence ${tc.toFixed(0)}`,result:null}];
+              logR.current=[...logR.current,{t:ts,action:`CANONICAL FILL ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} ${opt.tier||opt.quality||"QUALITY"} invalidation ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)} noise 22% vehicleFail 38% catastrophic 50% deadline ${tc>=85?5:4}t confidence ${tc.toFixed(0)}`,result:null}];
               setTradeLog([...logR.current]);
               const side=isC?"CALL":"PUT";
               tradeMemoryR.current={...tradeMemoryR.current,lastEntry:{side,strike:opt.strike,spot:m.spySpot,price:opt.price,tick:tickR.current,whyNow:snapshotIntent.whyNow||[]},totalEntries:(tradeMemoryR.current.totalEntries||0)+1,sameThesisAttempts:{...(tradeMemoryR.current.sameThesisAttempts||{}),[side]:(tradeMemoryR.current.sameThesisAttempts?.[side]||0)+1}};
@@ -1450,13 +1509,18 @@ export default function App(){
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time(m.h,m.m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);
+          if(!decisionContextCurrent(requestCtx,tickR.current,tradeIntentR.current,posR.current)){
+            addM({t:ts,mindset:"stale AI failure discarded",reasoning:`Request ${requestCtx.id} failed after state changed; no fallback execution permitted.`,decision:"WAIT",score:confR.current.score,edgeState:"STALE_DECISION_DISCARDED",confTrend:"—"});
+            addJournal(ts,`STALE_DECISION_DISCARDED request:${requestCtx.id} after failure — ${raw}`);
+            return;
+          }
           addM({t:ts,mindset:"AI response failure",reasoning:raw,decision:"FALLBACK",score:confR.current.score,edgeState:"ERROR_RECOVERED",confTrend:"UNCLEAR"});
           addJournal(ts,`AI_RESPONSE_FAILURE ${raw}`);
           const fallback=buildFallbackDecision(m,posR.current,tradeIntentR.current,tradeMemoryR.current);
           addJournal(ts,`FALLBACK_DECISION ${fallback.decision} — ${fallback.reasoning}`);
           applyDecision(fallback,"FALLBACK");
         })
-        .finally(()=>{thinkR.current=false;setThinking(false);});
+        .finally(()=>{if(activeDecisionR.current?.id===requestCtx.id)activeDecisionR.current=null;thinkR.current=false;setThinking(false);});
     }
   },[aiFreq,addM,addJournal,rules.approved]);
 
@@ -1468,7 +1532,7 @@ export default function App(){
     archetypeIdR.current=mode==="seed"?sess.archetype:null;
     const label=mode==="replay"?`${SPX_JUL1.label} · ${SPX_JUL1.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
-    setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();
+    setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;
     setJournal([]);journalR.current=[];setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);

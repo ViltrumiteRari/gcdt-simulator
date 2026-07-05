@@ -9,7 +9,7 @@ const STORAGE_KEY = "gcdt_v13";
 const SIGNAL_EXIT_MIN_HOLD_TICKS=5;
 const LEAD_LAG_SUSTAIN_TICKS=3;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
-const ACCEL_CLIMAX=11,ACCEL_BUILD_MIN=5,ACCEL_BUILD_MAX=9.5,ACCEL_RETEST_MAX=8;
+const ACCEL_SCALE_MAX=12,ACCEL_EXTREME_HIGH=8.8,ACCEL_EXTREME_LOW=2,ACCEL_BUILD_MIN=4.2,ACCEL_BUILD_MAX=8.7,ACCEL_RETEST_MAX=6.8;
 
 const SPX_JUL1 = {
   date: "2026-07-01", label: "SPX Jul 1 2026", dayType: "SQUEEZE",
@@ -103,16 +103,26 @@ function interpolateSPX(snapshots,currentMin){
 
 function accelWindow(m,hist,dir){
   const raw=m.rawAccelerator??m.accelerator,acc=m.accelerator;
-  if(acc>=ACCEL_CLIMAX)return{ok:false,reason:"ACCEL_CLIMAX",raw,window:"climax"};
-  const a=hist.slice(-3).map(x=>x.accel);
-  const build=acc>=ACCEL_BUILD_MIN&&acc<=ACCEL_BUILD_MAX&&a.length>=2&&a[a.length-1]>a[a.length-2]&&acc>a[a.length-1];
-  const burst=hist.slice(-8).some(x=>x.accel>=ACCEL_CLIMAX);
-  const level=dir==="CALL"?Math.max(m.gammaFlip,m.callWall):Math.min(m.gammaFlip,m.putWall);
-  const held=hist.slice(-3).length===3&&hist.slice(-3).every(x=>Math.abs(x.spySpot-level)<=0.35);
+  const prior=hist.slice(-4,-1),p1=prior.at(-1),p2=prior.at(-2);
+  const rising=!!(p1&&p2&&p1.accel>p2.accel&&acc>p1.accel);
+  const falling=!!(p1&&acc<p1.accel);
+  const price3=hist.length>=4?m.spySpot-hist.at(-4).spySpot:0;
+  const directionAligned=dir==="CALL"?price3>0:price3<0;
+  const build=acc>=ACCEL_BUILD_MIN&&acc<=ACCEL_BUILD_MAX&&rising&&directionAligned;
+  const extreme=acc>=ACCEL_EXTREME_HIGH;
+  const compressed=acc<=ACCEL_EXTREME_LOW;
+  const burst=hist.slice(-10).some(x=>x.accel>=ACCEL_EXTREME_HIGH);
+  const level=dir==="CALL"?Math.max(m.gammaFlip,m.fep):Math.min(m.gammaFlip,m.fep);
+  const held=hist.slice(-3).length===3&&hist.slice(-3).every(x=>Math.abs(x.spySpot-level)<=0.45);
   const rightSide=dir==="CALL"?m.spySpot>=m.gammaFlip:m.spySpot<=m.gammaFlip;
-  const retest=burst&&acc<ACCEL_RETEST_MAX&&held&&rightSide;
-  return{ok:build||retest,reason:build?"BUILD_THROUGH":retest?"RETEST_HOLD":"ACCEL_FILTER_BLOCK",raw,window:build?"build-through":retest?"retest-and-hold":"none"};
+  const retest=burst&&acc<=ACCEL_RETEST_MAX&&falling&&held&&rightSide;
+  if(build)return{ok:true,reason:"BUILD_THROUGH",raw,window:"build-through",state:"BUILDING"};
+  if(retest)return{ok:true,reason:"RETEST_HOLD",raw,window:"retest-and-hold",state:"COOLED_RETEST"};
+  if(extreme)return{ok:false,reason:"ACCEL_EXTREME",raw,window:"extreme/regime-change",state:"EXTREME"};
+  if(compressed)return{ok:false,reason:"ACCEL_COMPRESSION",raw,window:"compression/regime-change",state:"COMPRESSED"};
+  return{ok:false,reason:"ACCEL_FILTER_BLOCK",raw,window:"none",state:"NEUTRAL"};
 }
+
 function itsFromGex(callDom,gex,prevIts){
   const gexFactor=gex>0?Math.min(1,gex/2e11):Math.max(-0.3,gex/5e10);
   const target=1+callDom*11+gexFactor*2;
@@ -175,7 +185,7 @@ function createSeedEngine(forceArcheId){
     const newFep=s.fep*0.87+(newSpySpot-(Math.random()-0.47)*1.5)*0.13;
     const mom=(newSpySpot-s.spySpot)/Math.max(0.01,Math.abs(s.spySpot))*1000;
     const rawAccel=s.accelerator*0.77+(2.6+Math.abs(dSpy)*17*volMult)*0.23+(t>=session.macroTick+10&&t<session.macroTick+14?4.5:0)+(squeezeForce!==0?3.8:0)+(impulseForce!==0?3.2:0)+(Math.random()-0.5)*0.55;
-    const newAccel=clamp(rawAccel,1,14);
+    const newAccel=clamp(rawAccel,0,ACCEL_SCALE_MAX);
     let newNetGex=s.netGex*0.999+(Math.random()-0.5)*Math.abs(s.netGex)*0.002;
     let newCallDom=clamp(s.callDom*0.88+(0.5+session.instBias+mom*0.03)*0.12+(Math.random()-0.5)*0.04+spyForceLagged*0.01,0.15,0.95);
     const spxTrack=evolveTrack(s.netGexSpx,s.callDomSpx,session.gexRangeSpx,session.callDomRangeSpx,spxForceNow,session.baseCorr,0.6);
@@ -228,7 +238,7 @@ function createReplayEngine(replayData){
     const newFep=s.fep*0.88+(newSpySpot-(Math.random()-0.47)*1.2)*0.12;
     const mom=(newSpySpot-s.spySpot)/Math.max(0.01,Math.abs(s.spySpot))*1000;
     const rawAccel=s.accelerator*0.78+(2.4+Math.abs(newSpySpot-s.spySpot)*15)*0.22+(Math.random()-0.5)*0.5;
-    const newAccel=clamp(rawAccel,1,14);
+    const newAccel=clamp(rawAccel,0,ACCEL_SCALE_MAX);
     const newNdf=s.ndf*0.66+(mom*0.5+(Math.random()-0.5)*0.3)*0.34;
     const newDealer=clamp(s.dealerPct*0.82+(20+gi*45)*0.18+(Math.random()-0.5)*2.5,5,85);
     const newIv=clamp(s.iv*0.9+(10+Math.abs(newSpySpot-s.spySpot)*12)*0.1,6,45);
@@ -347,7 +357,7 @@ function computeTheses(mkt,hist,prev){
   const entryBias=scores.call>=42&&scores.call>scores.put+6&&scores.call>scores.wait?"CALL":scores.put>=42&&scores.put>scores.call+6&&scores.put>scores.wait?"PUT":"WAIT";
   // v9: scalpEdge bar lowered 11->8.5, since accel rarely sustains above 11 for a full tick
   // (your 10:24 log: "spike failed to hold above 11" — that was the mechanism starving itself).
-  const scalpEdge=ac>=8.5&&accelSlope>0.3&&!mkt.isPremarket&&mLeft>=90;
+  const scalpEdge=ac>=7.4&&ac<ACCEL_EXTREME_HIGH&&accelSlope>0.3&&!mkt.isPremarket&&mLeft>=90;
   const scalpDir=priceSlope>=0?"CALL":"PUT";
   const state=entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":scores.wait>=45&&scores.call<65&&scores.put<65?"WAIT_DOMINANT":scores.call>=45&&scores.call>=scores.put?"CALL_BUILDING":scores.put>=45?"PUT_BUILDING":"NO_EDGE";
   return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
@@ -396,7 +406,7 @@ function computeDeterministicPlan(mkt,hist,probs,thesis){
   if(above&&priceSlope>0.25){call+=16;reasons.push('above FEP+flip acceptance');}
   if(below&&priceSlope<-0.25){put+=20;call-=10;reasons.push('below FEP+flip downside acceptance');}
   if(mkt.accelerator>6&&accelSlope>=0){if(priceSlope>=0){call+=12;reasons.push('accel with upside slope');}else{put+=12;reasons.push('accel with downside slope');}}
-  if(mkt.accelerator>8.5&&Math.abs(priceSlope)>0.35){if(priceSlope>0)call+=10;else put+=10;reasons.push('scalp impulse');}
+  if(mkt.accelerator>=7.4&&mkt.accelerator<ACCEL_EXTREME_HIGH&&Math.abs(priceSlope)>0.35){if(priceSlope>0)call+=10;else put+=10;reasons.push('scalp impulse');}
   if(pinMode&&range20>=0.22){
     if(mkt.spySpot>=hi20-0.18&&priceSlope<-0.12){put+=26;reasons.push('positive-GEX upper pin rejection confirmed');}
     else if(mkt.spySpot>=hi20-0.18){put-=10;reasons.push('upper pin edge unconfirmed, no rejection yet');}
@@ -496,9 +506,10 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
   const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
 
+  const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
-  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}
+  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
 BAL:$${bal.toFixed(0)} | ${posStr}
 
 SESSION JOURNAL:
@@ -689,6 +700,40 @@ function storageGet(key,def){try{const v=localStorage.getItem(STORAGE_KEY+"_"+ke
 function storageSet(key,val){try{localStorage.setItem(STORAGE_KEY+"_"+key,JSON.stringify(val));}catch{}}
 
 
+function memoryFeature(t,b){return{
+  accel:t.accel||0,div:t.div||0,gex:t.gexInf||0,
+  fepGap:(t.spySpot||0)-(t.fep||0),its:(t.itsSPY||0),
+  side:b?.active||"WAIT"
+};}
+function featureDistance(a,b){
+  const sidePenalty=a.side!=="WAIT"&&b.side!=="WAIT"&&a.side!==b.side?.35:0;
+  return Math.abs(a.accel-b.accel)/12+Math.abs(a.div-b.div)/6+Math.abs(a.gex-b.gex)+Math.min(1,Math.abs(a.fepGap-b.fepGap)/3)+Math.abs(a.its-b.its)/12+sidePenalty;
+}
+function sessionExemplars(sess){
+  const ticks=sess?.tickData||[],mind=sess?.mindset||[];if(ticks.length<8)return[];
+  const out=[];
+  for(const d of mind){
+    const txt=`${d.decision||""} ${d.edgeState||""} ${d.mindset||""}`;
+    if(!/(BUY_CALL|BUY_PUT|ENTRY_READY|ARM_CALL|ARM_PUT)/.test(txt))continue;
+    const side=/CALL/.test(txt)?"CALL":/PUT/.test(txt)?"PUT":null;if(!side)continue;
+    let i=ticks.findIndex(x=>x.t===d.t);if(i<0)continue;
+    const now=ticks[i],future=ticks.slice(i+1,i+13);if(future.length<3)continue;
+    const signed=x=>side==="CALL"?x-now.spySpot:now.spySpot-x;
+    const moves=future.map(x=>signed(x.spySpot)),mfe=Math.max(...moves),mae=Math.min(...moves),end=moves.at(-1);
+    out.push({session:sess.label||sess.name||"prior",t:d.t,side,feature:memoryFeature(now,{active:side}),mfe,mae,end,decision:d.decision||d.edgeState||"candidate",reason:String(d.reasoning||"").slice(0,150)});
+  }
+  return out;
+}
+function retrieveHistoricalAnalogues(mkt,brain,limit=4){
+  const sessions=storageGet("sessions",[]).slice(0,24),current=memoryFeature({accel:mkt.accelerator,div:mkt.itsSPX-mkt.itsSPY,gexInf:mkt.gexInfluence||0,fep:mkt.fep,spySpot:mkt.spySpot,itsSPY:mkt.itsSPY},brain);
+  return sessions.flatMap(sessionExemplars).map(x=>({...x,distance:featureDistance(current,x.feature)})).sort((a,b)=>a.distance-b.distance).slice(0,limit);
+}
+function historicalMemoryPrompt(mkt,brain){
+  const a=retrieveHistoricalAnalogues(mkt,brain);if(!a.length)return"HISTORICAL MEMORY: No comparable saved examples yet. Do not invent precedent.";
+  const favorable=a.filter(x=>x.mfe>=Math.max(.7,Math.abs(x.mae)*1.25)&&x.end>0).length;
+  return`HISTORICAL MEMORY — nearest saved decision moments (${favorable}/${a.length} favorable over next 12 ticks):\n${a.map((x,i)=>`${i+1}. ${x.session} ${x.t} ${x.side} sim:${(1/(1+x.distance)).toFixed(2)} MFE:${x.mfe.toFixed(2)} MAE:${x.mae.toFixed(2)} END:${x.end.toFixed(2)} — ${x.reason||x.decision}`).join("\n")}\nUse these as weighted analogues, not rules. Explain material differences. Never let one anecdote override current structure, and never self-modify thresholds from this small sample.`;
+}
+
 function createMarketBrain(){return{
   tick:0,active:"WAIT",confidence:0,
   bullPressure:0,bearPressure:0,bullResponse:0,bearResponse:0,
@@ -731,7 +776,7 @@ function updateMarketBrain(m,hist,prev){
   const bearRaw=clamp(22+bearishInputs*18+b.belowFlipQuality*22+b.highPressure*16+bullFailure*18-b.lowPressure*14-b.aboveFlipQuality*18,0,88);
   b.bullPressure=smooth(b.bullPressure,bullRaw,.16);b.bearPressure=smooth(b.bearPressure,bearRaw,.16);
   const edge=b.bullPressure-b.bearPressure;b.active=Math.abs(edge)<9?"WAIT":edge>0?"CALL":"PUT";b.confidence=Math.round(Math.max(b.bullPressure,b.bearPressure));
-  const build=acc>=5&&acc<=9.5&&h.slice(-3).every((x,i,a)=>i===0||x.accel>=a[i-1].accel-.2);
+  const build=acc>=ACCEL_BUILD_MIN&&acc<=ACCEL_BUILD_MAX&&h.slice(-4,-1).length>=2&&h.slice(-4,-1).every((x,i,a)=>i===0||x.accel>=a[i-1].accel-.2)&&(h.at(-2)?.accel??0)<acc;
   const locationCall=last.spySpot<=Math.max(m.gammaFlip,m.fep)+.8||b.lowPressure>.42;
   const locationPut=last.spySpot>=Math.min(m.gammaFlip,m.fep)-.8||b.highPressure>.42;
   const pressureAligned=b.active==="CALL"?b.bullPressure>=62&&b.bullPressure-b.bearPressure>=12:b.active==="PUT"?b.bearPressure>=62&&b.bearPressure-b.bullPressure>=12:false;
@@ -866,12 +911,12 @@ export default function App(){
     setCallTrigger(callBuy);setPutTrigger(putBuy);setCallStop(Math.min(callBuy-0.55,m.fep-0.25));setPutStop(Math.max(putBuy+0.55,m.fep+0.25));
     const top=Object.entries(np).sort((a,b)=>b[1]-a[1])[0][0];
     if(top!==lastSR.current){lastSR.current=top;tlR.current=[...tlR.current,{t:fmt.time(m.h,m.m),state:top,probs:{...np}}];setTimeline([...tlR.current]);}
-    const accelCrossed=m.accelerator>=8.5&&prevAccelR.current<8.5;
+    const accelCrossed=m.accelerator>=7.4&&prevAccelR.current<7.4;
     const det=computeDeterministicPlan(m,candR.current,np,nt);
     const leadLag=computeLeadLag(m,candR.current);
     const sm=sessionModelR.current;
     if(leadLag.state!==sm.lastLeadState){if(leadLag.opportunity)sm.leadOpp++;if(leadLag.state==='SPY_CATCHING_UP')sm.leadCatch++;if(leadLag.state==='SPY_REJECTING_SPX')sm.leadReject++;sm.lastLeadState=leadLag.state;}
-    if(m.accelerator>=8.5&&tickR.current-sm.lastAccelTick>4){sm.lastAccelTick=tickR.current;if(Math.abs(candR.current.slice(-4).at(0)?.spySpot-m.spySpot)>0.35)sm.accelFollow++;else sm.accelFail++;}
+    if(m.accelerator>=7.4&&m.accelerator<ACCEL_EXTREME_HIGH&&tickR.current-sm.lastAccelTick>4){sm.lastAccelTick=tickR.current;if(Math.abs(candR.current.slice(-4).at(0)?.spySpot-m.spySpot)>0.35)sm.accelFollow++;else sm.accelFail++;}
     const sessionLearning=summarizeSessionModel(sm);
     const localDir=det.dir;
     const spikeReady=(nt.scalpEdge||accelCrossed||localDir!=="WAIT")&&(tickR.current-lastAiTickR.current)>=3;
@@ -910,7 +955,7 @@ export default function App(){
             else if(mLn<45){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but no option under $0.50 was priceable this tick — no fill possible.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else if(!accelWindow(m,candR.current,isC?"CALL":"PUT").ok){const aw=accelWindow(m,candR.current,isC?"CALL":"PUT");addJournal(ts,`${aw.reason==="ACCEL_"+"CLIMAX"?"ACCEL_"+"CLIMAX":"ACCEL_FILTER_BLOCK"} raw:${aw.raw.toFixed(2)} clamped:${m.accelerator.toFixed(2)} window:${aw.window}.`);addM({t:ts,mindset:"accel filter",reasoning:`${aw.reason}: raw ${aw.raw.toFixed(2)}, clamped ${m.accelerator.toFixed(2)}.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else if(!accelWindow(m,candR.current,isC?"CALL":"PUT").ok){const aw=accelWindow(m,candR.current,isC?"CALL":"PUT");addJournal(ts,`${aw.reason} raw:${aw.raw.toFixed(2)} scaled:${m.accelerator.toFixed(2)}/${ACCEL_SCALE_MAX} window:${aw.window}.`);addM({t:ts,mindset:"accel filter",reasoning:`${aw.reason}: raw ${aw.raw.toFixed(2)}, clamped ${m.accelerator.toFixed(2)}.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(chopGateR.current==="ON"&&det.mode!=="PIN_RANGE"){addJournal(ts,"CHOP_"+"GATE_BLOCK");}
             else{const stopSpot=isC?Math.max(m.spySpot-0.22,m.fep-0.12):Math.min(m.spySpot+0.22,m.fep+0.12);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.55),m.spySpot+1.25):Math.max(Math.min(m.putWall,m.spySpot-0.55),m.spySpot-1.25);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:det.mode,size:balR.current,entryTick:tickR.current};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
           }

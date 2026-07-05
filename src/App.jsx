@@ -5,7 +5,7 @@ const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 0;
 const OPEN_H = 9, OPEN_M = 30;
 const TRADER_API = "https://firstsignal-os.vercel.app/api/trader";
-const STORAGE_KEY = "gcdt_v12_1";
+const STORAGE_KEY = "gcdt_v13";
 const SIGNAL_EXIT_MIN_HOLD_TICKS=5;
 const LEAD_LAG_SUSTAIN_TICKS=3;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
@@ -482,7 +482,7 @@ function findStrike(spot,iv,mL,isCall,mode='swing'){
   return selectContract(buildOptionChain(spot,iv,mL,80),isCall,mode);
 }
 
-async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary){
+async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<45,eodPhase=mL<=15?'CLEANUP/RH_LOCK':mL<=30?'DEATH_ZONE':mL<=60?'BRUTAL_THETA':mL<=75?'GAME_CHANGING':'NORMAL',div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
@@ -498,7 +498,7 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
 
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
-  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}
+  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}
 BAL:$${bal.toFixed(0)} | ${posStr}
 
 SESSION JOURNAL:
@@ -688,6 +688,73 @@ function OptionChainPanel({chain,pos}){
 function storageGet(key,def){try{const v=localStorage.getItem(STORAGE_KEY+"_"+key);return v?JSON.parse(v):def;}catch{return def;}}
 function storageSet(key,val){try{localStorage.setItem(STORAGE_KEY+"_"+key,JSON.stringify(val));}catch{}}
 
+
+function createMarketBrain(){return{
+  tick:0,events:[],attempts:{high:0,low:0,flipFail:0,fepFail:0},
+  bull:{score:50,status:"FORMING",name:"upside continuation",evidence:[],invalidations:[]},
+  bear:{score:50,status:"FORMING",name:"downside continuation",evidence:[],invalidations:[]},
+  active:"WAIT",confidence:0,entryReady:false,entrySide:"WAIT",entryReason:"",
+  primaryScenario:"insufficient structure",alternateScenario:"",invalidation:"",
+  expectedResponse:"",actualResponse:"",efficiency:{up:0,down:0},summary:"No mature session thesis yet."
+};}
+function brainStatus(score,prev){if(score>=72)return prev==="FAILED"?"REACTIVATED":"CONFIRMED";if(score>=60)return prev==="WEAKENING"?"REACTIVATED":"STRENGTHENING";if(score<=28)return"FAILED";if(score<=42)return"WEAKENING";return"FORMING";}
+function pushBrainEvent(brain,type,side,detail,tick){const last=brain.events.at(-1);if(last&&last.type===type&&last.side===side&&tick-last.tick<3)return;brain.events=[...brain.events.slice(-39),{tick,type,side,detail}];}
+function updateMarketBrain(m,hist,prev){
+  const b={...prev,tick:(prev.tick||0)+1,attempts:{...prev.attempts},bull:{...prev.bull,evidence:[]},bear:{...prev.bear,evidence:[]},efficiency:{...prev.efficiency}};
+  const h=hist.slice(-60),last=h.at(-1),p3=h.at(-4),p6=h.at(-7),prior=h.slice(0,-1);
+  if(!last||prior.length<8)return b;
+  const recent=prior.slice(-30),sessionHigh=Math.max(...prior.map(x=>x.spySpot)),sessionLow=Math.min(...prior.map(x=>x.spySpot));
+  const resistance=Math.max(...recent.map(x=>x.spySpot)),support=Math.min(...recent.map(x=>x.spySpot));
+  const nearHigh=last.spySpot>=sessionHigh-0.35,nearLow=last.spySpot<=sessionLow+0.35;
+  const highTouches=prior.slice(-20).filter(x=>x.spySpot>=sessionHigh-0.35).length;
+  const lowTouches=prior.slice(-20).filter(x=>x.spySpot<=sessionLow+0.35).length;
+  const rejectedHigh=highTouches>=2&&p3&&p3.spySpot>=sessionHigh-0.45&&last.spySpot<sessionHigh-0.8;
+  const rejectedLow=lowTouches>=2&&p3&&p3.spySpot<=sessionLow+0.45&&last.spySpot>sessionLow+0.8;
+  const flipAbove=h.slice(-3).every(x=>x.spySpot>=m.gammaFlip),flipBelow=h.slice(-3).every(x=>x.spySpot<=m.gammaFlip);
+  const fepAbove=h.slice(-3).every(x=>x.spySpot>=m.fep),fepBelow=h.slice(-3).every(x=>x.spySpot<=m.fep);
+  const failedReclaim=h.slice(-8).some((x,i,a)=>i>0&&a[i-1].spySpot<m.gammaFlip&&x.spySpot>=m.gammaFlip)&&last.spySpot<m.gammaFlip;
+  const failedBreak=h.slice(-8).some((x,i,a)=>i>0&&a[i-1].spySpot>m.gammaFlip&&x.spySpot<=m.gammaFlip)&&last.spySpot>m.gammaFlip;
+  const d3=p3?last.spySpot-p3.spySpot:0,d6=p6?last.spySpot-p6.spySpot:0;
+  const div=(m.itsSpx??m.itsComposite??0)-(m.itsSpy??0),acc=m.accelerator||0;
+  const bullishInputs=(div>0.45?1:0)+(m.callDom>0.56?1:0)+(flipAbove?1:0)+(fepAbove?1:0);
+  const bearishInputs=(div<-0.45?1:0)+(m.callDom<0.44?1:0)+(flipBelow?1:0)+(fepBelow?1:0);
+  const bullFailure=bullishInputs>=2&&acc>=7&&d3<0.2;
+  const bearFailure=bearishInputs>=2&&acc>=7&&d3>-0.2;
+  const upEff=acc>0?Math.max(0,d3)/acc:0,downEff=acc>0?Math.max(0,-d3)/acc:0;
+  b.efficiency={up:b.efficiency.up*.75+upEff*.25,down:b.efficiency.down*.75+downEff*.25};
+  let bull=b.bull.score*.94,bear=b.bear.score*.94;
+  if(div>0.45){bull+=6;b.bull.evidence.push("SPX leadership");}if(div<-0.45){bear+=6;b.bear.evidence.push("SPY leading/caution");}
+  if(flipAbove){bull+=5;b.bull.evidence.push("flip acceptance");}if(flipBelow){bear+=5;b.bear.evidence.push("flip acceptance below");}
+  if(fepAbove){bull+=4;b.bull.evidence.push("FEP held above");}if(fepBelow){bear+=4;b.bear.evidence.push("FEP held below");}
+  if(d6>1){bull+=5;b.bull.evidence.push("positive six-tick progress");}if(d6<-1){bear+=5;b.bear.evidence.push("negative six-tick progress");}
+  if(rejectedHigh){bear+=18;bull-=14;b.attempts.high++;b.bear.evidence.push("repeated high rejection");pushBrainEvent(b,"FAILED_HIGH","PUT",`attempt ${b.attempts.high} rejected near ${sessionHigh.toFixed(2)}`,b.tick);}
+  if(rejectedLow){bull+=18;bear-=14;b.attempts.low++;b.bull.evidence.push("repeated low rejection");pushBrainEvent(b,"FAILED_LOW","CALL",`attempt ${b.attempts.low} rejected near ${sessionLow.toFixed(2)}`,b.tick);}
+  if(failedReclaim){bear+=16;bull-=10;b.attempts.flipFail++;b.bear.evidence.push("failed flip reclaim");pushBrainEvent(b,"FAILED_RECLAIM","PUT",`flip ${m.gammaFlip.toFixed(2)} rejected`,b.tick);}
+  if(failedBreak){bull+=16;bear-=10;b.attempts.flipFail++;b.bull.evidence.push("failed flip breakdown");pushBrainEvent(b,"FAILED_BREAK","CALL",`flip ${m.gammaFlip.toFixed(2)} reclaimed`,b.tick);}
+  if(bullFailure){bear+=13;bull-=11;b.bear.evidence.push("bullish inputs failed to create price progress");pushBrainEvent(b,"EXPECTED_RESPONSE_FAILED","PUT","bullish structure produced no upside",b.tick);}
+  if(bearFailure){bull+=13;bear-=11;b.bull.evidence.push("bearish inputs failed to create price progress");pushBrainEvent(b,"EXPECTED_RESPONSE_FAILED","CALL","bearish structure produced no downside",b.tick);}
+  if(nearHigh&&acc>=11){bull-=8;bear+=5;b.bear.evidence.push("climax at resistance");}
+  if(nearLow&&acc>=11){bear-=8;bull+=5;b.bull.evidence.push("climax at support");}
+  bull=clamp(bull,0,100);bear=clamp(bear,0,100);
+  b.bull={...b.bull,score:bull,status:brainStatus(bull,b.bull.status),invalidations:[`hold below ${m.gammaFlip.toFixed(2)}`,`failed reclaim after breakdown`]};
+  b.bear={...b.bear,score:bear,status:brainStatus(bear,b.bear.status),invalidations:[`hold above ${m.gammaFlip.toFixed(2)}`,`successful high acceptance`]};
+  const edge=bull-bear;b.active=Math.abs(edge)<10?"WAIT":edge>0?"CALL":"PUT";b.confidence=Math.round(Math.max(bull,bear));
+  const build=acc>=5&&acc<=9.5&&h.slice(-3).every((x,i,a)=>i===0||x.accel>=a[i-1].accel-0.15);
+  const transitionCall=b.active==="CALL"&&(failedBreak||rejectedLow||(!nearHigh&&flipAbove&&d3>0));
+  const transitionPut=b.active==="PUT"&&(failedReclaim||rejectedHigh||(!nearLow&&flipBelow&&d3<0));
+  b.entryReady=b.confidence>=64&&build&&(transitionCall||transitionPut);b.entrySide=b.entryReady?b.active:"WAIT";
+  b.entryReason=b.entryReady?`${b.active} thesis ${b.confidence}% with structure transition before climax; accel ${acc.toFixed(1)} building.`:"Thesis not aligned with a pre-climax structural transition.";
+  b.expectedResponse=b.active==="CALL"?"accept above flip/FEP and convert resistance into support":b.active==="PUT"?"reject reclaim attempts and expand below flip/FEP":"wait for one side to fail despite favorable inputs";
+  b.actualResponse=`3t ${d3>=0?"+":""}${d3.toFixed(2)}, 6t ${d6>=0?"+":""}${d6.toFixed(2)}, accel ${acc.toFixed(1)}`;
+  b.primaryScenario=b.active==="CALL"?`failed downside auction -> hold above ${m.gammaFlip.toFixed(2)} -> test ${resistance.toFixed(2)}`:b.active==="PUT"?`failed upside auction -> reject ${m.gammaFlip.toFixed(2)} reclaim -> test ${support.toFixed(2)}`:"range persists until repeated attempts create a failed auction";
+  b.alternateScenario=b.active==="CALL"?`loss of ${m.gammaFlip.toFixed(2)} reactivates bearish failed-reclaim thesis`:`reclaim and hold above ${m.gammaFlip.toFixed(2)} reactivates bullish thesis`;
+  b.invalidation=b.active==="CALL"?`three-tick hold below ${m.gammaFlip.toFixed(2)}`:b.active==="PUT"?`three-tick hold above ${m.gammaFlip.toFixed(2)}`:"none";
+  const recentEvents=b.events.slice(-4).map(e=>e.type+":"+e.side).join(", ")||"none";
+  b.summary=`Active ${b.active} ${b.confidence}% | bull ${bull.toFixed(0)} ${b.bull.status} | bear ${bear.toFixed(0)} ${b.bear.status} | events ${recentEvents} | expected ${b.expectedResponse} | actual ${b.actualResponse}`;
+  return b;
+}
+function brainPrompt(b){return `SESSION MARKET BRAIN\n${b.summary}\nPRIMARY: ${b.primaryScenario}\nALTERNATE: ${b.alternateScenario}\nINVALIDATION: ${b.invalidation}\nENTRY WINDOW: ${b.entryReady?b.entrySide+" READY — "+b.entryReason:"NOT READY — "+b.entryReason}\nBULL EVIDENCE: ${b.bull.evidence.join("; ")||"none"}\nBEAR EVIDENCE: ${b.bear.evidence.join("; ")||"none"}\nYou must reason from this developing session story. Do not reset the thesis because of one countertrend tick. Repeated failed attempts, failed expected responses, and failed reclaims are stronger evidence than a fresh indicator spike.`;}
+
 export default function App(){
   const[screen,setScreen]=useState("home");
   const[sessionMode,setSessionMode]=useState(null);
@@ -734,6 +801,8 @@ export default function App(){
   const lastMindsetKeyR=useRef("");
   const sessionModelR=useRef({leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99});
   const optionMemoryR=useRef({});
+  const marketBrainR=useRef(createMarketBrain());
+  const[marketBrain,setMarketBrain]=useState(()=>createMarketBrain());
   const chopGateR=useRef("OFF"),pinHistR=useRef([]),flipCrossR=useRef([]),lastFlipSideR=useRef(null),leadWrongTicksR=useRef(0),prevCallWallR=useRef(null),prevPutWallR=useRef(null);
   // v9: session-long memory. callAI previously only saw hist.slice(-4) — four candles, full
   // stop. This tracks the whole session (open, high/low, above/below-FEP counts) so the AI's
@@ -783,6 +852,8 @@ export default function App(){
     const wallExpand=prevCallWallR.current!=null&&prevPutWallR.current!=null&&(m.callWall>prevCallWallR.current||m.putWall<prevPutWallR.current);
     let nextGate=chopGateR.current;if(nextGate==='OFF'&&((((m.gexInfluence||0)>=CHOP_PIN_ON)&&pinRising)||failedRecent>=3))nextGate='ON';else if((nextGate==='ON'&&(m.gexInfluence||0)<CHOP_PIN_OFF&&holdSide)||(nextGate==='ON'&&wallExpand))nextGate='OFF';
     if(nextGate!==chopGateR.current){chopGateR.current=nextGate;setChopGate(nextGate);addJournal(c.t,`CHOP_GATE ${nextGate} — pin ${((m.gexInfluence||0)*100).toFixed(0)}%, failed crosses ${failedRecent}, holdSide ${holdSide}, wallExpand ${wallExpand}.`);}prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;
+    const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
+    if(nextBrain.active!==priorBrain.active||nextBrain.bull.status!==priorBrain.bull.status||nextBrain.bear.status!==priorBrain.bear.status||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
     const np=computeProbs(m,candR.current),nc=computeConf(m,np),nt=computeTheses(m,candR.current,thesisR.current);
     probR.current=np;confR.current=nc;thesisR.current=nt;setProbs({...np});setConfData({...nc});setThesisData({...nt});
@@ -822,8 +893,12 @@ export default function App(){
       // consecutive recent ticks within 15c of current spot, from actual candle history.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`)
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nLOCAL DETERMINISTIC GUIDE: ${det.dir} ${det.score} ${det.mode} — ${det.reason}. This is guidance/context from our playbook only; use discretion before trading.\n${leadLag.text}`,marketBrainR.current)
         .then(dec=>{
+          const mb=marketBrainR.current;
+          if(!posR.current&&mb.entryReady&&dec.decision==="WAIT"){dec={...dec,decision:mb.entrySide==="CALL"?"BUY_CALL":"BUY_PUT",mindset:"MARKET_BRAIN_REACTIVATION",reasoning:`${mb.entryReason} Primary scenario: ${mb.primaryScenario}. This is an anticipatory structural entry, not a completed-move chase.`};addJournal(ts,`THESIS_REACTIVATION ${mb.entrySide} — ${mb.entryReason}`);}
+          const aiSide=dec.decision==="BUY_CALL"?"CALL":dec.decision==="BUY_PUT"?"PUT":"WAIT";
+          if(!posR.current&&aiSide!=="WAIT"&&mb.active!=="WAIT"&&aiSide!==mb.active&&mb.confidence>=72){addJournal(ts,`THESIS_CONFLICT_BLOCK AI:${aiSide} active:${mb.active} ${mb.confidence}% — one countertrend tick cannot erase the session thesis.`);dec={...dec,decision:"WAIT",mindset:"THESIS_CONFLICT",reasoning:`Active ${mb.active} thesis remains ${mb.confidence}% and has not reached its structural invalidation: ${mb.invalidation}.`};}
           const ts=fmt.time(m.h,m.m),mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
           lastWaitReasonR.current=dec.reasoning||"";
@@ -865,7 +940,7 @@ export default function App(){
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
-    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};
+    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[]);
@@ -893,7 +968,7 @@ export default function App(){
   const saveSession=useCallback(async()=>{
     const r=((balR.current-STARTING_BALANCE)/STARTING_BALANCE)*100,cl=logR.current.filter(l=>l.pnl!==undefined),ws=cl.filter(l=>(l.pnl||0)>=0);
     const signalTotal=sessionModelR.current.accelFollow+sessionModelR.current.accelFail,signalCleanliness=signalTotal?sessionModelR.current.accelFollow/signalTotal:0,tradeFollowThrough=cl.length?cl.filter(t=>(t.pnl||0)>0||String(t.exitType||"").startsWith("TARGET")).length/cl.length:0;
-    const sess={id:Date.now(),signalCleanliness,tradeFollowThrough,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
+    const sess={id:Date.now(),signalCleanliness,tradeFollowThrough,marketBrain:marketBrainR.current,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
     const upd=[sess,...sessions];setSessions(upd);storageSet("sessions",upd);setSaved(true);
     setThinking(true);
     try{const props=await generatePatchProposals(logR.current,mindR.current,journalR.current,{balance:balR.current,returnPct:r,trades:cl.length,wins:ws.length,label:sessionLabel});if(props.length>0){setPatchProposals(props);setPatchIdx(0);setScreen("patch");}}catch(e){console.log("patch gen failed",e);}
@@ -969,7 +1044,7 @@ export default function App(){
       </div>
       <div style={{padding:16}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          {[["FINAL",fmt.bal(s.balance)],["RETURN",fmt.pct(s.returnPct)],["WIN RATE",s.winRate],["TRADES",String(s.trades.length)],["SIGNAL CLEAN",`${((s.signalCleanliness||0)*100).toFixed(0)}%`],["FOLLOW THROUGH",`${((s.tradeFollowThrough||0)*100).toFixed(0)}%`]].map(([l,v])=>(
+          {[["FINAL",fmt.bal(s.balance)],["RETURN",fmt.pct(s.returnPct)],["WIN RATE",s.winRate],["TRADES",String(s.trades.length)],["SIGNAL CLEAN",`${((s.signalCleanliness||0)*100).toFixed(0)}%`],["FOLLOW THROUGH",`${((s.tradeFollowThrough||0)*100).toFixed(0)}%`],["SESSION THESIS",`${s.marketBrain?.active||"WAIT"} ${s.marketBrain?.confidence||0}%`]].map(([l,v])=>(
             <div key={l} style={{padding:"10px 12px",background:T.surface,borderRadius:6,border:`1px solid ${T.border}`}}><div style={{fontSize:9,color:T.muted,marginBottom:3}}>{l}</div><div style={{fontSize:13,fontWeight:700}}>{v}</div></div>
           ))}
         </div>
@@ -1114,7 +1189,7 @@ export default function App(){
           <StateBars probs={probs}/>
           <div style={{marginTop:8}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-              <span style={{fontSize:8,color:T.muted}}>GEX INFLUENCE · {chopGate}</span>
+              <span style={{fontSize:8,color:T.muted}}>GEX INFLUENCE · {chopGate} · BRAIN {marketBrain.active} {marketBrain.confidence}%</span>
               <span style={{fontSize:8,color:gexInf>0.7?T.red:gexInf<0.28?T.accent:T.yellow}}>{gexInf>0.7?"DOMINANT":gexInf<0.28?"WEAK":"MODERATE"} {(gexInf*100).toFixed(0)}%</span>
             </div>
             <div style={{height:3,background:T.dim,borderRadius:2}}><div style={{height:"100%",width:`${gexInf*100}%`,background:gexInf>0.7?T.red:gexInf<0.28?T.accent:T.yellow,borderRadius:2,transition:"width 0.5s"}}/></div>

@@ -3,7 +3,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 
 
-const BUILD_ID = "v18-unified-intent-20260705";
+
+
+
+
+const BUILD_ID = "v19-surface-intent-20260705";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 0;
@@ -15,6 +19,10 @@ const SIGNAL_EXIT_MIN_HOLD_TICKS=5;
 const LEAD_LAG_SUSTAIN_TICKS=3;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
 const ACCEL_SCALE_MAX=12,ACCEL_EXTREME_HIGH=8.8,ACCEL_EXTREME_LOW=2,ACCEL_BUILD_MIN=4.2,ACCEL_BUILD_MAX=8.7,ACCEL_RETEST_MAX=6.8;
+
+
+
+
 
 
 
@@ -39,6 +47,10 @@ const SPX_JUL1 = {
     { time: "15:59", spot: 7487.62, gex: -1011022100000,callDom: 0.02, maxGamma: 7485 },
   ],
 };
+
+
+
+
 
 
 
@@ -81,6 +93,10 @@ const REAL_ARCHETYPES=[
 
 
 
+
+
+
+
 function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
 function lerp(a,b,t){return a+(b-a)*t;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
@@ -88,9 +104,17 @@ function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 
 
 
+
+
+
+
 const fmt={bal:v=>v>=1e6?`$${(v/1e6).toFixed(3)}M`:v>=1000?`$${(v/1e3).toFixed(1)}K`:`$${v.toFixed(0)}`,pct:v=>`${v>=0?"+":""}${v.toFixed(1)}%`,time:(h,m)=>`${h}:${String(m).padStart(2,"0")}`,gex:v=>`${(v/1e9).toFixed(1)}B`};
 const T={bg:"#07090c",surface:"#0e1117",surface2:"#141920",border:"#1a2030",accent:"#00d4a8",accentDim:"#00d4a818",red:"#ff4060",redDim:"#ff406018",yellow:"#f0c040",yellowDim:"#f0c04018",purple:"#a78bfa",text:"#dde4f0",muted:"#4a5568",dim:"#1e2530"};
 const SC={discovery:"#00d4a8",pin:"#f0c040",transition:"#a78bfa",macro:"#ff4060"};
+
+
+
+
 
 
 
@@ -114,6 +138,10 @@ function applyScriptedDecouple(arche,tick,spyCallDom,spxCallDom){
 
 
 
+
+
+
+
 function interpolateSPX(snapshots,currentMin){
   const mins=snapshots.map(s=>timeToMin(s.time));
   if(currentMin<=mins[0])return{...snapshots[0],synth:false};
@@ -123,6 +151,10 @@ function interpolateSPX(snapshots,currentMin){
   const a=snapshots[i],b=snapshots[i+1],ease=t*t*(3-2*t);
   return{spot:lerp(a.spot,b.spot,ease)+(Math.random()-0.5)*0.8,gex:lerp(a.gex,b.gex,ease)+(Math.random()-0.5)*Math.abs(a.gex)*0.015,callDom:lerp(a.callDom,b.callDom,ease),maxGamma:ease<0.5?a.maxGamma:b.maxGamma,synth:Math.abs(currentMin-mins[i])>2&&Math.abs(currentMin-mins[i+1])>2};
 }
+
+
+
+
 
 
 
@@ -152,6 +184,10 @@ function accelWindow(m,hist,dir){
 
 
 
+
+
+
+
 function itsFromGex(callDom,gex,prevIts){
   const gexFactor=gex>0?Math.min(1,gex/2e11):Math.max(-0.3,gex/5e10);
   const target=1+callDom*11+gexFactor*2;
@@ -161,7 +197,15 @@ function itsFromGex(callDom,gex,prevIts){
 
 
 
+
+
+
+
 function wRand(choices){const r=Math.random();let cum=0;for(const[v,w]of choices){cum+=w;if(r<cum)return v;}return choices[choices.length-1][0];}
+
+
+
+
 
 
 
@@ -256,6 +300,10 @@ function createSeedEngine(forceArcheId){
 
 
 
+
+
+
+
 function createReplayEngine(replayData){
   const snapshots=replayData.snapshots,openMin=OPEN_H*60+OPEN_M,spyRatio=10;
   let s={spySpot:snapshots[0].spot/spyRatio,spxSpot:snapshots[0].spot,gammaFlip:snapshots[0].spot/spyRatio-0.5,callWall:snapshots[0].maxGamma/spyRatio+1,putWall:snapshots[0].spot/spyRatio-6,fep:snapshots[0].spot/spyRatio-0.3,accelerator:4.2,netGex:snapshots[0].gex/spyRatio,netGexSpx:snapshots[0].gex,itsSPX:itsFromGex(snapshots[0].callDom,snapshots[0].gex,5.5),itsSPY:4.2,callDom:snapshots[0].callDom,callDomSpyEst:snapshots[0].callDom,ndf:0.1,dealerPct:25,iv:13.5,pcr:0.85,gexInfluence:0.08,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spxCallDomBuffer:[snapshots[0].callDom,snapshots[0].callDom,snapshots[0].callDom]};
@@ -294,6 +342,10 @@ function createReplayEngine(replayData){
 
 
 
+
+
+
+
 function computeProbs(mkt,hist){
   const div=mkt.itsSPX-mkt.itsSPY,ac=mkt.accelerator,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3;
   let D=0,H=0,M=0;
@@ -306,6 +358,10 @@ function computeProbs(mkt,hist){
   const Tr=Math.max(0,100-(D+H+M)*0.72),tot=D+H+M+Tr;
   return{discovery:Math.round(D/tot*100),pin:Math.round(H/tot*100),transition:Math.round(Tr/tot*100),macro:Math.round(M/tot*100)};
 }
+
+
+
+
 
 
 
@@ -337,10 +393,18 @@ function computeConf(mkt,probs){
 
 
 
+
+
+
+
 function norm3(call,put,wait){const c=Math.max(1,call),p=Math.max(1,put),w=Math.max(1,wait),tot=c+p+w;return{call:Math.round(c/tot*100),put:Math.round(p/tot*100),wait:Math.round(w/tot*100)};}
 function thesisMomentum(curr,prev){if(!prev)return{call:0,put:0,wait:0};return{call:curr.call-prev.call,put:curr.put-prev.put,wait:curr.wait-prev.wait};}
 function pushReason(arr,label,delta){arr.push({label,delta});}
 function computeEdgeScore(scores){const vals=[scores.call,scores.put,scores.wait].sort((a,b)=>b-a);return vals[0]-vals[1];}
+
+
+
+
 
 
 
@@ -365,6 +429,10 @@ function computeTheses(mkt,hist,prev){
 
 
 
+
+
+
+
   if(div>0.5){call+=14;put-=4;wait-=6;pushReason(callReasons,"SPX ITS leading SPY",14);}
   else if(div<-0.5){put+=8;call-=6;wait+=4;pushReason(putReasons,"SPY leading / call caution",8);pushReason(waitReasons,"retail-led caution",4);}
   else{wait+=4;pushReason(waitReasons,"ITS convergence / unclear leadership",4);}
@@ -375,6 +443,10 @@ function computeTheses(mkt,hist,prev){
   if(fg>0.6&&priceSlope>0){call+=9;put-=4;pushReason(callReasons,"spot above FEP with upward slope",9);}
   else if(fg<-0.6&&priceSlope<0){put+=9;call-=4;pushReason(putReasons,"spot below FEP with downward slope",9);}
   else if(Math.abs(fg)<0.35){wait+=4;pushReason(waitReasons,"spot anchored to FEP",4);}
+
+
+
+
 
 
 
@@ -395,10 +467,18 @@ function computeTheses(mkt,hist,prev){
 
 
 
+
+
+
+
   if(belowFepCount>=4&&priceSlope<-0.6){put+=22;wait-=12;call-=8;pushReason(putReasons,"persistent downside acceptance below FEP",22);}
   if(aboveFepCount>=4&&priceSlope>0.6){call+=22;wait-=12;put-=8;pushReason(callReasons,"persistent upside acceptance above FEP",22);}
   if(priceSlope<-2.0){put+=18;wait-=10;call-=8;pushReason(putReasons,"multi-tick selloff slope",18);}
   if(priceSlope>2.0){call+=18;wait-=10;put-=8;pushReason(callReasons,"multi-tick squeeze slope",18);}
+
+
+
+
 
 
 
@@ -409,6 +489,10 @@ function computeTheses(mkt,hist,prev){
   if(priceSlope<-0.6)callInvalid.push("price slope turning down");
   if(div>0.9&&priceSlope>0)putInvalid.push("institutional upside leadership");
   if(priceSlope>0.6)putInvalid.push("price slope turning up");
+
+
+
+
 
 
 
@@ -427,6 +511,10 @@ function computeTheses(mkt,hist,prev){
   const state=entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":scores.wait>=45&&scores.call<65&&scores.put<65?"WAIT_DOMINANT":scores.call>=45&&scores.call>=scores.put?"CALL_BUILDING":scores.put>=45?"PUT_BUILDING":"NO_EDGE";
   return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
 }
+
+
+
+
 
 
 
@@ -495,134 +583,146 @@ function computeDeterministicPlan(mkt,hist,probs,thesis){
   return{dir,score,mode,reason:reasons.slice(-3).join(' + ')||'no deterministic edge',stop,target};
 }
 function ncdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.7814779+t*(-1.8212560+t*1.3302744))));return x>0?1-p:p;}
-function effectiveIv(spot,strike,iv,mL,isCall){
-  const otm=isCall?Math.max(0,strike-spot):Math.max(0,spot-strike);
-  const otmPct=spot>0?otm/spot:0;
-  const timeFrac=clamp(mL/390,0,1);
-  const baseDiscount=otm>0?clamp(0.015+otmPct*3.2+timeFrac*0.006,0.015,0.075):0;
-  const putSkew=!isCall&&otm>0?clamp(0.008+otmPct*3.5,0.008,0.045):0;
-  return Math.max(4,isCall?iv*(1-baseDiscount):iv*(1+putSkew));
-}
 function optionPathState(mkt,hist){
-  const h=hist||[],p1=h.at(-2)||h.at(-1)||mkt,p3=h.at(-4)||p1,p6=h.at(-7)||p3;
+  const h=hist||[],p1=h.at(-2)||h.at(-1)||mkt,p3=h.at(-4)||p1,p6=h.at(-7)||p3,p10=h.at(-11)||p6;
   const move1=mkt.spySpot-(p1.spySpot??mkt.spySpot);
   const move3=mkt.spySpot-(p3.spySpot??mkt.spySpot);
   const move6=mkt.spySpot-(p6.spySpot??mkt.spySpot);
+  const move10=mkt.spySpot-(p10.spySpot??mkt.spySpot);
   let flatTicks=0;
-  for(let i=h.length-1;i>=0&&Math.abs((h[i].spySpot??mkt.spySpot)-mkt.spySpot)<0.18;i--)flatTicks++;
+  for(let i=h.length-1;i>=0&&Math.abs((h[i].spySpot??mkt.spySpot)-mkt.spySpot)<0.16;i--)flatTicks++;
   const prevAccel=p1.accel??p1.accelerator??mkt.accelerator??0;
-  return{
-    move1,move3,move6,
-    velocity:move3/Math.max(1,Math.min(3,h.length-1||1)),
-    accel:mkt.accelerator||0,
-    accelSlope:(mkt.accelerator||0)-prevAccel,
-    flatTicks,
-    iv:mkt.iv,
-    prevIv:p1.iv??mkt.iv,
-    minutesElapsed:Math.max(1,(p1.h!=null?((mkt.h*60+mkt.m)-(p1.h*60+p1.m)):1))
-  };
-}
-function pathAdjustedIv(baseIv,isCall,path){
-  if(!path)return baseIv;
-  const dir=isCall?1:-1;
-  const favorable3=dir*(path.move3||0);
-  const favorable6=dir*(path.move6||0);
-  const impulse=clamp(Math.max(0,favorable3)*0.020+Math.max(0,favorable6)*0.010,0,0.12);
-  const accelBoost=clamp(((path.accel||0)-5)/7,0,1)*clamp(Math.max(0,favorable3)/2,0,1)*0.05;
-  const accelSlopeBoost=clamp((path.accelSlope||0)/3,0,1)*clamp(Math.max(0,favorable3),0,2)*0.02;
-  const stallCrush=clamp(Math.max(0,(path.flatTicks||0)-2)*0.018,0,0.20);
-  const adverseCrush=clamp(Math.max(0,-favorable3)*0.035,0,0.16);
-  return Math.max(3.5,baseIv*(1+impulse+accelBoost+accelSlopeBoost-stallCrush-adverseCrush));
-}
-function priceOpt(spot,strike,iv,mL,isCall,ctx=null){
-  const intrinsic=Math.max(0,isCall?spot-strike:strike-spot);
-  if(mL<=0)return Math.max(0.01,Math.round(intrinsic*100)/100);
-  const baseIv=effectiveIv(spot,strike,iv,mL,isCall);
-  const adjustedIv=pathAdjustedIv(baseIv,isCall,ctx?.path);
-  const TT=Math.max(1/(252*390*60),mL/(252*390)),sig=Math.max(0.01,adjustedIv/100),sq=Math.sqrt(TT);
-  const d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq),d2=d1-sig*sq;
-  const theoretical=Math.max(intrinsic,Math.max(0.005,isCall?spot*ncdf(d1)-strike*ncdf(d2):strike*ncdf(-d2)-spot*ncdf(-d1)));
-  return applyOptionPath(theoretical,spot,strike,mL,isCall,ctx);
-}
-function optDelta(spot,strike,iv,mL,isCall,ctx=null){
-  if(mL<=0)return isCall?(spot>strike?1:0):(spot<strike?-1:0);
-  const baseIv=effectiveIv(spot,strike,iv,mL,isCall),sig=Math.max(0.01,pathAdjustedIv(baseIv,isCall,ctx?.path)/100);
-  const TT=Math.max(1/(252*390*60),mL/(252*390)),sq=Math.sqrt(TT),d1=(Math.log(spot/strike)+0.5*sig*sig*TT)/(sig*sq);
-  return isCall?ncdf(d1):ncdf(d1)-1;
+  return{move1,move3,move6,move10,accel:mkt.accelerator||0,accelSlope:(mkt.accelerator||0)-prevAccel,flatTicks,iv:mkt.iv,prevIv:p1.iv??mkt.iv};
 }
 function optionCtx(mkt,hist,memory){
   return{path:optionPathState(mkt,hist),memory:memory||{}};
 }
-function applyOptionPath(raw,spot,strike,mL,isCall,ctx){
+function zeroDteSurfaceBase(spot,strike,iv,mL,isCall){
   const intrinsic=Math.max(0,isCall?spot-strike:strike-spot);
-  if(!ctx)return Math.max(0.01,Math.round(Math.max(intrinsic,raw)*100)/100);
-  const prev=ctx.prev||{},prevPrice=Number.isFinite(prev.price)?prev.price:raw;
-  const prevSpot=Number.isFinite(prev.spot)?prev.spot:spot;
-  const prevMins=Number.isFinite(prev.mL)?prev.mL:mL+1;
-  const path=ctx.path||{};
-  const dir=isCall?1:-1;
-  const favorable1=dir*(spot-prevSpot),favorable3=dir*(path.move3||0),favorable6=dir*(path.move6||0);
-  const dist=Math.abs(strike-spot),near=clamp(1-dist/8,0,1);
-  const trendStrength=clamp(Math.max(0,favorable3)/1.5+Math.max(0,favorable6)/3,0,1.6);
-  const impulseStrength=clamp(Math.max(0,favorable1)*0.9+Math.max(0,path.accelSlope||0)*0.08,0,1.2);
-  const stall=clamp((path.flatTicks||0)/8,0,1);
-  const adverse=clamp(Math.max(0,-favorable1)*0.8+Math.max(0,-favorable3)*0.22,0,1);
-  const elapsed=Math.max(0,prevMins-mL);
-  const lateTheta=clamp((120-mL)/105,0,1);
-  const thetaDrag=clamp(elapsed*(0.004+lateTheta*0.018)*(1-near*0.35),0,0.35);
-  let pathMultiplier=1+trendStrength*(0.08+near*0.12)+impulseStrength*(0.05+near*0.08);
-  pathMultiplier*=1-stall*(0.10+lateTheta*0.22);
-  pathMultiplier*=1-adverse*(0.16+lateTheta*0.18);
-  pathMultiplier*=1-thetaDrag;
-  const pathValue=Math.max(intrinsic,raw*clamp(pathMultiplier,0.45,2.6));
-  const continuityWeight=clamp(0.18+Math.abs(favorable1)*0.35+trendStrength*0.14,0.18,0.72);
-  let px=prevPrice*(1-continuityWeight)+pathValue*continuityWeight;
-  if(Math.abs(favorable1)<0.03&&stall>0.5)px=Math.min(px,prevPrice*(1-(0.03+lateTheta*0.10)));
-  px=Math.max(intrinsic,px);
-  return Math.max(0.01,Math.round(px*100)/100);
+  if(intrinsic>0)return intrinsic+Math.max(0.01,0.09*Math.exp(-intrinsic/1.8));
+  const distance=isCall?Math.max(0,strike-spot):Math.max(0,spot-strike);
+  const timeFrac=clamp(mL/390,0,1);
+  const volFrac=clamp((iv-12)/30,0,1.6);
+  const atmExtrinsic=0.62+timeFrac*0.72+volFrac*0.34;
+  const decayScale=1.42+timeFrac*0.52+volFrac*0.20;
+  const tailFloor=0.01+0.025*timeFrac;
+  return Math.max(tailFloor,atmExtrinsic*Math.exp(-distance/decayScale));
 }
-function buildOptionChain(spot,iv,mL,width=80,ctx=null){
+function chainSideState(path,isCall){
+  const dir=isCall?1:-1;
+  const f1=dir*(path?.move1||0),f3=dir*(path?.move3||0),f6=dir*(path?.move6||0),f10=dir*(path?.move10||0);
+  const continuation=Math.max(0,f3)*0.42+Math.max(0,f6)*0.20+Math.max(0,f10)*0.08;
+  const adverse=Math.max(0,-f3)*0.48+Math.max(0,-f6)*0.20;
+  const impulse=Math.max(0,f1)*0.75+Math.max(0,path?.accelSlope||0)*0.06;
+  const reversal=f1>0.12&&f6<-0.45?Math.min(2.4,0.65+Math.abs(f6)*0.48+f1*0.65):0;
+  const stall=clamp(((path?.flatTicks||0)-1)/7,0,1);
+  let state="NEUTRAL";
+  if(reversal>0.7)state="REVERSAL_EXPANSION";
+  else if(continuation+impulse>1.1)state="EXPANDED";
+  else if(adverse>0.7)state="CRUSHED";
+  else if(stall>0.45)state="DECAYING";
+  return{continuation,adverse,impulse,reversal,stall,state};
+}
+function priceOpt(spot,strike,iv,mL,isCall,ctx=null){
+  const intrinsic=Math.max(0,isCall?spot-strike:strike-spot);
+  if(mL<=0)return Math.max(0.01,Math.round(intrinsic*100)/100);
+  const base=zeroDteSurfaceBase(spot,strike,iv,mL,isCall);
+  if(!ctx)return Math.max(0.01,Math.round(Math.max(intrinsic,base)*100)/100);
+  const key=`${isCall?"C":"P"}${strike}`,prev=ctx.memory?.[key]||{};
+  const side=chainSideState(ctx.path,isCall);
+  const distance=Math.abs(strike-spot),convexity=clamp(1-distance/10,0.18,1);
+  const late=clamp((150-mL)/140,0,1);
+  const ivChange=(ctx.path?.iv||iv)-(ctx.path?.prevIv||iv);
+  const volBoost=clamp(ivChange*0.035,-0.25,0.35);
+  let mult=1;
+  mult*=1+side.continuation*(0.30+convexity*0.34);
+  mult*=1+side.impulse*(0.18+convexity*0.30);
+  mult*=1+side.reversal*(0.42+convexity*0.52);
+  mult*=1-side.adverse*(0.22+late*0.12);
+  mult*=1-side.stall*(0.10+late*0.34);
+  mult*=1+volBoost;
+  mult=clamp(mult,0.10,7.5);
+  let target=Math.max(intrinsic,base*mult);
+  const prevPrice=Number.isFinite(prev.price)?prev.price:target;
+  const priorCrush=Number.isFinite(prev.compression)?prev.compression:1;
+  if(side.reversal>0.7&&priorCrush<0.55)target*=clamp(1+(0.55-priorCrush)*4.2,1,3.2);
+  const moveMag=Math.abs(ctx.path?.move1||0)+Math.abs(ctx.path?.move3||0)*0.35;
+  const blend=clamp(0.48+moveMag*0.20+side.reversal*0.12,0.48,0.92);
+  let px=prevPrice*(1-blend)+target*blend;
+  if(side.stall>0.55&&Math.abs(ctx.path?.move1||0)<0.05)px=Math.min(px,prevPrice*(1-(0.025+late*0.11)));
+  px=Math.max(intrinsic,px);
+  const rounded=Math.max(0.01,Math.round(px*100)/100);
+  if(ctx.memory){
+    const neutral=Math.max(0.01,base);
+    ctx.memory[key]={
+      price:rounded,spot,mL,iv,
+      peak:Math.max(prev.peak||rounded,rounded),
+      trough:Math.min(prev.trough??rounded,rounded),
+      compression:clamp(rounded/neutral,0.05,5),
+      sideState:side.state
+    };
+  }
+  return rounded;
+}
+function optDelta(spot,strike,iv,mL,isCall,ctx=null){
+  const bump=0.05;
+  const up=priceOpt(spot+bump,strike,iv,mL,isCall,null);
+  const down=priceOpt(spot-bump,strike,iv,mL,isCall,null);
+  const raw=(up-down)/(2*bump);
+  return isCall?clamp(raw,0,1):clamp(raw,-1,0);
+}
+function buildOptionChain(spot,iv,mL,width=40,ctx=null){
   const base=Math.round(spot*2)/2,strikes=[];
   for(let i=-width;i<=width;i++)strikes.push(Math.round((base+i*0.5)*2)/2);
-  const row=strike=>{
-    const ck=`C${strike}`,pk=`P${strike}`;
-    const cctx=ctx?{...ctx,prev:ctx.memory?.[ck]}:null,pctx=ctx?{...ctx,prev:ctx.memory?.[pk]}:null;
-    const cp=priceOpt(spot,strike,iv,mL,true,cctx),pp=priceOpt(spot,strike,iv,mL,false,pctx);
-    const cd=optDelta(spot,strike,iv,mL,true,cctx),pd=optDelta(spot,strike,iv,mL,false,pctx);
-    if(ctx?.memory){
-      ctx.memory[ck]={price:cp,spot,mL,iv,peak:Math.max(ctx.memory[ck]?.peak||cp,cp)};
-      ctx.memory[pk]={price:pp,spot,mL,iv,peak:Math.max(ctx.memory[pk]?.peak||pp,pp)};
-    }
-    return{strike,distance:Math.abs(strike-spot),call:{strike,side:'CALL',price:cp,delta:cd},put:{strike,side:'PUT',price:pp,delta:pd}};
-  };
-  const rows=strikes.map(row);
-  return{spot,iv,mL,rows,calls:rows.map(r=>({...r.call,distance:r.distance})),puts:rows.map(r=>({...r.put,distance:r.distance}))};
+  const rows=strikes.map(strike=>{
+    const cp=priceOpt(spot,strike,iv,mL,true,ctx),pp=priceOpt(spot,strike,iv,mL,false,ctx);
+    const cd=optDelta(spot,strike,iv,mL,true,ctx),pd=optDelta(spot,strike,iv,mL,false,ctx);
+    return{strike,distance:Math.abs(strike-spot),call:{strike,side:"CALL",price:cp,delta:cd},put:{strike,side:"PUT",price:pp,delta:pd}};
+  });
+  const callState=chainSideState(ctx?.path,true),putState=chainSideState(ctx?.path,false);
+  return{spot,iv,mL,rows,calls:rows.map(r=>({...r.call,distance:r.distance})),puts:rows.map(r=>({...r.put,distance:r.distance})),surface:{callState,putState}};
 }
-function selectContract(chain,isCall,mode='swing'){
+function contractRank(o,idealPrice,targetDelta){
+  return Math.abs(o.price-idealPrice)*1.4+Math.abs(Math.abs(o.delta)-targetDelta)*1.8+o.distance*0.04;
+}
+function affordableDirectionalContracts(chain,isCall){
   const list=isCall?chain.calls:chain.puts;
-  const cfg=mode==='pin'
-    ?{idealPrice:0.30,targetDelta:0.18,minDelta:0.10,maxDist:5}
-    :mode==='expansion'
-      ?{idealPrice:0.24,targetDelta:0.14,minDelta:0.08,maxDist:7}
-      :{idealPrice:0.27,targetDelta:0.16,minDelta:0.09,maxDist:6};
-  const directional=o=>isCall?o.strike>=chain.spot-0.5:o.strike<=chain.spot+0.5;
-  const score=o=>Math.abs(o.price-cfg.idealPrice)*1.5+Math.abs(Math.abs(o.delta)-cfg.targetDelta)*2.1+o.distance*0.035;
+  return list.filter(o=>(isCall?o.strike>=chain.spot+0.5:o.strike<=chain.spot-0.5)&&o.price>=0.02&&o.price<=0.30&&o.distance<=5.5);
+}
+function bestRejectedContract(chain,isCall){
+  const list=isCall?chain.calls:chain.puts;
+  const directional=list.filter(o=>isCall?o.strike>=chain.spot+0.5:o.strike<=chain.spot-0.5);
+  const ranked=directional.map(o=>{
+    const reasons=[];
+    if(o.price>0.30)reasons.push(`price $${o.price.toFixed(2)} > $0.30`);
+    if(o.price<0.02)reasons.push(`price $${o.price.toFixed(2)} < $0.02`);
+    if(o.distance>5.5)reasons.push(`${o.distance.toFixed(1)} points OTM`);
+    if(Math.abs(o.delta)<0.035)reasons.push(`delta ${Math.abs(o.delta).toFixed(2)} too low`);
+    return{...o,reasons,penalty:Math.abs(o.price-0.20)*1.3+o.distance*0.05+(Math.abs(o.delta)<0.035?0.5:0)};
+  }).sort((a,b)=>a.penalty-b.penalty);
+  return ranked[0]||null;
+}
+function selectContract(chain,isCall,mode="swing"){
+  const cfg=mode==="pin"?{idealPrice:0.24,targetDelta:0.16,minDelta:0.055,maxDist:4.5}:mode==="expansion"?{idealPrice:0.20,targetDelta:0.12,minDelta:0.045,maxDist:5.5}:{idealPrice:0.22,targetDelta:0.14,minDelta:0.05,maxDist:5};
+  const affordable=affordableDirectionalContracts(chain,isCall);
   let tier="QUALITY";
-  let candidates=list.filter(o=>directional(o)&&o.distance<=cfg.maxDist&&o.price>=0.06&&o.price<=0.50&&Math.abs(o.delta)>=cfg.minDelta);
+  let candidates=affordable.filter(o=>o.distance<=cfg.maxDist&&Math.abs(o.delta)>=cfg.minDelta);
   if(!candidates.length){
     tier="ADAPTIVE";
-    const expectedMove=chain.spot*(chain.iv/100)*Math.sqrt(Math.max(1,chain.mL)/(252*390));
-    const adaptiveMaxDist=clamp(expectedMove*2.05,7,18);
-    const adaptiveMinDelta=clamp(0.060-(expectedMove/chain.spot)*2.0,0.02,0.05);
-    candidates=list.filter(o=>directional(o)&&o.distance<=adaptiveMaxDist&&o.price>=0.02&&o.price<=0.50&&Math.abs(o.delta)>=adaptiveMinDelta);
+    candidates=affordable.filter(o=>o.distance<=5.5&&Math.abs(o.delta)>=0.035);
   }
-  candidates=candidates.map(o=>({...o,score:score(o)+(tier==="ADAPTIVE"?0.12:0)})).sort((a,b)=>a.score-b.score);
+  candidates=candidates.map(o=>({...o,score:contractRank(o,cfg.idealPrice,cfg.targetDelta)+(tier==="ADAPTIVE"?0.10:0)})).sort((a,b)=>a.score-b.score);
   const x=candidates[0];
-  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?'CALL':'PUT',tier}:null;
+  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?"CALL":"PUT",tier}:null;
 }
-function findStrike(spot,iv,mL,isCall,mode='swing',ctx=null){
-  return selectContract(buildOptionChain(spot,iv,mL,80,ctx),isCall,mode);
+function findStrike(spot,iv,mL,isCall,mode="swing",ctx=null){
+  return selectContract(buildOptionChain(spot,iv,mL,40,ctx),isCall,mode);
 }
+
+
+
+
+
 
 
 
@@ -698,51 +798,55 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf){
   if(pos){
     const pnl=(pos.current/pos.entry-1)*100;
     const invalid=pos.isCall?m.spySpot<=(pos.stopSpot??-Infinity):m.spySpot>=(pos.stopSpot??Infinity);
-    const lossHit=pnl<=-(pos.maxLossPct??8);
-    const targetHit=pnl>=(pos.takeProfitPct??35);
+    const lossHit=pnl<=-(pos.maxLossPct??8),targetHit=pnl>=(pos.takeProfitPct??35);
     const action=invalid||lossHit||targetHit?"EXIT":"HOLD";
-    return{action,direction:pos.isCall?"CALL":"PUT",readiness:100,confidence:pos.tradeConfidence||70,contract:{strike:pos.strike,price:pos.current,delta:null,quality:"OPEN"},blockers:[],supportingFactors:[`Open ${pos.isCall?"CALL":"PUT"} position`,`${pnl>=0?"+":""}${pnl.toFixed(1)}% option P/L`],invalidation:pos.stopSpot,target:pos.targetSpot,maxLossPct:pos.maxLossPct,source:"OPEN_POSITION"};
+    return{action,direction:pos.isCall?"CALL":"PUT",setupQuality:100,executionReadiness:100,readiness:100,confidence:pos.tradeConfidence||70,contract:{strike:pos.strike,price:pos.current,delta:null,quality:"OPEN"},blockers:[],supportingFactors:[`Open ${pos.isCall?"CALL":"PUT"} position`,`${pnl>=0?"+":""}${pnl.toFixed(1)}% option P/L`],invalidation:pos.stopSpot,target:pos.targetSpot,maxLossPct:pos.maxLossPct,source:"OPEN_POSITION"};
   }
   const side=brain?.active&&brain.active!=="WAIT"?brain.active:(thesis?.entryBias&&thesis.entryBias!=="WAIT"?thesis.entryBias:det?.dir||"WAIT");
-  const isCall=side==="CALL";
-  const mode=det?.mode==="PIN_RANGE"?"pin":det?.mode==="GEX_EXPANSION"?"expansion":"scalp";
+  const isCall=side==="CALL",mode=det?.mode==="PIN_RANGE"?"pin":det?.mode==="GEX_EXPANSION"?"expansion":"scalp";
   const contract=side!=="WAIT"?selectContract(chain,isCall,mode):null;
-  const recent=hist.slice(-8),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0;
+  const rejected=side!=="WAIT"&&!contract?bestRejectedContract(chain,isCall):null;
+  const recent=hist.slice(-10),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0;
   const dir=side==="CALL"?1:side==="PUT"?-1:0;
-  const aligned3=dir*move3>0.18,aligned6=dir*move6>0.35;
-  const persistence=[aligned3,aligned6].filter(Boolean).length;
-  const brainConfidence=clamp(Number(brain?.confidence)||0,0,100);
-  const edge=Math.abs((brain?.bullPressure||0)-(brain?.bearPressure||0));
+  const persistence=[dir*move3>0.18,dir*move6>0.35].filter(Boolean).length;
+  const brainConfidence=clamp(Number(brain?.confidence)||0,0,100),edge=Math.abs((brain?.bullPressure||0)-(brain?.bearPressure||0));
   const locationOk=side==="CALL"?m.spySpot>=Math.min(m.fep,m.gammaFlip)-0.15:side==="PUT"?m.spySpot<=Math.max(m.fep,m.gammaFlip)+0.15:false;
   const response=side==="CALL"?(brain?.bullResponse||0):(brain?.bearResponse||0);
-  const responseOk=response>=0.45;
-  const accelOk=m.accelerator>=4.2;
-  const guideAligned=det?.dir===side;
-  const contractScore=!contract?0:contract.tier==="QUALITY"?100:72;
-  const chaseRisk=dir!==0&&dir*move3>2.2&&Math.abs(move3)>Math.abs(move6)*0.72;
-  const factors=[
-    {label:`Market brain ${side}`,passed:side!=="WAIT",weight:20,value:brainConfidence},
-    {label:"Directional edge",passed:edge>=10,weight:15,value:edge},
-    {label:"Price persistence",passed:persistence>=1,weight:18,value:persistence*50},
-    {label:"FEP / flip location",passed:locationOk,weight:14,value:locationOk?100:0},
-    {label:"Response quality",passed:responseOk,weight:13,value:Math.round(response*100)},
-    {label:"Acceleration active",passed:accelOk,weight:8,value:Math.round(m.accelerator/12*100)},
-    {label:"Local playbook agrees",passed:guideAligned,weight:5,value:guideAligned?100:0},
-    {label:"Contract available",passed:!!contract,weight:7,value:contractScore},
+  const marketFactors=[
+    {label:`Market brain ${side}`,passed:side!=="WAIT",weight:22},
+    {label:"Directional edge",passed:edge>=10,weight:18},
+    {label:"Price persistence",passed:persistence>=1,weight:22},
+    {label:"FEP / flip location",passed:locationOk,weight:16},
+    {label:"Response quality",passed:response>=0.45,weight:14},
+    {label:"Acceleration active",passed:m.accelerator>=4.2,weight:8},
   ];
-  let readiness=Math.round(factors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
-  if(contract?.tier==="ADAPTIVE")readiness-=5;
-  if(chaseRisk)readiness-=12;
-  readiness=clamp(readiness,0,100);
+  let setupQuality=Math.round(marketFactors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
+  const chaseRisk=dir!==0&&dir*move3>2.2&&Math.abs(move3)>Math.abs(move6)*0.72;
+  if(chaseRisk)setupQuality-=10;
+  setupQuality=clamp(setupQuality,0,100);
+  const contractQuality=!contract?0:contract.tier==="QUALITY"?100:76;
+  let executionReadiness=Math.round(setupQuality*0.82+contractQuality*0.18);
   const blockers=[];
-  for(const f of factors)if(!f.passed)blockers.push(f.label);
+  for(const f of marketFactors)if(!f.passed)blockers.push(f.label);
   if(chaseRisk)blockers.push("Chase risk after completed impulse");
-  if(!m.isTradeable)blockers.unshift("Market not tradeable");
-  const qualityThreshold=contract?.tier==="ADAPTIVE"?86:78;
-  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&readiness>=qualityThreshold&&brainConfidence>=45&&edge>=10;
+  if(!contract){
+    blockers.push("No valid contract");
+    executionReadiness=Math.min(executionReadiness,72);
+  }
+  if(!m.isTradeable){blockers.unshift("Market not tradeable");executionReadiness=0;}
+  const threshold=contract?.tier==="ADAPTIVE"?86:78;
+  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&executionReadiness>=threshold&&brainConfidence>=45&&edge>=10;
   const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
-  const confidence=clamp(Math.round(readiness*.58+brainConfidence*.32+(contractScore||0)*.10),0,98);
-  return{action,direction:side==="WAIT"?null:side,readiness,confidence,contract:contract?{strike:contract.strike,price:contract.price,delta:contract.delta,quality:contract.tier}:null,blockers,supportingFactors:factors.filter(f=>f.passed).map(f=>f.label),invalidation:null,target:null,maxLossPct:null,threshold:qualityThreshold,chaseRisk,source:"UNIFIED_INTENT",diagnostics:{brainConfidence,edge,persistence,response,guideAligned,contractScore,legacyDetScore:det?.score??null}};
+  const confidence=clamp(Math.round(setupQuality*.65+brainConfidence*.35),0,98);
+  return{
+    action,direction:side==="WAIT"?null:side,
+    setupQuality,executionReadiness,readiness:executionReadiness,confidence,
+    contract:contract?{strike:contract.strike,price:contract.price,delta:contract.delta,quality:contract.tier,distance:contract.distance}:null,
+    bestRejected:rejected?{strike:rejected.strike,price:rejected.price,delta:rejected.delta,distance:rejected.distance,reasons:rejected.reasons}:null,
+    blockers,supportingFactors:marketFactors.filter(f=>f.passed).map(f=>f.label),
+    threshold,chaseRisk,source:"UNIFIED_INTENT",
+    diagnostics:{brainConfidence,edge,persistence,response,contractQuality,callSurface:chain?.surface?.callState?.state,putSurface:chain?.surface?.putState?.state}
+  };
 }
 function buildFallbackDecision(m,pos,intent){
   if(pos){
@@ -753,11 +857,14 @@ function buildFallbackDecision(m,pos,intent){
   }
   if(!intent||!String(intent.action).startsWith("BUY_")){
     const failed=(intent?.blockers||[]).slice(0,4).join(", ")||"readiness below threshold";
-    return normalizeTraderDecision({decision:"WAIT",reasoning:`AI response failed; unified intent is ${intent?.action||"WAIT"} at ${intent?.readiness||0}% readiness. Blockers: ${failed}.`,mindset:"validated fallback wait",journal_entry:"",edge_state:intent?.action||"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
+    return normalizeTraderDecision({decision:"WAIT",reasoning:`AI response failed; unified intent is ${intent?.action||"WAIT"} at ${intent?.executionReadiness??intent?.readiness??0}% execution readiness. Blockers: ${failed}.`,mindset:"validated fallback wait",journal_entry:"",edge_state:intent?.action||"NO_EDGE",confidence_trend:"UNCLEAR",memory_used:"none"});
   }
   const isCall=intent.action==="BUY_CALL",confidence=intent.confidence||65;
   return normalizeTraderDecision({decision:intent.action,reasoning:`AI response failed; fallback executed canonical ${intent.direction} intent at ${intent.readiness}% readiness with ${intent.contract?.quality||"UNKNOWN"} contract.`,mindset:"validated unified fallback",journal_entry:`AI unavailable; unified ${intent.direction} intent executed.`,edge_state:"ENTRY_READY",confidence_trend:"BUILDING",trade_confidence:confidence,invalidation_spot:isCall?m.spySpot-(0.25+confidence/220):m.spySpot+(0.25+confidence/220),target_spot:isCall?m.spySpot+(0.55+confidence/120):m.spySpot-(0.55+confidence/120),max_loss_pct:clamp(5+(confidence-45)*0.16,5,12),memory_used:"none"});
 }
+
+
+
 
 
 
@@ -779,11 +886,19 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
 
 
 
+
+
+
+
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
   const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
 BAL:$${bal.toFixed(0)} | ${posStr}
+
+
+
+
 
 
 
@@ -794,13 +909,25 @@ ${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just star
 
 
 
+
+
+
+
 ${sessionSummary||"Session just opened."}
+
+
+
+
 
 
 
 
 REGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})
 CONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}
+
+
+
+
 
 
 
@@ -814,7 +941,15 @@ FEP: $${mkt.fep.toFixed(2)} gap: ${(mkt.spySpot-mkt.fep).toFixed(2)}
 
 
 
+
+
+
+
 ${optStr}
+
+
+
+
 
 
 
@@ -824,7 +959,15 @@ RECENT:\n${rH}
 
 
 
+
+
+
+
 UNIFIED DIRECTIONAL STATE: ${thesisStr}
+
+
+
+
 
 
 
@@ -845,6 +988,10 @@ RULES:
 - CRITICAL — only write a NEW journal_entry if something material changed since the last entry above (thesis leader flipped, a level was crossed/approached, accel crossed 7 or 9, ITS lead flipped sign, a trade fired/closed). If nothing material changed, set journal_entry to an empty string "" — do not manufacture a fresh narrative every check just because you were asked again.
 - You do not know exact elapsed durations beyond what's given to you in "Price has held within 15c..." above. Never invent a duration in minutes yourself — use the provided number or omit duration language entirely.
 ${rulesStr}
+
+
+
+
 
 
 
@@ -874,6 +1021,10 @@ Respond ONLY valid JSON:
 
 
 
+
+
+
+
 async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
   const prompt=`GCDT AI reviewing completed session.\nSTATS: ${JSON.stringify(stats)}\nTRADES: ${tradeLog.length===0?"None taken.":`${tradeLog.map(t=>`${t.t}: ${t.action} ${t.result||""}`).join("\n")}`}\nJOURNAL:\n${journal.map(j=>`[${j.t}] ${j.entry}`).join("\n")}\nLAST 8 DECISIONS:\n${mindsetLog.slice(-8).map(m=>`[${m.t}] ${m.edgeState} ${m.score} — ${m.reasoning}`).join("\n")}\n\nPropose 2-4 specific rule changes. Be precise and actionable.\nRespond ONLY valid JSON:\n{"proposals":[{"id":1,"rule":"specific rule text","reasoning":"why this helps","missed_opportunity":"what was missed"}]}`;
   try{
@@ -891,12 +1042,20 @@ async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
 
 
 
+
+
+
+
 function Spark({data,color,h=36,w=120,fill=false}){
   if(!data||data.length<2)return<div style={{width:w,height:h,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:8,color:"#4a5568"}}>--</span></div>;
   const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
   const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mn)/rng)*(h-4)-2}`).join(" ");
   return<svg width={w} height={h} style={{display:"block"}}>{fill&&<polygon points={`0,${h} ${pts} ${w},${h}`} fill={color} opacity={0.12}/>}<polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/></svg>;
 }
+
+
+
+
 
 
 
@@ -953,6 +1112,10 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
 
 
 
+
+
+
+
 function ThesisBar({label,score,mom,color,scalpEdge}){
   const arrow=mom>0?"▲":mom<0?"▼":"→";
   return<div style={{marginBottom:6}}>
@@ -966,21 +1129,17 @@ function ThesisBar({label,score,mom,color,scalpEdge}){
 function TradeIntentPanel({intent}){
   const action=intent?.action||"WAIT",dir=intent?.direction;
   const color=action.includes("CALL")?T.accent:action.includes("PUT")?T.red:action==="EXIT"?T.yellow:T.yellow;
-  const label=action.replaceAll("_"," ");
-  const readiness=intent?.readiness||0;
+  const label=action.replaceAll("_"," "),setup=intent?.setupQuality??intent?.readiness??0,ready=intent?.executionReadiness??intent?.readiness??0;
+  const Bar=({value,labelText,barColor})=><><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}><span style={{fontSize:8,color:T.muted}}>{labelText}</span><span style={{fontSize:14,fontWeight:800,color:barColor}}>{value}%</span></div><div style={{height:5,background:T.dim,borderRadius:4,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:`${value}%`,background:barColor,transition:"width .35s"}}/></div></>;
   return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}55`,margin:"0 14px 8px",padding:12}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-      <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>TRADE INTENT</span>
-      <span style={{fontSize:12,fontWeight:800,color}}>{label}</span>
-    </div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
-      <span style={{fontSize:8,color:T.muted}}>READINESS</span><span style={{fontSize:18,fontWeight:800,color}}>{readiness}%</span>
-    </div>
-    <div style={{height:6,background:T.dim,borderRadius:4,overflow:"hidden",marginBottom:9}}><div style={{height:"100%",width:`${readiness}%`,background:color,transition:"width .35s"}}/></div>
-    {intent?.contract&&<div style={{padding:"7px 8px",background:T.surface2,borderRadius:5,marginBottom:8,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color}}>{intent.contract.strike}{dir==="PUT"?"P":"C"} @ ${intent.contract.price.toFixed(2)}</span><span style={{fontSize:8,color:T.muted}}>Δ{intent.contract.delta==null?"—":intent.contract.delta.toFixed(2)} · {intent.contract.quality}</span></div>}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}><span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>CURRENT TRADE INTENT</span><span style={{fontSize:12,fontWeight:800,color}}>{label}</span></div>
+    <Bar value={setup} labelText="SETUP QUALITY" barColor={color}/>
+    <Bar value={ready} labelText="EXECUTION READINESS" barColor={ready>=(intent?.threshold??78)?color:T.yellow}/>
+    {intent?.contract&&<div style={{padding:"7px 8px",background:T.surface2,borderRadius:5,marginBottom:8,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color}}>{intent.contract.strike}{dir==="PUT"?"P":"C"} @ ${intent.contract.price.toFixed(2)}</span><span style={{fontSize:8,color:T.muted}}>Δ{intent.contract.delta==null?"—":intent.contract.delta.toFixed(2)} · {intent.contract.quality} · {intent.contract.distance?.toFixed(1)} OTM</span></div>}
+    {!intent?.contract&&intent?.bestRejected&&<div style={{padding:"7px 8px",background:T.surface2,borderRadius:5,marginBottom:8}}><div style={{fontSize:8,color:T.muted,marginBottom:2}}>BEST REJECTED CONTRACT</div><div style={{fontSize:9,color:T.yellow}}>{intent.bestRejected.strike}{dir==="PUT"?"P":"C"} @ ${intent.bestRejected.price.toFixed(2)} · Δ{intent.bestRejected.delta.toFixed(2)} · {intent.bestRejected.distance.toFixed(1)} OTM</div><div style={{fontSize:7,color:T.red,marginTop:2}}>{(intent.bestRejected.reasons||[]).join(" · ")||"failed quality rules"}</div></div>}
     <div style={{fontSize:8,color:T.muted,marginBottom:4}}>SUPPORT</div>
-    {(intent?.supportingFactors||[]).slice(0,5).map((x,i)=><div key={i} style={{fontSize:8,color:T.accent,marginBottom:2}}>✓ {x}</div>)}
-    {(intent?.blockers||[]).length>0&&<><div style={{fontSize:8,color:T.muted,margin:"7px 0 4px"}}>BLOCKERS</div>{intent.blockers.slice(0,5).map((x,i)=><div key={i} style={{fontSize:8,color:T.red,marginBottom:2}}>✕ {x}</div>)}</>}
+    {(intent?.supportingFactors||[]).slice(0,6).map((x,i)=><div key={i} style={{fontSize:8,color:T.accent,marginBottom:2}}>✓ {x}</div>)}
+    {(intent?.blockers||[]).length>0&&<><div style={{fontSize:8,color:T.muted,margin:"7px 0 4px"}}>BLOCKERS</div>{intent.blockers.slice(0,6).map((x,i)=><div key={i} style={{fontSize:8,color:T.red,marginBottom:2}}>✕ {x}</div>)}</>}
     <div style={{marginTop:8,fontSize:7,color:T.dim}}>Execution threshold: {intent?.threshold??"—"}% · Canonical confidence: {intent?.confidence??0}%</div>
   </div>;
 }
@@ -1004,6 +1163,10 @@ function StateBars({probs}){
     </div>
   );
 }
+
+
+
+
 
 
 
@@ -1053,6 +1216,14 @@ function storageSet(key,val){try{localStorage.setItem(STORAGE_KEY+"_"+key,JSON.s
 
 
 
+
+
+
+
+
+
+
+
 function memoryFeature(t,b){return{
   accel:t.accel||0,div:t.div||0,gex:t.gexInf||0,
   fepGap:(t.spySpot||0)-(t.fep||0),its:(t.itsSPY||0),
@@ -1086,6 +1257,10 @@ function historicalMemoryPrompt(mkt,brain){
   const favorable=a.filter(x=>x.mfe>=Math.max(.7,Math.abs(x.mae)*1.25)&&x.end>0).length;
   return`HISTORICAL MEMORY — nearest saved decision moments (${favorable}/${a.length} favorable over next 12 ticks):\n${a.map((x,i)=>`${i+1}. ${x.session} ${x.t} ${x.side} sim:${(1/(1+x.distance)).toFixed(2)} MFE:${x.mfe.toFixed(2)} MAE:${x.mae.toFixed(2)} END:${x.end.toFixed(2)} — ${x.reason||x.decision}`).join("\n")}\nUse these as weighted analogues, not rules. Explain material differences. Never let one anecdote override current structure, and never self-modify thresholds from this small sample.`;
 }
+
+
+
+
 
 
 
@@ -1156,6 +1331,10 @@ function brainPrompt(b){return `SESSION PRESSURE MODEL\n${b.summary}\nEXPECTED: 
 
 
 
+
+
+
+
 export default function App(){
   const[screen,setScreen]=useState("home");
   const[sessionMode,setSessionMode]=useState(null);
@@ -1196,6 +1375,10 @@ export default function App(){
 
 
 
+
+
+
+
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
   const journalR=useRef([]),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
@@ -1220,8 +1403,16 @@ export default function App(){
 
 
 
+
+
+
+
   const addM=useCallback(e=>{const key=`${e.edgeState}|${e.decision}|${e.mindset}|${String(e.reasoning||'').slice(0,80)}`;if((e.edgeState||'').startsWith('LOCAL')&&key===lastMindsetKeyR.current)return;lastMindsetKeyR.current=key;mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
+
+
+
+
 
 
 
@@ -1230,6 +1421,10 @@ export default function App(){
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
     window.addEventListener("beforeunload",handler);return()=>window.removeEventListener("beforeunload",handler);
   },[done,sessionLabel,sessionMode]);
+
+
+
+
 
 
 
@@ -1349,7 +1544,7 @@ export default function App(){
             }
           }
       };
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nCANONICAL TRADE INTENT: ${intent.action} | direction ${intent.direction||"NONE"} | readiness ${intent.readiness}% | confidence ${intent.confidence}% | contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"} | blockers ${(intent.blockers||[]).join(", ")||"none"}. Treat this as the single execution state; do not invent separate hidden gates.\n${leadLag.text}`,marketBrainR.current)
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\nCANONICAL TRADE INTENT: ${intent.action} | direction ${intent.direction||"NONE"} | setup ${intent.setupQuality}% | execution readiness ${intent.executionReadiness}% | confidence ${intent.confidence}% | contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"} | blockers ${(intent.blockers||[]).join(", ")||"none"}. Treat this as the single execution state; do not invent separate hidden gates.\n${leadLag.text}`,marketBrainR.current)
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time(m.h,m.m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);
@@ -1366,7 +1561,15 @@ export default function App(){
 
 
 
+
+
+
+
   useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>doTick(engR.current),Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
+
+
+
+
 
 
 
@@ -1391,6 +1594,10 @@ export default function App(){
 
 
 
+
+
+
+
   const resumeSession=useCallback(()=>{
     const sv=storageGet("interrupted",null);if(!sv)return;
     balR.current=sv.bal;setBal(sv.bal);if(sv.pos){posR.current=sv.pos;setPos(sv.pos);}
@@ -1406,6 +1613,10 @@ export default function App(){
 
 
 
+
+
+
+
   const fastFwd=useCallback(()=>{
     if(!engR.current)return;clearInterval(ivR.current);setRunning(false);
     const eng=engR.current;let m=eng.peek();
@@ -1413,6 +1624,10 @@ export default function App(){
     if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
     setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);
   },[]);
+
+
+
+
 
 
 
@@ -1430,6 +1645,10 @@ export default function App(){
 
 
 
+
+
+
+
   const handlePatch=useCallback((action,denyNote="")=>{
     const prop=patchProposals[patchIdx];if(!prop)return;
     const nr={...rules};
@@ -1439,6 +1658,10 @@ export default function App(){
     setRules(nr);storageSet("rules",nr);
     if(patchIdx<patchProposals.length-1){setPatchIdx(i=>i+1);setPatchDenyNote("");}else{setScreen("home");}
   },[rules,patchProposals,patchIdx]);
+
+
+
+
 
 
 
@@ -1454,6 +1677,10 @@ export default function App(){
   const lastM=mindsetLog[mindsetLog.length-1];
   const div=mkt?(mkt.itsSPX-mkt.itsSPY):0;
   const divColor=div>0.5?T.accent:div<-0.5?T.red:T.yellow;
+
+
+
+
 
 
 
@@ -1482,6 +1709,10 @@ export default function App(){
 
 
 
+
+
+
+
   if(screen==="sessions")return(
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"monospace",color:T.text}}>
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
@@ -1499,6 +1730,10 @@ export default function App(){
       </div>
     </div>
   );
+
+
+
+
 
 
 
@@ -1527,6 +1762,10 @@ export default function App(){
 
 
 
+
+
+
+
   if(screen==="rulebook")return(
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"monospace",color:T.text,overflowY:"auto"}}>
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
@@ -1542,6 +1781,10 @@ export default function App(){
       </div>
     </div>
   );
+
+
+
+
 
 
 
@@ -1566,6 +1809,10 @@ export default function App(){
       <button onClick={()=>setScreen("home")} style={{marginTop:16,padding:"8px 20px",background:"transparent",color:T.muted,border:`1px solid ${T.border}`,borderRadius:4,fontFamily:"monospace",fontSize:9,cursor:"pointer"}}>SKIP ALL → HOME</button>
     </div>
   );}
+
+
+
+
 
 
 
@@ -1606,10 +1853,18 @@ export default function App(){
 
 
 
+
+
+
+
       {pos&&<div style={{margin:"6px 14px 0",padding:"7px 12px",background:posPnl>=0?T.accentDim:T.redDim,border:`1px solid ${posPnl>=0?T.accent:T.red}40`,borderRadius:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:8,color:T.muted}}>OPEN · {pos.entryTime}</div><div style={{fontSize:12,fontWeight:700}}>{pos.strike}{pos.isCall?"C":"P"} · ${pos.entry.toFixed(2)}</div></div>
         <div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>${pos.current.toFixed(2)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)} · {posDollar>=0?"+":""}{fmt.bal(posDollar)}</div></div>
       </div>}
+
+
+
+
 
 
 
@@ -1623,6 +1878,10 @@ export default function App(){
             <div style={{textAlign:"right"}}><div style={{fontSize:10,fontWeight:700,color:mkt.netGex>0?T.accent:T.red}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:7,color:mkt.netGex>0?T.accent:T.red}}>{mkt.netGex>0?"PIN":"AMP"} {(gexInf*100).toFixed(0)}%</div></div>
           </div>
         </div>}
+
+
+
+
 
 
 
@@ -1666,8 +1925,16 @@ export default function App(){
 
 
 
+
+
+
+
         {mkt&&<TradeIntentPanel intent={tradeIntentData}/>} 
         {mkt&&<OptionChainPanel chain={optionChain} pos={pos}/>}
+
+
+
+
 
 
 
@@ -1706,6 +1973,10 @@ export default function App(){
 
 
 
+
+
+
+
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1734,6 +2005,10 @@ export default function App(){
 
 
 
+
+
+
+
         {tradeLog.length>0&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{fontSize:9,color:T.muted,letterSpacing:"0.1em",marginBottom:8}}>TRADE LOG</div>
           {tradeLog.map((t,i)=>(
@@ -1747,10 +2022,18 @@ export default function App(){
 
 
 
+
+
+
+
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{fontSize:8,color:T.muted,marginBottom:5}}>SPEED · {speed}x</div>
           <input type="range" min="0.5" max="10" step="0.5" value={speed} onChange={e=>setSpeed(Number(e.target.value))} style={{width:"100%",accentColor:T.accent}}/>
         </div>
+
+
+
+
 
 
 

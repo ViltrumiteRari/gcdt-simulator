@@ -534,7 +534,7 @@ THESIS WEIGHTS: ${thesisStr}
 
 RULES:
 - Maintain three competing theses: CALL, PUT, WAIT. WAIT is a real thesis, not a default.
-- SCALP EDGE and LOCAL GUIDE are context, not commands. Trade only when the setup matches the playbook and the option/level structure gives asymmetric upside with a tiny invalidation.
+- YOU are the sole market-decision authority. SCALP EDGE, LOCAL GUIDE, MARKET BRAIN, accelerator, GEX, divergence, and historical analogues are evidence only. If your final decision is BUY_CALL or BUY_PUT, execution code must not reinterpret or veto that market judgment.
 - Ideal entry is a $0.15-$0.25 OTM contract, never above $0.50. Prefer 1-3 high-quality trades, not constant firing.
 - 0DTE option price is path-dependent: expansion creates sensitivity. A stalled move can crush an expanded contract fast, and a second leg only deserves holding if it pushes faster or breaks further levels than the first leg. Expanded contracts can still run from .80 to 2.50+ on true continuation.
 - SPY near/ITM active strikes usually have tight liquidity because the underlying is massively traded. Do not assume huge spreads on close liquid strikes; friction is mostly on stale/far OTM contracts or when momentum dies.
@@ -543,8 +543,8 @@ RULES:
 - Track SPX to SPY lead-lag. SPX moving first can reveal a 1-2 tick window before SPY reflects it. Treat it as an early-warning hypothesis, not an automatic entry. If SPX is moving down and SPY is catching down, suppress CALL unless SPY has reclaimed FEP/flip and bounced. If SPX is moving up and SPY is catching up, suppress PUT unless SPY has rejected a level.
 - Exit: first wrong signal wins. Sell on accel peak and roll, FEP catch, GEX regime shift, opposite thesis overtaking, lead-lag contradiction, or option loss near -6%. Take profits around +35% unless momentum is still expanding.
 - No entries: premarket, already in position, no account equity, no clean contract under $0.50, or RH cleanup window after 3:45. After 3:00 only take exceptional momentum with instant invalidation.
-- GEX DOMINANT(>70%): only range-edge scalps with tight invalidation. GEX WEAK(<30%): free move, but still require price acceptance. Learn intraday whether SPY is obeying SPX lead, rejecting it, or staying pinned. Your job is discretion, not rule obedience.${repeatStr}
-- CRITICAL — decision/journal consistency: "decision" is the ONLY field that executes anything. If journal_entry describes firing, entering, or an edge going live, decision MUST equal BUY_CALL or BUY_PUT to match — never narrate an entry without setting decision accordingly, and never set decision to BUY_CALL/BUY_PUT without journal_entry reflecting it.
+- GEX defines how much dealer structure may matter; it is never a universal permission threshold. Weak GEX can mean freer price discovery. Strong GEX can imply pinning or violent hedging. Interpret it jointly with actual price response instead of demanding arbitrary GEX percentages.${repeatStr}
+- CRITICAL — decision/journal consistency: "decision" is the ONLY market judgment that executes. If journal_entry describes firing or entering, decision MUST equal BUY_CALL or BUY_PUT. Once you choose BUY_CALL or BUY_PUT, code will execute unless filling is literally impossible: premarket/closed session, existing position, depleted account, or no valid affordable contract.
 - CRITICAL — only write a NEW journal_entry if something material changed since the last entry above (thesis leader flipped, a level was crossed/approached, accel crossed 7 or 9, ITS lead flipped sign, a trade fired/closed). If nothing material changed, set journal_entry to an empty string "" — do not manufacture a fresh narrative every check just because you were asked again.
 - You do not know exact elapsed durations beyond what's given to you in "Price has held within 15c..." above. Never invent a duration in minutes yourself — use the provided number or omit duration language entirely.
 ${rulesStr}
@@ -935,28 +935,29 @@ export default function App(){
         .then(dec=>{
           const ts=fmt.time(m.h,m.m);
           const mb=marketBrainR.current;
-          if(!posR.current&&mb.entryReady&&dec.decision==="WAIT"){dec={...dec,decision:mb.entrySide==="CALL"?"BUY_CALL":"BUY_PUT",mindset:"MARKET_BRAIN_REACTIVATION",reasoning:`${mb.entryReason} Expected behavior: ${mb.expectedResponse}. This is a pressure-aligned anticipatory entry, not a completed-move chase.`};addJournal(ts,`THESIS_REACTIVATION ${mb.entrySide} — ${mb.entryReason}`);}
-          const aiSide=dec.decision==="BUY_CALL"?"CALL":dec.decision==="BUY_PUT"?"PUT":"WAIT";
-          if(!posR.current&&aiSide!=="WAIT"&&mb.active!=="WAIT"&&aiSide!==mb.active&&mb.confidence>=72){addJournal(ts,`THESIS_CONFLICT_BLOCK AI:${aiSide} active:${mb.active} ${mb.confidence}% — one countertrend tick cannot erase the session thesis.`);dec={...dec,decision:"WAIT",mindset:"THESIS_CONFLICT",reasoning:`Active ${mb.active} thesis remains ${mb.confidence}% and has not reached its structural invalidation: ${mb.invalidation}.`};}
           const mLn=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
           lastWaitReasonR.current=dec.reasoning||"";
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
-          if(dec.decision==="SELL"&&posR.current){addJournal(ts,"AI_SELL_DEFERRED — mechanical stop/target or SIGNAL_2_OF_3 required.");addM({t:ts,mindset:"mechanical exit gate",reasoning:"AI requested SELL, but no direct signal exit is allowed outside the stop/target or 2-of-3 convergence path.",decision:"HOLD",score:confR.current.score,edgeState:"IN_TRADE",confTrend:"UNCLEAR"});}
+          if(dec.decision==="SELL"&&posR.current){
+            const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;
+            balR.current=size*(p.current/p.entry);
+            logR.current=[...logR.current,{t:ts,action:`AI-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"AI_SELL"}];
+            setTradeLog([...logR.current]);addJournal(ts,`AI_EXIT_AUTHORIZED ${fmt.pct(r)} — ${dec.reasoning||"thesis invalidated"}`);
+            posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);
+          }
           else if(dec.decision==="BUY_CALL"||dec.decision==="BUY_PUT"){
-            const isC=dec.decision==="BUY_CALL",opt=isC?dec.callOpt:dec.putOpt;addJournal(ts,`ENTRY_DECISION gate:${chopGateR.current} accel:${m.accelerator.toFixed(2)} raw:${(m.rawAccelerator??m.accelerator).toFixed(2)} mode:${det.mode}.`);
+            const isC=dec.decision==="BUY_CALL",opt=isC?dec.callOpt:dec.putOpt;addJournal(ts,`AI_ENTRY_AUTHORIZED accel:${m.accelerator.toFixed(2)} raw:${(m.rawAccelerator??m.accelerator).toFixed(2)} GEX:${Math.round((m.gexInfluence||0)*100)}% mode:${det.mode}.`);
             // v10: the AI's decision field and journal_entry text are two independent outputs from
             // the same call — nothing previously enforced they agree, and a decided-but-unfilled
             // trade (no priceable option, already in position, wrong window) was silently dropped
             // with zero record. Now every rejected fire is logged so it's visible, not vanished.
             if(balR.current<=1){addM({t:ts,mindset:"account depleted",reasoning:`Fired ${dec.decision} but account equity is depleted — no more trades this session.`,decision:"WAIT",score:confR.current.score,edgeState:"ACCOUNT_ZERO",confTrend:"—"});}
             else if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else if(mLn<45){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
+            else if(mLn<15){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!m.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
             else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but no option under $0.50 was priceable this tick — no fill possible.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else if(!accelWindow(m,candR.current,isC?"CALL":"PUT").ok){const aw=accelWindow(m,candR.current,isC?"CALL":"PUT");addJournal(ts,`${aw.reason} raw:${aw.raw.toFixed(2)} scaled:${m.accelerator.toFixed(2)}/${ACCEL_SCALE_MAX} window:${aw.window}.`);addM({t:ts,mindset:"accel filter",reasoning:`${aw.reason}: raw ${aw.raw.toFixed(2)}, clamped ${m.accelerator.toFixed(2)}.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});}
-            else if(chopGateR.current==="ON"&&det.mode!=="PIN_RANGE"){addJournal(ts,"CHOP_"+"GATE_BLOCK");}
             else{const stopSpot=isC?Math.max(m.spySpot-0.22,m.fep-0.12):Math.min(m.spySpot+0.22,m.fep+0.12);const targetSpot=isC?Math.min(Math.max(m.callWall,m.spySpot+0.55),m.spySpot+1.25):Math.max(Math.min(m.putWall,m.spySpot-0.55),m.spySpot-1.25);posR.current={strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:m.spySpot,stopSpot,targetSpot,planType:det.mode,size:balR.current,entryTick:tickR.current};setPos({...posR.current});logR.current=[...logR.current,{t:ts,action:`${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} stop ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)}`,result:null}];setTradeLog([...logR.current]);}
           }
         })

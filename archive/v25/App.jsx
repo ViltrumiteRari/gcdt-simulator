@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 
-const BUILD_ID = "v26-airgap-multisession-20260708";
+const BUILD_ID = "v25-execution-presumption-20260706";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
-const SESSION_END_H = 16, SESSION_END_M = 15;
-const TRADE_CUTOFF_H = 15, TRADE_CUTOFF_M = 45;
+const SESSION_END_H = 16, SESSION_END_M = 0;
 const OPEN_H = 9, OPEN_M = 30;
-const TRADER_API = "/api/trader";
+const TRADER_API = "https://firstsignal-os.vercel.app/api/trader";
 const STORAGE_KEY = "gcdt_shared";
 const LEGACY_STORAGE_KEYS = ["gcdt_v14","gcdt_v13"];
 const SIGNAL_EXIT_MIN_HOLD_TICKS=8;
@@ -225,8 +223,7 @@ function createSeedEngine(forceArcheId){
 
 function createReplayEngine(replayData){
   const snapshots=replayData.snapshots,openMin=OPEN_H*60+OPEN_M,spyRatio=10;
-  const[firstH,firstM]=String(snapshots[0].time||"09:30").split(":").map(Number),firstMin=firstH*60+firstM,startMin=Math.max(openMin-10,firstMin-10),startH=Math.floor(startMin/60),startM=startMin%60;
-  let s={spySpot:snapshots[0].spot/spyRatio,spxSpot:snapshots[0].spot,gammaFlip:snapshots[0].spot/spyRatio-0.5,callWall:snapshots[0].maxGamma/spyRatio+1,putWall:snapshots[0].spot/spyRatio-6,fep:snapshots[0].spot/spyRatio-0.3,accelerator:4.2,netGex:snapshots[0].gex/spyRatio,netGexSpx:snapshots[0].gex,itsSPX:itsFromGex(snapshots[0].callDom,snapshots[0].gex,5.5),itsSPY:4.2,callDom:snapshots[0].callDom,callDomSpyEst:snapshots[0].callDom,ndf:0.1,dealerPct:25,iv:13.5,pcr:0.85,gexInfluence:0.08,tick:0,h:startH,m:startM,isPremarket:startMin<openMin,isTradeable:startMin>=openMin,spxCallDomBuffer:[snapshots[0].callDom,snapshots[0].callDom,snapshots[0].callDom]};
+  let s={spySpot:snapshots[0].spot/spyRatio,spxSpot:snapshots[0].spot,gammaFlip:snapshots[0].spot/spyRatio-0.5,callWall:snapshots[0].maxGamma/spyRatio+1,putWall:snapshots[0].spot/spyRatio-6,fep:snapshots[0].spot/spyRatio-0.3,accelerator:4.2,netGex:snapshots[0].gex/spyRatio,netGexSpx:snapshots[0].gex,itsSPX:itsFromGex(snapshots[0].callDom,snapshots[0].gex,5.5),itsSPY:4.2,callDom:snapshots[0].callDom,callDomSpyEst:snapshots[0].callDom,ndf:0.1,dealerPct:25,iv:13.5,pcr:0.85,gexInfluence:0.08,tick:0,h:9,m:20,isPremarket:true,isTradeable:false,spxCallDomBuffer:[snapshots[0].callDom,snapshots[0].callDom,snapshots[0].callDom]};
   function tick(){
     const t=s.tick,isPre=s.h<OPEN_H||(s.h===OPEN_H&&s.m<OPEN_M),currentMin=s.h*60+s.m;
     const spx=interpolateSPX(snapshots,currentMin);
@@ -1469,7 +1466,6 @@ export default function App(){
   const[patchDenyNote,setPatchDenyNote]=useState("");
   const[showMindsetAll,setShowMindsetAll]=useState(false);
   const[resumeAvailable,setResumeAvailable]=useState(()=>!!storageGet("interrupted",null));
-  const[selectedReplayDate,setSelectedReplayDate]=useState(REPLAY_DATES[0]||"2026-07-06");
   const[chopGate,setChopGate]=useState("OFF");
 
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
@@ -1566,9 +1562,8 @@ export default function App(){
       }
       prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;
     }
-    const tradeCutoffPassed=(m.h*60+m.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M);
-    if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"15:45",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);addJournal("15:45","DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 16:15 ET.");}
-    if(m.h>SESSION_END_H||(m.h===SESSION_END_H&&m.m>=SESSION_END_M)){
+    if(m.h>=SESSION_END_H){
+      if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
@@ -1724,7 +1719,6 @@ export default function App(){
             // with zero record. Now every rejected fire is logged so it's visible, not vanished.
             if(balR.current<=1){addM({t:ts,mindset:"account depleted",reasoning:`Fired ${dec.decision} but account equity is depleted — no more trades this session.`,decision:"WAIT",score:confR.current.score,edgeState:"ACCOUNT_ZERO",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — ACCOUNT_ZERO.`);}
             else if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — POSITION_ALREADY_OPEN.`);}
-            else if((currentMarket.h*60+currentMarket.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M)){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} at/after the 15:45 ET default 0DTE cutoff — blocked while observation continues through 16:15.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — DEFAULT_0DTE_CUTOFF_15_45.`);}
             else if(mLn<15){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — FINAL_THETA_WINDOW ${mLn}min.`);}
             else if(!executionMarket.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — MARKET_NOT_TRADEABLE.`);}
             else if(!opt){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision}, but the canonical intent snapshot no longer contains the same-side contract. Entry rejected as stale rather than reselecting a different option.`,decision:"WAIT",score:confR.current.score,edgeState:"STALE_CONTRACT",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — STALE_CONTRACT current intent ${snapshotIntent?.action||"NONE"}, direction ${snapshotIntent?.direction||"NONE"}, contract ${snapshotIntent?.contract?`${snapshotIntent.contract.strike}@${snapshotIntent.contract.price}`:"NONE"}.`);}
@@ -1820,11 +1814,10 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
   },[addJournal]);
 
   const startSession=useCallback((mode)=>{
-    const replayData=REPLAY_CATALOG[selectedReplayDate]||SPX_JUL1;
-    engR.current=mode==="replay"?createReplayEngine(replayData):createSeedEngine();
+    engR.current=mode==="replay"?createReplayEngine(SPX_JUL1):createSeedEngine();
     const sess=engR.current.getSession();
     archetypeIdR.current=mode==="seed"?sess.archetype:null;
-    const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED v26 · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
+    const label=mode==="replay"?`${SPX_JUL1.label} · ${SPX_JUL1.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
     setJournal([]);journalR.current=[];setCandles([]);candR.current=[];setConfHist([]);
@@ -1835,7 +1828,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
-  },[selectedReplayDate]);
+  },[]);
 
   const resumeSession=useCallback(()=>{
     const sv=storageGet("interrupted",null);if(!sv)return;
@@ -1852,7 +1845,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
   const fastFwd=useCallback(()=>{
     if(!engR.current)return;clearInterval(ivR.current);setRunning(false);
     const eng=engR.current;let m=eng.peek();
-    while(!((m.h>SESSION_END_H)||(m.h===SESSION_END_H&&m.m>=SESSION_END_M))){m=eng.tick();tickR.current++;const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m),octx=optionCtx(m,candR.current,optionMemoryR.current);if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};}}
+    while(!(m.h>=SESSION_END_H)){m=eng.tick();tickR.current++;const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m),octx=optionCtx(m,candR.current,optionMemoryR.current);if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};}}
     if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
     setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);
   },[]);
@@ -1896,13 +1889,10 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
       <div style={{fontSize:9,color:T.muted,marginBottom:28,textAlign:"center",opacity:0.6}}>GEX Composite Divergence Trading</div>
       {resumeAvailable&&<button onClick={resumeSession} style={{width:"100%",maxWidth:280,padding:"11px 0",background:T.yellowDim,color:T.yellow,border:`1px solid ${T.yellow}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer",marginBottom:10}}>RESUME SESSION ↩</button>}
       <div style={{width:"100%",maxWidth:280,marginBottom:16}}>
-        <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION · v26 AIR-GAP</div>
-        <select value={selectedReplayDate} onChange={e=>setSelectedReplayDate(e.target.value)} style={{width:"100%",marginBottom:8,padding:"8px 10px",background:T.surface,color:T.text,border:`1px solid ${T.border}`,borderRadius:6,fontFamily:"monospace",fontSize:10}}>
-          {REPLAY_DATES.map(d=><option key={d} value={d}>{REPLAY_CATALOG[d].label}</option>)}
-        </select>
+        <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION</div>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>SEED v26<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
-          <button onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>REPLAY<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{REPLAY_CATALOG[selectedReplayDate]?.label||"Select date"}</div></button>
+          <button onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 real archetypes</div></button>
+          <button onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>REPLAY<div style={{fontSize:8,opacity:0.7,marginTop:2}}>SPX Jul 1</div></button>
         </div>
       </div>
       <div style={{width:"100%",maxWidth:280,display:"flex",gap:8,marginBottom:16}}>

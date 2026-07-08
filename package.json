@@ -1,18 +1,20 @@
-{
-  "name": "gcdt-simulator",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.0",
-    "vite": "^4.4.0"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  }
+﻿{
+    "name":  "gcdt-simulator",
+    "version":  "1.0.0",
+    "private":  true,
+    "dependencies":  {
+                         "react":  "^18.2.0",
+                         "react-dom":  "^18.2.0"
+                     },
+    "devDependencies":  {
+                            "@vitejs/plugin-react":  "^4.0.0",
+                            "vite":  "^4.4.0"
+                        },
+    "scripts":  {
+                    "dev":  "vite",
+                    "build":  "vite build",
+                    "preview":  "vite preview",
+                    "build:replays":  "py -3.14 tools/build_replay_catalog.py",
+                    "start:local":  "scripts\\\\start-local.cmd"
+                }
 }

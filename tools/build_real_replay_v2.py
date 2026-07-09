@@ -21,13 +21,29 @@ def norm_cdf(x):
 
 def bs_price_delta(spot, strike, t_years, iv, kind):
     t = max(float(t_years), 1 / (365 * 24 * 3600))
-    vol = min(max(float(iv), 0.08), 0.80)
+    vol = min(max(float(iv), 0.08), 3.00)
     d1 = (math.log(spot / strike) + (RISK_FREE + 0.5 * vol * vol) * t) / (vol * math.sqrt(t))
     d2 = d1 - vol * math.sqrt(t)
     disc = math.exp(-RISK_FREE * t)
     if kind == "call":
         return max(spot * norm_cdf(d1) - strike * disc * norm_cdf(d2), 0.01), norm_cdf(d1)
     return max(strike * disc * norm_cdf(-d2) - spot * norm_cdf(-d1), 0.01), norm_cdf(d1) - 1
+
+
+def implied_vol_delta(spot, strike, t_years, price, kind):
+    intrinsic = max(spot - strike, 0) if kind == "call" else max(strike - spot, 0)
+    target = max(float(price), intrinsic + 0.001)
+    lo, hi = 0.01, 5.00
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        value, _ = bs_price_delta(spot, strike, t_years, mid, kind)
+        if value < target:
+            lo = mid
+        else:
+            hi = mid
+    iv = (lo + hi) / 2
+    _, delta = bs_price_delta(spot, strike, t_years, iv, kind)
+    return iv, delta
 
 
 def load_market():
@@ -124,6 +140,20 @@ def latest_levels(gex, ticker, ts, spot):
     return gamma_flip, float(levels.loc[levels["net_exposure"].idxmax(), "strike"]), float(levels.loc[levels["net_exposure"].idxmin(), "strike"]), "STRIKE_GEX_ZERO_CROSSING" if crossings else "NEAREST_ZERO_GEX_STRIKE"
 
 
+def read_trade_history(day):
+    path = ROOT / day / "options_historical_quantdata" / "contract_price_time" / "regular_0930_1615_contract_ohlcv.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    frame = pd.read_csv(path)
+    if frame.empty:
+        return frame
+    frame["captured_at"] = pd.to_datetime(frame["captured_at"])
+    frame = frame[(frame["ticker"] == "SPY") & (frame["expiration"].astype(str) == day)].copy()
+    for col in ["strike", "open", "high", "low", "close", "volume", "underlying_close"]:
+        frame[col] = pd.to_numeric(frame[col], errors="coerce")
+    return frame.dropna(subset=["captured_at", "strike", "close", "underlying_close"]).sort_values("captured_at")
+
+
 def read_chain(day):
     path = ROOT / day / "sim_input" / "options_focus.csv"
     if not path.exists():
@@ -160,7 +190,26 @@ def calibration_anchor(day, same_day_chain):
 def quote_rows_from_real(current, spot):
     rows = []
     for _, q in current[(current["strike"] - spot).abs() <= 10].iterrows():
-        rows.append({"contract": str(q["contract"]), "strike": float(q["strike"]), "side": "CALL" if str(q["type"]).lower() == "call" else "PUT", "bid": float(q["bid"]), "ask": float(q["ask"]), "mid": float(q["mid"]), "iv": float(q["iv"]), "delta": None, "quoteSource": "REAL"})
+        rows.append({"contract": str(q["contract"]), "strike": float(q["strike"]), "side": "CALL" if str(q["type"]).lower() == "call" else "PUT", "bid": float(q["bid"]), "ask": float(q["ask"]), "mid": float(q["mid"]), "iv": float(q["iv"]), "delta": None, "quoteSource": "REAL_QUOTE"})
+    return rows
+
+
+def rows_from_trade_history(current, ts, spot):
+    rows = []
+    expiry = datetime.fromisoformat(f"{DAY}T16:15:00")
+    t_years = max((expiry - ts.to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+    for _, q in current[(current["strike"] - spot).abs() <= 10].iterrows():
+        kind = "call" if str(q["side"]).upper() == "CALL" else "put"
+        mark = max(float(q["close"]), 0.01)
+        iv, delta = implied_vol_delta(spot, float(q["strike"]), t_years, mark, kind)
+        side = "C" if kind == "call" else "P"
+        contract = f"SPY{pd.Timestamp(DAY).strftime('%y%m%d')}{side}{int(round(float(q['strike']) * 1000)):08d}"
+        rows.append({
+            "contract": contract, "strike": float(q["strike"]), "side": kind.upper(),
+            "bid": round(mark, 4), "ask": round(mark, 4), "mid": round(mark, 4),
+            "iv": round(iv, 5), "delta": round(delta, 5),
+            "quoteSource": "REAL_TRADE_OHLCV"
+        })
     return rows
 
 
@@ -194,26 +243,36 @@ def build_day(day):
     DATA = ROOT / DAY / "sim_input"
     minute_index, market = load_market()
     gex = load_gex()
+    trade_history = read_trade_history(DAY)
     real_chain = read_chain(DAY)
-    calibration_day, anchor = calibration_anchor(DAY, real_chain)
-    has_real = not real_chain.empty
-    first_real = real_chain["captured_at"].min() if has_real else None
+    has_trade_history = not trade_history.empty
+    has_real_quotes = not real_chain.empty
+    first_real = trade_history["captured_at"].min() if has_trade_history else (real_chain["captured_at"].min() if has_real_quotes else None)
+    calibration_day, anchor = (DAY, pd.DataFrame()) if has_trade_history else calibration_anchor(DAY, real_chain)
     snapshots = []
     for i, ts in enumerate(minute_index):
         spy, spx = market["SPY"].iloc[i], market["SPX"].iloc[i]
         spot = float(spy["spot"])
         gamma_flip, call_wall, put_wall, fep_source = latest_levels(gex, "SPY", ts, spot)
-        if has_real and ts >= first_real:
+        if has_trade_history and ts >= first_real:
+            recent = trade_history[(trade_history["captured_at"] <= ts) & (trade_history["captured_at"] >= ts - pd.Timedelta(minutes=5))].copy()
+            if not recent.empty:
+                recent = recent.sort_values("captured_at").drop_duplicates(["strike", "side"], keep="last")
+                chain_rows = rows_from_trade_history(recent, ts, spot)
+            else:
+                chain_rows = []
+            quote_source = "REAL_TRADE_OHLCV"
+        elif has_real_quotes and ts >= first_real:
             eligible = real_chain[real_chain["captured_at"] <= ts]
             stamp = eligible["captured_at"].max()
             chain_rows = quote_rows_from_real(eligible[eligible["captured_at"] == stamp], spot)
-            quote_source = "REAL"
+            quote_source = "REAL_QUOTE"
         else:
-            quote_source = "SYNTHETIC_CALIBRATED" if has_real else "SYNTHETIC_CROSS_DAY_CALIBRATED"
+            quote_source = "SYNTHETIC_CALIBRATED" if has_real_quotes else "SYNTHETIC_CROSS_DAY_CALIBRATED"
             chain_rows = synth_rows(anchor, ts, spot, quote_source)
         iv_values = [q["iv"] for q in chain_rows if q.get("iv") is not None]
-        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if has_real else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_TIME_INTERPOLATION", "fepSource": fep_source, "chain": chain_rows})
-    return {"date": DAY, "label": f"{DAY} Â· Unified native SPY/SPX Â· 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if has_real else None, "optionCalibrationDay": DAY if has_real else calibration_day}, "snapshots": snapshots}
+        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_TIME_INTERPOLATION", "fepSource": fep_source, "chain": chain_rows})
+    return {"date": DAY, "label": f"{DAY} · Unified native SPY/SPX · 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC")}, "snapshots": snapshots}
 
 
 def main():

@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_DATA } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-native-1min-entryfix-20260708";
+const BUILD_ID = "v26-native-sustainedpath-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -1011,7 +1011,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     };
   }
 
-  const recent=hist.slice(-10),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0;
+  const recent=hist.slice(-35),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0,move15=recent.length>=16?m.spySpot-recent.at(-16).spySpot:move6,move30=recent.length>=31?m.spySpot-recent.at(-31).spySpot:move15;
   const brainSide=brain?.active&&brain.active!=="WAIT"?brain.active:"WAIT";
   const localSide=det?.dir||"WAIT";
   const localDir=localSide==="CALL"?1:localSide==="PUT"?-1:0;
@@ -1026,7 +1026,9 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const contract=side!=="WAIT"?selectContract(chain,isCall,mode):null;
   const rejected=side!=="WAIT"&&!contract?bestRejectedContract(chain,isCall):null;
   const dir=side==="CALL"?1:side==="PUT"?-1:0;
-  const persistence=[dir*move3>0.18,dir*move6>0.35].filter(Boolean).length;
+  const pathMove3=dir*move3,pathMove6=dir*move6,pathMove15=dir*move15,pathMove30=dir*move30;
+  const persistence=[pathMove3>0.18,pathMove6>0.35,pathMove15>0.70,pathMove30>1.10].filter(Boolean).length;
+  const sustainedDirectionalMove=Math.max(pathMove3,pathMove6,pathMove15,pathMove30);
   const brainConfidence=clamp(Number(brain?.confidence)||0,0,100);
   const edge=Math.abs((brain?.bullPressure||0)-(brain?.bearPressure||0));
   const locationOk=side==="CALL"?m.spySpot>=Math.min(m.fep,m.gammaFlip)-0.15:side==="PUT"?m.spySpot<=Math.max(m.fep,m.gammaFlip)+0.15:false;
@@ -1070,7 +1072,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const fepDir=Math.abs(m.spySpot-m.fep)<0.12?0:Math.sign(m.spySpot-m.fep);
   const primaryAlignment=[thesis?.gexVelocity?.direction===desiredDir,thesis?.callDomSignal?.direction===desiredDir,fepDir===desiredDir];
   const alignedPrimaryCount=primaryAlignment.filter(Boolean).length;
-  const strongPathOverride=alignedPrimaryCount>=1&&setupQuality>=90&&persistence>=1&&localAgreement&&Math.abs(localMove)>=0.55&&brainConfidence>=55;
+  const strongPathOverride=alignedPrimaryCount>=1&&setupQuality>=90&&persistence>=2&&localAgreement&&sustainedDirectionalMove>=0.70&&!chaseRisk;
   const primaryGatePassed=alignedPrimaryCount>=2||strongPathOverride;
   if(side!=="WAIT"&&!primaryGatePassed){blockers.push(`OPTION_B_PRIMARY_ALIGNMENT ${alignedPrimaryCount}/3`);executionReadiness=Math.min(executionReadiness,72);}
   const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);

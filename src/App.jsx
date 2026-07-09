@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-unified-native-replay-balanced-regime-20260708";
+const BUILD_ID = "v26-canonical-single-path-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -1046,17 +1046,22 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const locationOk=side==="CALL"?m.spySpot>=Math.min(m.fep,m.gammaFlip)-0.15:side==="PUT"?m.spySpot<=Math.max(m.fep,m.gammaFlip)+0.15:false;
   const response=side==="CALL"?(brain?.bullResponse||0):(brain?.bearResponse||0);
   const localAgreement=localSide==="WAIT"||localSide===side;
-  const marketFactors=[
-    {label:`Market brain ${side}`,passed:side!=="WAIT",weight:18},
-    {label:"Current leg agrees",passed:localAgreement||localMove>=0.55,weight:18},
-    {label:"Directional edge",passed:edge>=10||localMove>=0.55,weight:15},
-    {label:"Price persistence",passed:persistence>=1,weight:20},
-    {label:"FEP / flip location",passed:locationOk,weight:12},
-    {label:"Response quality",passed:response>=0.42||localMove>=0.55,weight:12},
-    {label:"Acceleration active",passed:m.accelerator>=4.2,weight:5},
-    {label:"Session / active-leg compatibility",passed:!activeBearRegime||side==="PUT"||bullishCounterLeg,weight:8},
-  ];
-  let setupQuality=Math.round(marketFactors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
+  const desiredDir=side==="CALL"?1:side==="PUT"?-1:0;
+  const fepDir=Math.abs(m.spySpot-m.fep)<0.12?0:Math.sign(m.spySpot-m.fep);
+  const primaryAlignment=[thesis?.gexVelocity?.direction===desiredDir,thesis?.callDomSignal?.direction===desiredDir,fepDir===desiredDir];
+  const alignedPrimaryCount=primaryAlignment.filter(Boolean).length;
+  const marketFactors=[
+    {label:`Market brain ${side}`,passed:side!=="WAIT",weight:15},
+    {label:"Current leg agrees",passed:localAgreement||localMove>=0.55,weight:18},
+    {label:"Directional edge",passed:edge>=10||localMove>=0.55,weight:14},
+    {label:"Price persistence",passed:persistence>=1,weight:18},
+    {label:"Primary evidence alignment",passed:alignedPrimaryCount>=1,weight:12},
+    {label:"FEP / flip location",passed:locationOk,weight:10},
+    {label:"Response quality",passed:response>=0.42||localMove>=0.55,weight:8},
+    {label:"Acceleration active",passed:m.accelerator>=4.2,weight:3},
+    {label:"Session / active-leg compatibility",passed:!activeBearRegime||side==="PUT"||bullishCounterLeg,weight:2},
+  ];
+  let setupQuality=Math.round(marketFactors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
   const chaseRisk=dir!==0&&dir*move3>2.2&&Math.abs(move3)>Math.abs(move6)*0.72;
   if(chaseRisk)setupQuality-=12;
   setupQuality=clamp(setupQuality,0,100);
@@ -1069,9 +1074,9 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   if(freshBearContinuation)reentry={...reentry,allowed:true,newEvidence:[...(reentry.newEvidence||[]),"fresh bearish continuation: falling FEP + negative GEX + sustained downside"]};
   const contractQuality=!contract?0:contract.tier==="QUALITY"?100:76;
   let executionReadiness=Math.round(setupQuality*0.80+contractQuality*0.20);
-  const blockers=[];
-  for(const f of marketFactors)if(!f.passed)blockers.push(f.label);
-  if(chaseRisk)blockers.push("Chase risk after completed impulse");
+  const gaps=marketFactors.filter(f=>!f.passed).map(f=>f.label);
+  const blockers=[];
+  if(chaseRisk)blockers.push("Chase risk after completed impulse");
   if(!reentry.allowed){
     const d=reentry.discipline;
     blockers.push(d?.code?`${d.code}: repeated ${d.repeatedCategory}; override requires ${d.override}`:`No genuinely new evidence since failed ${side}`);
@@ -1083,15 +1088,9 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   }
   if(!m.isTradeable){blockers.unshift("Market not tradeable");executionReadiness=0;}
   const threshold=contract?.tier==="ADAPTIVE"?88:80;
-  const desiredDir=side==="CALL"?1:side==="PUT"?-1:0;
-  const fepDir=Math.abs(m.spySpot-m.fep)<0.12?0:Math.sign(m.spySpot-m.fep);
-  const primaryAlignment=[thesis?.gexVelocity?.direction===desiredDir,thesis?.callDomSignal?.direction===desiredDir,fepDir===desiredDir];
-  const alignedPrimaryCount=primaryAlignment.filter(Boolean).length;
-  const strongPathOverride=alignedPrimaryCount>=1&&setupQuality>=90&&persistence>=2&&localAgreement&&sustainedDirectionalMove>=0.70&&!chaseRisk;
-  const primaryGatePassed=alignedPrimaryCount>=2||strongPathOverride;
-  if(side!=="WAIT"&&!primaryGatePassed){blockers.push(`OPTION_B_PRIMARY_ALIGNMENT ${alignedPrimaryCount}/3`);executionReadiness=Math.min(executionReadiness,72);}
-  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
-  const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
+  const canonicalDirectionReady=alignedPrimaryCount>=1||localMove>=0.70||(persistence>=2&&localAgreement);
+  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&!chaseRisk&&canonicalDirectionReady&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
+  const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
   const confidence=clamp(Math.round(setupQuality*.60+Math.max(brainConfidence,Math.min(90,Math.abs(localMove)*35))*.40),0,98);
   const whyNow=[
     ...(reentry.newEvidence||[]),
@@ -1104,9 +1103,9 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     setupQuality,executionReadiness,readiness:executionReadiness,confidence,
     contract:contract?{strike:contract.strike,price:contract.price,delta:contract.delta,quality:contract.tier,distance:contract.distance}:null,
     bestRejected:rejected?{strike:rejected.strike,price:rejected.price,delta:rejected.delta,distance:rejected.distance,reasons:rejected.reasons}:null,
-    blockers,supportingFactors:marketFactors.filter(f=>f.passed).map(f=>f.label),
+    blockers,gaps,supportingFactors:marketFactors.filter(f=>f.passed).map(f=>f.label),
     threshold,chaseRisk,whyNow,episodeKey,source:"SESSION_AWARE_INTENT",
-    diagnostics:{brainConfidence,edge,persistence,response,contractQuality,brainSide,localSide,localMove,reentry,sessionMove,sessionFepMove,belowFepShare,negativeGexShare,bearishSessionContext,bearishExpansionContext,activeBearRegime,provenPinContext}
+    diagnostics:{brainConfidence,edge,persistence,response,contractQuality,brainSide,localSide,localMove,reentry,sessionMove,sessionFepMove,belowFepShare,negativeGexShare,bearishSessionContext,bearishExpansionContext,activeBearRegime,provenPinContext,alignedPrimaryCount,canonicalDirectionReady,gaps}
   };
 }
 function buildFallbackDecision(m,pos,intent,tradeMemory){

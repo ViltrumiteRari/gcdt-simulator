@@ -34,8 +34,11 @@ def load_market():
     market["captured_at"] = pd.to_datetime(market["captured_at"])
     minute_index = pd.date_range(f"{DAY} 09:30:00", f"{DAY} 16:15:00", freq="1min")
     out = {}
+    first_native_spot = {}
     for ticker in ("SPY", "SPX"):
         frame = market[(market["ticker"] == ticker) & (market["source"].isin(["gex_exposure", "spot", "market_context"]))].copy()
+        native_spot_rows = frame[pd.to_numeric(frame["spot"], errors="coerce").notna()]
+        first_native_spot[ticker] = native_spot_rows["captured_at"].min() if not native_spot_rows.empty else None
         priority = {"gex_exposure": 0, "spot": 1, "market_context": 2}
         frame["_priority"] = frame["source"].map(priority).fillna(9)
         frame = frame.sort_values(["captured_at", "_priority"]).drop_duplicates("captured_at", keep="first")
@@ -60,6 +63,17 @@ def load_market():
         frame = frame.reindex(frame.index.union(minute_index)).sort_index()
         frame[numeric] = frame[numeric].interpolate(method="time").ffill().bfill()
         out[ticker] = frame.loc[minute_index].reset_index(names="captured_at")
+    # When SPY collection starts late but SPX exists earlier, do not backfill a flat SPY price.
+    # Reconstruct pre-SPY movement from the observed SPX path at the natural ~10:1 scale,
+    # anchored to the first real SPY minute so the handoff is continuous.
+    first_spy = first_native_spot.get("SPY")
+    if first_spy is not None and first_spy > minute_index[0]:
+        anchor_idx = int(np.searchsorted(minute_index.values, np.datetime64(first_spy), side="left"))
+        anchor_idx = min(max(anchor_idx, 0), len(minute_index) - 1)
+        anchor_spy = float(out["SPY"].iloc[anchor_idx]["spot"])
+        anchor_spx = float(out["SPX"].iloc[anchor_idx]["spot"])
+        pre_mask = out["SPY"]["captured_at"] < first_spy
+        out["SPY"].loc[pre_mask, "spot"] = anchor_spy + (out["SPX"].loc[pre_mask, "spot"] - anchor_spx) / 10.0
     return minute_index, out
 
 

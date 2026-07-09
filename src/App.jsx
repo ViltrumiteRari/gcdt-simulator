@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
-import { REAL_REPLAY_DATA } from "./realReplayData";
+import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-session-regime-context-20260708";
+const BUILD_ID = "v26-unified-native-replay-balanced-regime-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -1026,11 +1026,13 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const bearishExpansionContext=m.netGex<0&&m.spySpot<m.fep&&Math.min(fepMove6,fepMove15,fepMove30)<-0.20&&Math.min(move6,move15,move30)<-0.55;
   const activeBearRegime=bearishExpansionContext||bearishSessionContext;
   const provenPinContext=m.netGex>0&&m.gexInfluence>=0.45&&Math.abs(m.spySpot-m.fep)<=0.35&&Math.abs(move15)<=0.45&&recent.slice(-6).filter(x=>Math.abs(x.spySpot-x.fep)<=0.45).length>=4&&belowFepShare<0.65;
-  let side=brainSide;
-  if(activeBearRegime&&!provenPinContext)side="PUT";
-  if(localSide!=="WAIT"&&localSide!==brainSide&&localMove>=0.55)side=localSide;
-  else if((side==="WAIT"||brainEdge<8)&&localSide!=="WAIT"&&localMove>=0.25)side=localSide;
-  else if(side==="WAIT"&&thesis?.entryBias&&thesis.entryBias!=="WAIT")side=thesis.entryBias;
+  let side=brainSide;
+  const bearLegConfirmed=activeBearRegime&&localSide==="PUT"&&localMove>=0.25;
+  const bullishCounterLeg=activeBearRegime&&localSide==="CALL"&&localMove>=0.55&&(move6>0.35||m.spySpot>=m.fep-0.05);
+  if((side==="WAIT"||brainEdge<8)&&bearLegConfirmed)side="PUT";
+  if(localSide!=="WAIT"&&localSide!==brainSide&&(localMove>=0.55||bullishCounterLeg))side=localSide;
+  else if((side==="WAIT"||brainEdge<8)&&localSide!=="WAIT"&&localMove>=0.25)side=localSide;
+  else if(side==="WAIT"&&thesis?.entryBias&&thesis.entryBias!=="WAIT")side=thesis.entryBias;
 
   const isCall=side==="CALL",mode=det?.mode==="PIN_RANGE"?"pin":det?.mode==="GEX_EXPANSION"?"expansion":"scalp";
   const contract=side!=="WAIT"?selectContract(chain,isCall,mode):null;
@@ -1052,7 +1054,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     {label:"FEP / flip location",passed:locationOk,weight:12},
     {label:"Response quality",passed:response>=0.42||localMove>=0.55,weight:12},
     {label:"Acceleration active",passed:m.accelerator>=4.2,weight:5},
-    {label:"Session regime agrees",passed:side!=="PUT"||activeBearRegime||!bearishSessionContext,weight:8},
+    {label:"Session / active-leg compatibility",passed:!activeBearRegime||side==="PUT"||bullishCounterLeg,weight:8},
   ];
   let setupQuality=Math.round(marketFactors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
   const chaseRisk=dir!==0&&dir*move3>2.2&&Math.abs(move3)>Math.abs(move6)*0.72;
@@ -1088,7 +1090,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const strongPathOverride=alignedPrimaryCount>=1&&setupQuality>=90&&persistence>=2&&localAgreement&&sustainedDirectionalMove>=0.70&&!chaseRisk;
   const primaryGatePassed=alignedPrimaryCount>=2||strongPathOverride;
   if(side!=="WAIT"&&!primaryGatePassed){blockers.push(`OPTION_B_PRIMARY_ALIGNMENT ${alignedPrimaryCount}/3`);executionReadiness=Math.min(executionReadiness,72);}
-  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70||(side==="PUT"&&activeBearRegime));
+  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
   const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
   const confidence=clamp(Math.round(setupQuality*.60+Math.max(brainConfidence,Math.min(90,Math.abs(localMove)*35))*.40),0,98);
   const whyNow=[
@@ -1892,7 +1894,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
   },[addJournal]);
 
   const startSession=useCallback((mode)=>{
-    const replayData=selectedReplayDate==="2026-07-08"?REAL_REPLAY_DATA:(REPLAY_CATALOG[selectedReplayDate]||SPX_JUL1);
+    const replayData=REAL_REPLAY_CATALOG[selectedReplayDate]||REPLAY_CATALOG[selectedReplayDate]||SPX_JUL1;
     engR.current=mode==="replay"?createReplayEngine(replayData):createSeedEngine();
     const sess=engR.current.getSession();
     archetypeIdR.current=mode==="seed"?sess.archetype:null;

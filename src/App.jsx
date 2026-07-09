@@ -1853,15 +1853,9 @@ export default function App(){
           const aiWait=dec.decision==="WAIT"||dec.decision==="WAITING";
           if(canonicalBuy&&aiWait){
             const veto=validateEntryVeto(dec.veto_reason,liveIntent,requestCtx,currentMarket);
-            if(veto.valid){
-              const audit=createVetoAudit(liveIntent,currentMarket,tickR.current,dec);
-              if(audit)aiVetoAuditsR.current=[...aiVetoAuditsR.current,audit].slice(-12);
-              addJournal(liveTs,`AI_VETO_ACCEPTED request:${requestCtx.id} canonical:${liveIntent.action} veto:${veto.code} evidence:${dec.veto_evidence||veto.reason}.`);
-            }else{
-              const originalReason=dec.reasoning;
-              dec={...dec,decision:liveIntent.action,edge_state:"ENTRY_READY",confidence_trend:dec.confidence_trend==="DECAYING"?"STABLE":dec.confidence_trend,reasoning:`Canonical execution presumption applied. AI WAIT veto ${veto.code||"NONE"} was invalid: ${veto.reason}. Original: ${originalReason}`,veto_reason:"NONE"};
-              addJournal(liveTs,`AI_WAIT_OVERRIDDEN request:${requestCtx.id} canonical:${liveIntent.action} invalidVeto:${veto.code||"NONE"} reason:${veto.reason}.`);
-            }
+            const audit=createVetoAudit(liveIntent,currentMarket,tickR.current,dec);
+            if(audit)aiVetoAuditsR.current=[...aiVetoAuditsR.current,audit].slice(-12);
+            addJournal(liveTs,`AI_WAIT_FINAL request:${requestCtx.id} canonical:${liveIntent.action} veto:${veto.code||"NONE"} evidence:${dec.veto_evidence||dec.reasoning||veto.reason}.`);
           }
           addJournal(liveTs,`AI_DECISION_ACCEPTED request:${requestCtx.id} decision:${dec.decision} age:${semantic.ageTicks??(tickR.current-requestCtx.tick)}t/${Math.round(semantic.ageMs??0)}ms mode:${semantic.mode} current:${liveIntent?.action||"WAIT"}.`);
           const mb=marketBrainR.current;
@@ -1941,7 +1935,9 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           addM({t:ts,mindset:"AI response failure",reasoning:raw,decision:"FALLBACK",score:confR.current.score,edgeState:"ERROR_RECOVERED",confTrend:"UNCLEAR"});
           reliabilityR.current.parseFailures++;
           addJournal(ts,`AI_RESPONSE_FAILURE ${raw}`);
-          const fallback=buildFallbackDecision(m,posR.current,tradeIntentR.current,tradeMemoryR.current);
+          const fallback=posR.current
+            ?{decision:"HOLD",reasoning:"AI response failed; preserve the existing position unless deterministic risk controls independently exit it."}
+            :{decision:"WAIT",reasoning:"AI response failed; no new trade is permitted without a valid AI decision."};
           addJournal(ts,`FALLBACK_DECISION ${fallback.decision} — ${fallback.reasoning}`);
           applyDecision(fallback,"FALLBACK");
         })

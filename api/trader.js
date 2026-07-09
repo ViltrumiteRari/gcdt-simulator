@@ -11,6 +11,7 @@ const TRADER_SCHEMA = {
   type: 'object',
   properties: {
     decision: { type: 'string', enum: ['WAIT','WAITING','BUY_CALL','BUY_PUT','SELL','HOLD'] },
+    thought_append: { type: 'string' },
     reasoning: { type: 'string' },
     mindset: { type: 'string' },
     journal_entry: { type: 'string' },
@@ -28,7 +29,7 @@ const TRADER_SCHEMA = {
     reevaluate_after_ticks: { type: 'integer', minimum: 1, maximum: 10 },
   },
   required: [
-    'decision','reasoning','mindset','journal_entry','edge_state',
+    'decision','thought_append','reasoning','mindset','journal_entry','edge_state',
     'confidence_trend','trade_confidence','invalidation_spot','target_spot',
     'max_loss_pct','memory_used','current_thesis','expected_next_path',
     'new_evidence','prior_trade_effect','reevaluate_after_ticks',
@@ -52,6 +53,7 @@ export default async function handler(req) {
   try {
     const body = await req.json();
     const { prompt } = body || {};
+    const wantsStream = body?.stream === true;
     if (!prompt || typeof prompt !== 'string') return fail(400, 'Missing prompt');
     const key = process.env.OPENAI_API_KEY;
     if (!key) return fail(500, 'OPENAI_API_KEY not configured on server');
@@ -64,6 +66,7 @@ export default async function handler(req) {
       body: JSON.stringify({
         model: 'gpt-5.4-mini',
         store: false,
+        stream: wantsStream,
         reasoning: { effort: 'low' },
         max_output_tokens: 1200,
         input: [
@@ -83,6 +86,21 @@ export default async function handler(req) {
         },
       }),
     });
+    if (wantsStream) {
+      if (!resp.ok) {
+        const errText = await resp.text();
+        return fail(502, `OpenAI HTTP ${resp.status}`, errText);
+      }
+      return new Response(resp.body, {
+        status: 200,
+        headers: {
+          ...CORS,
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+      });
+    }
     const data = await resp.json();
     if (!resp.ok) return fail(502, data?.error?.message || `OpenAI HTTP ${resp.status}`, data);
     if (data.status === 'incomplete') {

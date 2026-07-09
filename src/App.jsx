@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-persistent-ai-memory-clean-replay-20260708";
+const BUILD_ID = "v26-live-thoughts-supabase-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -933,19 +933,11 @@ function createAiSessionMemory(label="UNSET"){
 }
 function aiMemoryText(mem){
   const m=mem||createAiSessionMemory();
-  return `CURRENT WORKING MEMORY
+  return `GCDT AI THOUGHTS JOURNAL
 Session: ${m.sessionLabel}
-Updated: ${m.updatedAt||"never"}
-Dominant thesis: ${m.dominantThesis}
-Competing thesis: ${m.competingThesis}
-Expected next path: ${m.expectedPath}
-Invalidation: ${m.invalidation}
-Unresolved uncertainty: ${m.unresolved}
-Last decision: ${m.lastDecision}
-Summary: ${m.summary}
+Continuity: ${m.summary}
 
-DECISION HISTORY
-${(m.entries||[]).slice(-18).join("\n")||"No prior decisions."}`;
+${(m.entries||[]).slice(-30).join("\n\n")||"The journal is empty. The AI has not written a thought yet."}`;
 }
 function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const prior=mem||createAiSessionMemory();
@@ -955,7 +947,8 @@ function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const expected=dec.expected_next_path||"No explicit path supplied.";
   const invalidation=Number.isFinite(dec.invalidation_spot)?`SPY ${dec.invalidation_spot.toFixed(2)}`:(intent?.invalidation!=null?`SPY ${Number(intent.invalidation).toFixed(2)}`:"Not explicit");
   const unresolved=dec.veto_reason&&dec.veto_reason!=="NONE"?`${dec.veto_reason}: ${dec.veto_evidence||"no detail"}`:(dec.new_evidence||"No material unresolved conflict stated.");
-  const entry=`[${time}] ${dec.decision} | ${observed} | thesis: ${thesis} | expected: ${expected} | new evidence: ${dec.new_evidence||"none"} | prior effect: ${dec.prior_trade_effect||"none"} | reasoning: ${dec.reasoning||"none"}`;
+  const thought=(dec.thought_append||dec.reasoning||"").trim();
+  const entry=`[${time}]\n${thought||`${dec.decision}: ${observed}`}\nDecision: ${dec.decision}${expected?` | Watching: ${expected}`:""}`;
   return{...prior,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved,lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-40)};
 }
 
@@ -966,6 +959,7 @@ function normalizeTraderDecision(obj){
   if(!allowed.has(decision))throw new Error(`invalid decision: ${String(obj.decision)}`);
   return{
     decision,
+    thought_append:String(obj.thought_append||"").slice(0,4000),
     reasoning:String(obj.reasoning||"").slice(0,600),
     mindset:String(obj.mindset||"").slice(0,240),
     journal_entry:String(obj.journal_entry||"").slice(0,600),
@@ -1181,7 +1175,46 @@ function buildFallbackDecision(m,pos,intent,tradeMemory){
   });
 }
 
-async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,signal){
+function extractPartialThought(jsonText){
+  const key='"thought_append":"';
+  const start=jsonText.indexOf(key);
+  if(start<0)return"";
+  let out="",esc=false;
+  for(let i=start+key.length;i<jsonText.length;i++){
+    const ch=jsonText[i];
+    if(esc){out+=ch==="n"?"\n":ch==="t"?"\t":ch;esc=false;continue;}
+    if(ch==="\\"){esc=true;continue;}
+    if(ch==='"')break;
+    out+=ch;
+  }
+  return out;
+}
+async function readTraderStream(resp,onThought){
+  if(!resp.body)return await resp.text();
+  const reader=resp.body.getReader(),decoder=new TextDecoder();
+  let pending="",output="";
+  while(true){
+    const chunk=await reader.read();
+    if(chunk.done)break;
+    pending+=decoder.decode(chunk.value,{stream:true});
+    const lines=pending.split("\n");pending=lines.pop()||"";
+    for(const line of lines){
+      if(!line.startsWith("data: "))continue;
+      const raw=line.slice(6).trim();
+      if(!raw||raw==="[DONE]")continue;
+      try{const event=JSON.parse(raw);if(event.type==="response.output_text.delta"){output+=event.delta||"";onThought?.(extractPartialThought(output));}}catch{}
+    }
+  }
+  return output;
+}
+async function persistThought(row){
+  const r=await fetch("/api/thoughts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(row)});
+  if(!r.ok)throw new Error(`thought sync ${r.status}`);
+}
+async function loadThoughts(){
+  try{const r=await fetch("/api/thoughts?limit=80");if(!r.ok)return[];const d=await r.json();return d.rows||[];}catch{return[];}
+}
+async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,onThought,signal){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<45,eodPhase=mL<=15?'CLEANUP/RH_LOCK':mL<=30?'DEATH_ZONE':mL<=60?'BRUTAL_THETA':mL<=75?'GAME_CHANGING':'NORMAL',div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
@@ -1205,7 +1238,7 @@ BAL:$${bal.toFixed(0)} | ${posStr}
 SESSION JOURNAL:
 ${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}
 
-PERSISTENT SESSION DECISION FILE â€” READ THIS BEFORE DECIDING:
+AI THOUGHTS JOURNAL — READ THIS BEFORE DECIDING:
 ${aiMemoryText(aiSessionMemory)}
 
 ${sessionSummary||"Session just opened."}
@@ -1227,7 +1260,7 @@ UNIFIED DIRECTIONAL STATE: ${thesisStr}
 
 TRADER IDENTITY — CONTINUOUS SESSION MANAGER:
 - You are not classifying isolated snapshots. You are managing one continuous SPY 0DTE session and one evolving thesis.
-- The PERSISTENT SESSION DECISION FILE is your working memory. Compare its prior expected path with what actually happened, explicitly weaken disproven theses, and build on validated observations. Do not repeat a thesis merely because it was previously written.
+- The AI THOUGHTS JOURNAL is your persistent working notebook. Add a compact, useful note only when your interpretation changes, an expectation succeeds or fails, a comparison matters, or a trade teaches something. Do not mechanically restate the supplied market data.
 - Every prior entry and exit changes the meaning of the next setup. Repeating the same direction after a failed attempt requires explicitly identified NEW evidence.
 - Before any entry answer: why is this tick better than 1, 3, and 5 ticks ago; is this a new leg, a reset, or stale evidence; and what exact path should occur next?
 - While in a position, manage the original spot thesis first. Contract P/L is evidence, not automatic truth. Normal 0DTE compression is not an exit unless spot invalidates, opposite control confirms, or the selected vehicle becomes catastrophically unusable.
@@ -1261,11 +1294,11 @@ RULES:
 - You do not know exact elapsed durations beyond what's given to you in "Price has held within 15c..." above. Never invent a duration in minutes yourself — use the provided number or omit duration language entirely.
 ${rulesStr}
 
-Respond ONLY valid JSON:
-{"decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"session or historical memory used","current_thesis":"one phrase","expected_next_path":"what should happen next","new_evidence":"what changed since prior decision","prior_trade_effect":"how previous entries/exits affect this decision","reevaluate_after_ticks":2,"veto_reason":"NONE|DIRECTION_FLIPPED|CONTRACT_INVALID|CHASE_RISK|EPISODE_STALE|OPPOSITE_ACCEPTANCE|FINAL_THETA_WINDOW","veto_evidence":"specific current-state evidence or empty"}`;
-  const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,response_format:{type:"json_object"},temperature:0.2}),signal});
+Respond ONLY valid JSON. Put thought_append first so it can stream into the live notepad before the final decision is parsed:
+{"thought_append":"free-form compact working note, or empty string if nothing worth carrying forward","decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"session or historical memory used","current_thesis":"one phrase","expected_next_path":"what should happen next","new_evidence":"what changed since prior decision","prior_trade_effect":"how previous entries/exits affect this decision","reevaluate_after_ticks":2,"veto_reason":"NONE|DIRECTION_FLIPPED|CONTRACT_INVALID|CHASE_RISK|EPISODE_STALE|OPPOSITE_ACCEPTANCE|FINAL_THETA_WINDOW","veto_evidence":"specific current-state evidence or empty"}`;
+  const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,response_format:{type:"json_object"},temperature:0.2,stream:true}),signal});
   if(!resp.ok)throw new Error(`API ${resp.status}`);
-  const rawText=await resp.text();
+  const rawText=(resp.headers.get("content-type")||"").includes("text/event-stream")?await readTraderStream(resp,onThought):await resp.text();
   let data;
   try{data=JSON.parse(rawText);}catch{data=rawText;}
   const payload=extractTraderPayload(data);
@@ -1359,13 +1392,13 @@ function GexPanel({mkt,candles,gexInf}){
   const prior15=candles.length>=16?candles.at(-16):candles[0];
   const d5=prior5?mkt.netGex-prior5.netGex:0,d15=prior15?mkt.netGex-prior15.netGex:0;
   const s5=prior5?mkt.netGexSpx-prior5.netGexSpx:0,s15=prior15?mkt.netGexSpx-prior15.netGexSpx:0;
-  const regime=mkt.netGex<0?"NEGATIVE GEX Â· AMPLIFICATION":mkt.netGex>0?"POSITIVE GEX Â· PINNING":"NEUTRAL GEX";
+  const regime=mkt.netGex<0?"NEGATIVE GEX · LOADED / UNSTABLE":mkt.netGex>0?"POSITIVE GEX · DEALERS COMFORTABLE":"NEUTRAL GEX";
   const color=mkt.netGex<0?T.red:mkt.netGex>0?T.accent:T.yellow;
   const fmtDelta=v=>`${v>=0?"+":""}${fmt.gex(v)}`;
   return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}66`,margin:"0 14px 8px",padding:12}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
       <div><div style={{fontSize:9,color:T.muted,letterSpacing:"0.12em"}}>GAMMA EXPOSURE</div><div style={{fontSize:13,fontWeight:800,color,marginTop:3}}>{regime}</div></div>
-      <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:8,color}}>SPY Â· influence {(gexInf*100).toFixed(0)}%</div></div>
+      <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:8,color}}>SPY · influence {(gexInf*100).toFixed(0)}%</div></div>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr 1fr",gap:8}}>
       <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>SPX GEX</div><div style={{fontSize:14,fontWeight:800,color:mkt.netGexSpx>=0?T.purple:T.red}}>{fmt.gex(mkt.netGexSpx??mkt.netGex*10)}</div></div>
@@ -1569,6 +1602,8 @@ export default function App(){
   const[mindsetLog,setMindsetLog]=useState([]);
   const[journal,setJournal]=useState([]);
   const[aiSessionMemory,setAiSessionMemory]=useState(()=>storageGet("ai_session_memory",createAiSessionMemory()));
+  const[liveThought,setLiveThought]=useState("");
+  const[thoughtSync,setThoughtSync]=useState("LOCAL");
   const[candles,setCandles]=useState([]);
   const[itsSPXHist,setItsSPXHist]=useState([]);
   const[itsSPYHist,setItsSPYHist]=useState([]);
@@ -1600,6 +1635,7 @@ export default function App(){
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
   const journalR=useRef([]),aiSessionMemoryR=useRef(storageGet("ai_session_memory",createAiSessionMemory())),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
+  const thoughtSessionIdR=useRef(`gcdt-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
@@ -1623,6 +1659,8 @@ export default function App(){
 
   const addM=useCallback(e=>{const key=`${e.edgeState}|${e.decision}|${e.mindset}|${String(e.reasoning||'').slice(0,80)}`;if((e.edgeState||'').startsWith('LOCAL')&&key===lastMindsetKeyR.current)return;lastMindsetKeyR.current=key;mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
+
+  useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive||!rows.length)return;const prior=rows.map(r=>`[${r.market_time||new Date(r.created_at).toLocaleString()}]\n${r.content}${r.decision?`\nDecision: ${r.decision}`:""}`);aiSessionMemoryR.current={...aiSessionMemoryR.current,summary:"Loaded durable continuity from Supabase.",entries:[...prior,...(aiSessionMemoryR.current.entries||[])].slice(-60)};setAiSessionMemory({...aiSessionMemoryR.current});storageSet("ai_session_memory",aiSessionMemoryR.current);setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
 
   useEffect(()=>{
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
@@ -1832,6 +1870,9 @@ export default function App(){
           lastWaitReasonR.current=dec.reasoning||"";
           aiSessionMemoryR.current=updateAiSessionMemory(aiSessionMemoryR.current,dec,currentMarket,liveIntent,liveTs);
           storageSet("ai_session_memory",aiSessionMemoryR.current);setAiSessionMemory({...aiSessionMemoryR.current});
+          setLiveThought("");
+          const durableThought=(dec.thought_append||dec.reasoning||"").trim();
+          if(durableThought){setThoughtSync("SAVING");persistThought({session_id:thoughtSessionIdR.current,market_time:liveTs,kind:"thought",content:durableThought,decision:dec.decision,spot:currentMarket.spySpot,metadata:{thesis:dec.current_thesis||"",expected_next_path:dec.expected_next_path||"",new_evidence:dec.new_evidence||""}}).then(()=>setThoughtSync("SYNCED")).catch(()=>setThoughtSync("LOCAL"));}
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
           if(dec.memory_used&&dec.memory_used!=="none")addJournal(ts,`MEMORY_USED ${dec.memory_used}`);
@@ -1880,7 +1921,7 @@ export default function App(){
       };
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nCANONICAL EXECUTION STATE — AUTHORITATIVE:
 action ${intent.action}; direction ${intent.direction||"NONE"}; setup ${intent.setupQuality}%; readiness ${intent.executionReadiness}% / threshold ${intent.threshold??"—"}%; contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"}; hard blockers ${hardExecutionBlockers(intent).join(", ")||"NONE"}; all blockers ${(intent.blockers||[]).join(", ")||"NONE"}.
-If action is BUY and hard blockers are NONE, execute unless an allowed veto_reason is objectively true right now. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,controller.signal)
+If action is BUY and hard blockers are NONE, execute unless an allowed veto_reason is objectively true right now. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,setLiveThought,controller.signal)
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time((latestMarketR.current||m).h,(latestMarketR.current||m).m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);
@@ -1961,13 +2002,13 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED v26 · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
-    setJournal([]);journalR.current=[];const freshAiMemory=createAiSessionMemory(label);aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
+    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const freshAiMemory={...createAiSessionMemory(label),summary:aiSessionMemoryR.current.summary||"Continuing prior journal context.",entries:(aiSessionMemoryR.current.entries||[]).slice(-30)};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
     prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};
-    setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);
+    setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);setLiveThought("");
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[selectedReplayDate]);
 
@@ -2211,9 +2252,9 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
         </div>}
 
         {mkt&&<details open style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:"9px 12px"}}>
-          <summary style={{fontSize:9,color:T.purple,letterSpacing:"0.1em",cursor:"pointer"}}>AI SESSION DECISION FILE Â· {aiSessionMemory.entries?.length||0} ENTRIES</summary>
-          <pre style={{whiteSpace:"pre-wrap",fontSize:8,lineHeight:1.55,color:T.text,maxHeight:260,overflowY:"auto",margin:"10px 0 8px"}}>{aiMemoryText(aiSessionMemory)}</pre>
-          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gcdt-session-memory-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
+          <summary style={{fontSize:9,color:T.purple,letterSpacing:"0.1em",cursor:"pointer"}}>AI THOUGHTS JOURNAL · {thoughtSync} · {aiSessionMemory.entries?.length||0} NOTES</summary>
+          <pre style={{whiteSpace:"pre-wrap",fontSize:9,lineHeight:1.65,color:T.text,maxHeight:320,overflowY:"auto",margin:"10px 0 8px",fontFamily:"Consolas, monospace"}}>{aiMemoryText(aiSessionMemory)}{liveThought?`\n\n[WRITING NOW]\n${liveThought}▌`:""}</pre>
+          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gcdt-ai-thoughts-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
         </details>}
 
         <TradeIntentPanel intent={tradeIntentData}/> 

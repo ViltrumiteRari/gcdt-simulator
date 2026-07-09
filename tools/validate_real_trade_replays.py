@@ -19,5 +19,7 @@ for day,payload in data.items():
              'min_chain':min(sizes),'max_chain':max(sizes),'mean_chain':sum(sizes)/len(sizes),
              'bad_values':len(bad_prices),'coverage':payload.get('coverage')}
     print(day,json.dumps(summary))
-    if len(snaps)!=406 or sources!={'REAL_TRADE_OHLCV'} or bad_prices or any(n==0 for n in sizes): failed.append((day,summary))
+    allowed_prefixes=("REAL_TRADE_OHLCV","SYNTHETIC_PATH_","SYNTHETIC_CALIBRATED")
+    invalid_sources=[s for s in sources if not str(s).startswith(allowed_prefixes)]
+    if len(snaps)!=406 or invalid_sources or bad_prices or any(n==0 for n in sizes): failed.append((day,summary))
 if failed: raise SystemExit(f'FAILED {failed}')

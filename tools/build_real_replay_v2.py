@@ -194,7 +194,7 @@ def quote_rows_from_real(current, spot):
     return rows
 
 
-def rows_from_trade_history(current, ts, spot):
+def rows_from_trade_history(current, ts, spot, quote_source="REAL_TRADE_OHLCV"):
     rows = []
     expiry = datetime.fromisoformat(f"{DAY}T16:15:00")
     t_years = max((expiry - ts.to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
@@ -208,8 +208,65 @@ def rows_from_trade_history(current, ts, spot):
             "contract": contract, "strike": float(q["strike"]), "side": kind.upper(),
             "bid": round(mark, 4), "ask": round(mark, 4), "mid": round(mark, 4),
             "iv": round(iv, 5), "delta": round(delta, 5),
-            "quoteSource": "REAL_TRADE_OHLCV"
+            "quoteSource": quote_source
         })
+    return rows
+
+
+def path_fill_rows(history, ts, spot, bridge_limit=60, forward_limit=15):
+    expiry = datetime.fromisoformat(f"{DAY}T16:15:00")
+    target_t = max((expiry - ts.to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+    rows = []
+    nearby = history[(history["strike"] - spot).abs() <= 10]
+    for (strike, side), group in nearby.groupby(["strike", "side"]):
+        group = group.sort_values("captured_at")
+        prev = group[group["captured_at"] < ts].tail(2)
+        nxt = group[group["captured_at"] > ts].head(1)
+        if prev.empty and nxt.empty:
+            continue
+        kind = "call" if str(side).upper() == "CALL" else "put"
+        source = None
+        iv = None
+        if not prev.empty and not nxt.empty:
+            p = prev.iloc[-1]
+            n = nxt.iloc[0]
+            gap = (n["captured_at"] - p["captured_at"]).total_seconds() / 60
+            if gap <= bridge_limit:
+                pt = max((expiry - p["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+                nt = max((expiry - n["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+                piv, _ = implied_vol_delta(float(p["underlying_close"]), float(strike), pt, float(p["close"]), kind)
+                niv, _ = implied_vol_delta(float(n["underlying_close"]), float(strike), nt, float(n["close"]), kind)
+                w = (ts - p["captured_at"]).total_seconds() / max((n["captured_at"] - p["captured_at"]).total_seconds(), 1)
+                iv = math.exp((1 - w) * math.log(max(piv, 0.01)) + w * math.log(max(niv, 0.01)))
+                source = "SYNTHETIC_PATH_BRIDGED"
+        if iv is None and not prev.empty:
+            p = prev.iloc[-1]
+            age = (ts - p["captured_at"]).total_seconds() / 60
+            if age <= forward_limit:
+                pt = max((expiry - p["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+                piv, _ = implied_vol_delta(float(p["underlying_close"]), float(strike), pt, float(p["close"]), kind)
+                slope = 0.0
+                if len(prev) == 2:
+                    p0 = prev.iloc[0]
+                    p0t = max((expiry - p0["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+                    p0iv, _ = implied_vol_delta(float(p0["underlying_close"]), float(strike), p0t, float(p0["close"]), kind)
+                    mins = max((p["captured_at"] - p0["captured_at"]).total_seconds() / 60, 1)
+                    slope = (math.log(max(piv, 0.01)) - math.log(max(p0iv, 0.01))) / mins
+                iv = math.exp(math.log(max(piv, 0.01)) + slope * age * math.exp(-age / 5))
+                source = "SYNTHETIC_PATH_FORWARD"
+        if iv is None and prev.empty and not nxt.empty:
+            n = nxt.iloc[0]
+            age = (n["captured_at"] - ts).total_seconds() / 60
+            if age <= forward_limit:
+                nt = max((expiry - n["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+                iv, _ = implied_vol_delta(float(n["underlying_close"]), float(strike), nt, float(n["close"]), kind)
+                source = "SYNTHETIC_PATH_BACKWARD"
+        if iv is None:
+            continue
+        price, delta = bs_price_delta(spot, float(strike), target_t, iv, kind)
+        side_code = "C" if kind == "call" else "P"
+        contract = f"SPY{pd.Timestamp(DAY).strftime('%y%m%d')}{side_code}{int(round(float(strike) * 1000)):08d}"
+        rows.append({"contract": contract, "strike": float(strike), "side": kind.upper(), "bid": round(price, 4), "ask": round(price, 4), "mid": round(price, 4), "iv": round(iv, 5), "delta": round(delta, 5), "quoteSource": source})
     return rows
 
 
@@ -248,20 +305,29 @@ def build_day(day):
     has_trade_history = not trade_history.empty
     has_real_quotes = not real_chain.empty
     first_real = trade_history["captured_at"].min() if has_trade_history else (real_chain["captured_at"].min() if has_real_quotes else None)
-    calibration_day, anchor = (DAY, pd.DataFrame()) if has_trade_history else calibration_anchor(DAY, real_chain)
+    calibration_day, anchor = calibration_anchor(DAY, real_chain)
     snapshots = []
     for i, ts in enumerate(minute_index):
         spy, spx = market["SPY"].iloc[i], market["SPX"].iloc[i]
         spot = float(spy["spot"])
         gamma_flip, call_wall, put_wall, fep_source = latest_levels(gex, "SPY", ts, spot)
-        if has_trade_history and ts >= first_real:
-            recent = trade_history[(trade_history["captured_at"] <= ts) & (trade_history["captured_at"] >= ts - pd.Timedelta(minutes=5))].copy()
-            if not recent.empty:
-                recent = recent.sort_values("captured_at").drop_duplicates(["strike", "side"], keep="last")
-                chain_rows = rows_from_trade_history(recent, ts, spot)
+        if has_trade_history:
+            recent = trade_history[(trade_history["captured_at"] <= ts) & (trade_history["captured_at"] >= ts - pd.Timedelta(minutes=1))].copy()
+            recent = recent.sort_values("captured_at").drop_duplicates(["strike", "side"], keep="last") if not recent.empty else recent
+            real_rows = rows_from_trade_history(recent, ts, spot) if not recent.empty else []
+            fill_rows = path_fill_rows(trade_history, ts, spot)
+            real_contracts = {row["contract"] for row in real_rows}
+            fill_rows = [row for row in fill_rows if row["contract"] not in real_contracts]
+            chain_rows = real_rows + fill_rows
+            if real_rows and fill_rows:
+                quote_source = "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            elif real_rows:
+                quote_source = "REAL_TRADE_OHLCV"
+            elif fill_rows:
+                quote_source = fill_rows[0]["quoteSource"]
             else:
-                chain_rows = []
-            quote_source = "REAL_TRADE_OHLCV"
+                quote_source = "SYNTHETIC_CALIBRATED"
+                chain_rows = synth_rows(anchor, ts, spot, quote_source)
         elif has_real_quotes and ts >= first_real:
             eligible = real_chain[real_chain["captured_at"] <= ts]
             stamp = eligible["captured_at"].max()

@@ -74,6 +74,7 @@ function normalizedGeminiStream(source) {
   return source.pipeThrough(new TransformStream({
     transform(chunk, controller) {
       buffer += decoder.decode(chunk, { stream: true });
+      buffer = buffer.replace(/\r\n/g, '\n');
       const events = buffer.split('\n\n');
       buffer = events.pop() || '';
       for (const event of events) {

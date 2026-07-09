@@ -2210,7 +2210,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           </div>
         </div>}
 
-        {mkt&&<details style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:"9px 12px"}}>
+        {mkt&&<details open style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:"9px 12px"}}>
           <summary style={{fontSize:9,color:T.purple,letterSpacing:"0.1em",cursor:"pointer"}}>AI SESSION DECISION FILE Â· {aiSessionMemory.entries?.length||0} ENTRIES</summary>
           <pre style={{whiteSpace:"pre-wrap",fontSize:8,lineHeight:1.55,color:T.text,maxHeight:260,overflowY:"auto",margin:"10px 0 8px"}}>{aiMemoryText(aiSessionMemory)}</pre>
           <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gcdt-session-memory-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>

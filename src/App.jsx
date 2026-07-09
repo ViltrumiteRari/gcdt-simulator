@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_DATA } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-native-1min-chainfix-20260708";
+const BUILD_ID = "v26-native-1min-entryfix-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -1070,8 +1070,10 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const fepDir=Math.abs(m.spySpot-m.fep)<0.12?0:Math.sign(m.spySpot-m.fep);
   const primaryAlignment=[thesis?.gexVelocity?.direction===desiredDir,thesis?.callDomSignal?.direction===desiredDir,fepDir===desiredDir];
   const alignedPrimaryCount=primaryAlignment.filter(Boolean).length;
-  if(side!=="WAIT"&&alignedPrimaryCount<3){blockers.push(`OPTION_B_PRIMARY_ALIGNMENT ${alignedPrimaryCount}/3`);executionReadiness=Math.min(executionReadiness,72);}
-  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&alignedPrimaryCount===3&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
+  const strongPathOverride=alignedPrimaryCount>=1&&setupQuality>=90&&persistence>=1&&localAgreement&&Math.abs(localMove)>=0.55&&brainConfidence>=55;
+  const primaryGatePassed=alignedPrimaryCount>=2||strongPathOverride;
+  if(side!=="WAIT"&&!primaryGatePassed){blockers.push(`OPTION_B_PRIMARY_ALIGNMENT ${alignedPrimaryCount}/3`);executionReadiness=Math.min(executionReadiness,72);}
+  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
   const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
   const confidence=clamp(Math.round(setupQuality*.60+Math.max(brainConfidence,Math.min(90,Math.abs(localMove)*35))*.40),0,98);
   const whyNow=[

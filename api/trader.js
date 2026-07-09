@@ -114,7 +114,7 @@ export default async function handler(req) {
 
     const key = process.env.GEMINI_API_KEY;
     if (!key) return fail(500, 'GEMINI_API_KEY not configured on server');
-    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
     const action = wantsStream ? 'streamGenerateContent' : 'generateContent';
     const suffix = wantsStream ? '?alt=sse' : '';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:${action}${suffix}`;

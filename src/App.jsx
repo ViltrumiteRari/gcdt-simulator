@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
+import { REAL_REPLAY_DATA } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
 const BUILD_ID = "v26-airgap-multisession-20260708";
@@ -224,7 +225,28 @@ function createSeedEngine(forceArcheId){
   return{tick,getSession:()=>({...session}),peek:()=>({...s}),mode:"seed"};
 }
 
+function nativeChain(snapshot){
+  const calls=(snapshot.chain||[]).filter(q=>q.side==="CALL").map(q=>({strike:q.strike,side:"CALL",price:q.ask||q.mid,mark:q.mid,bid:q.bid,ask:q.ask,delta:0.10,distance:Math.abs(q.strike-snapshot.spySpot),contract:q.contract,quoteSource:q.quoteSource}));
+  const puts=(snapshot.chain||[]).filter(q=>q.side==="PUT").map(q=>({strike:q.strike,side:"PUT",price:q.ask||q.mid,mark:q.mid,bid:q.bid,ask:q.ask,delta:-0.10,distance:Math.abs(q.strike-snapshot.spySpot),contract:q.contract,quoteSource:q.quoteSource}));
+  const strikes=[...new Set([...calls,...puts].map(q=>q.strike))].sort((a,b)=>a-b);
+  const rows=strikes.map(strike=>({strike,distance:Math.abs(strike-snapshot.spySpot),call:calls.find(q=>q.strike===strike),put:puts.find(q=>q.strike===strike)}));
+  return{spot:snapshot.spySpot,iv:(snapshot.iv||0.20)*100,mL:0,rows,calls,puts,surface:{callState:"OBSERVED",putState:"OBSERVED"},quoteSource:snapshot.quoteSource||"NONE"};
+}
+function createNativeReplayEngine(replayData){
+  const snapshots=replayData.snapshots;let idx=-1,last=null,fep=snapshots[0].spySpot;
+  function mapSnap(x){
+    const[h,m]=x.time.split(":").map(Number),prev=last||x,move=x.spySpot-prev.spySpot;
+    fep=fep*0.85+x.spySpot*0.15;
+    const accelerator=clamp(2.5+Math.abs(move)*18,0,ACCEL_SCALE_MAX);
+    const itsSPX=itsFromGex(x.callDomSpx,x.netGexSpx,5.5),itsSPY=itsFromGex(x.callDom,x.netGex,4.5);
+    const out={spySpot:x.spySpot,spxSpot:x.spxSpot,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:x.quoteSource!=="REAL",quoteSource:x.quoteSource,optionChain:nativeChain(x),dataBasis:"native-replay"};
+    last=x;return out;
+  }
+  function tick(){idx=Math.min(idx+1,snapshots.length-1);return mapSnap(snapshots[idx]);}
+  return{tick,getSession:()=>({dayType:replayData.dayType,label:replayData.label}),peek:()=>idx<0?mapSnap(snapshots[0]):mapSnap(snapshots[idx]),mode:"replay"};
+}
 function createReplayEngine(replayData){
+  if(replayData?.snapshots?.[0]?.spySpot!=null)return createNativeReplayEngine(replayData);
   const snapshots=replayData.snapshots,openMin=OPEN_H*60+OPEN_M,spyRatio=10;
   const[firstH,firstM]=String(snapshots[0].time||"09:30").split(":").map(Number),firstMin=firstH*60+firstM,startMin=Math.max(openMin-10,firstMin-10),startH=Math.floor(startMin/60),startM=startMin%60;
   let s={spySpot:snapshots[0].spot/spyRatio,spxSpot:snapshots[0].spot,gammaFlip:snapshots[0].spot/spyRatio-0.5,callWall:snapshots[0].maxGamma/spyRatio+1,putWall:snapshots[0].spot/spyRatio-6,fep:snapshots[0].spot/spyRatio-0.3,accelerator:4.2,netGex:snapshots[0].gex/spyRatio,netGexSpx:snapshots[0].gex,itsSPX:itsFromGex(snapshots[0].callDom,snapshots[0].gex,5.5),itsSPY:4.2,callDom:snapshots[0].callDom,callDomSpyEst:snapshots[0].callDom,ndf:0.1,dealerPct:25,iv:13.5,pcr:0.85,gexInfluence:0.08,tick:0,h:startH,m:startM,isPremarket:startMin<openMin,isTradeable:startMin>=openMin,spxCallDomBuffer:[snapshots[0].callDom,snapshots[0].callDom,snapshots[0].callDom]};
@@ -604,7 +626,7 @@ function selectContract(chain,isCall,mode="swing"){
   }
   candidates=candidates.map(o=>({...o,score:contractRank(o,cfg.idealPrice,cfg.targetDelta)+(tier==="ADAPTIVE"?0.10:0)})).sort((a,b)=>a.score-b.score);
   const x=candidates[0];
-  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?"CALL":"PUT",tier}:null;
+  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?"CALL":"PUT",tier,contract:x.contract||null,quoteSource:x.quoteSource||chain.quoteSource||"MODELED"}:null;
 }
 function findStrike(spot,iv,mL,isCall,mode="swing",ctx=null){
   return selectContract(buildOptionChain(spot,iv,mL,40,ctx),isCall,mode);
@@ -1536,11 +1558,13 @@ export default function App(){
     const m=eng.tick();tickR.current++;latestMarketR.current={...m,tick:tickR.current};
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
     const octx=optionCtx(m,candR.current,optionMemoryR.current);
-    const chain=buildOptionChain(m.spySpot,m.iv,mL,80,octx);setOptionChain(chain);
+    const chain=m.optionChain?.calls?.length?m.optionChain:buildOptionChain(m.spySpot,m.iv,mL,80,octx);setOptionChain(chain);
     aiVetoAuditsR.current=updateVetoAudits(aiVetoAuditsR.current,chain,m,tickR.current,msg=>addJournal(fmt.time(m.h,m.m),msg));
     if(posR.current&&m.isTradeable){
       const p0=posR.current;
-      const attr=optionPnlAttribution(p0,m,mL,octx);
+      let attr=optionPnlAttribution(p0,m,mL,octx);
+      const liveQuote=(p0.isCall?chain.calls:chain.puts).find(q=>q.strike===p0.strike);
+      if(liveQuote){const livePrice=Number(liveQuote.bid??liveQuote.mark??liveQuote.price);if(Number.isFinite(livePrice)&&livePrice>0)attr={...attr,price:livePrice,quoteSource:liveQuote.quoteSource||chain.quoteSource||"MODELED"};}
       const peakPrice=Math.max(p0.peakPrice||p0.entry,attr.price);
       const peakPnl=(peakPrice/p0.entry-1)*100;
       const maxFavorableSpot=p0.isCall?Math.max(p0.maxFavorableSpot??p0.entrySpot,m.spySpot):Math.min(p0.maxFavorableSpot??p0.entrySpot,m.spySpot);
@@ -1758,12 +1782,12 @@ export default function App(){
               let stopSpot=Number(dec.invalidation_spot),targetSpot=Number(dec.target_spot);
               if(!Number.isFinite(stopSpot)||(isC?stopSpot>=executionMarket.spySpot:stopSpot<=executionMarket.spySpot))stopSpot=isC?executionMarket.spySpot-(0.25+tc/220):executionMarket.spySpot+(0.25+tc/220);
               if(!Number.isFinite(targetSpot)||(isC?targetSpot<=executionMarket.spySpot:targetSpot>=executionMarket.spySpot))targetSpot=isC?executionMarket.spySpot+(0.55+tc/120):executionMarket.spySpot-(0.55+tc/120);
-              posR.current={id:`P${++positionSeqR.current}`,strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,entryTime:ts,entrySpot:executionMarket.spySpot,stopSpot,targetSpot,maxLossPct,noiseTolerancePct:22,vehicleFailurePct:38,catastrophicLossPct:50,pathDeadlineTicks:tc>=85?5:4,minExpectedProgress:tc>=85?0.24:0.18,takeProfitPct,tradeConfidence:tc,planType:det.mode,size:balR.current,entryTick:tickR.current,entryAccel:executionMarket.accelerator,lastSpot:executionMarket.spySpot,lastIv:executionMarket.iv,peakPrice:opt.price,peakPnl:0,maxFavorableSpot:executionMarket.spySpot,maxAdverseSpot:executionMarket.spySpot,episodeKey:snapshotIntent.episodeKey||tradeEpisodeKey(isC?"CALL":"PUT",executionMarket,det),primaryCategory:nt.primaryCategory||"UNKNOWN",entryThesis:dec.current_thesis||`${snapshotIntent.direction} ${snapshotIntent.setupQuality}% setup`,expectedPath:dec.expected_next_path||(isC?`within ${tc>=85?5:4} ticks hold above ${stopSpot.toFixed(2)} and gain at least ${tc>=85?"0.24":"0.18"} before pressing toward ${targetSpot.toFixed(2)}`:`within ${tc>=85?5:4} ticks hold below ${stopSpot.toFixed(2)} and gain at least ${tc>=85?"0.24":"0.18"} before pressing toward ${targetSpot.toFixed(2)}`),aiNewEvidence:dec.new_evidence||"",aiPriorTradeEffect:dec.prior_trade_effect||"",reevaluateAfterTicks:dec.reevaluate_after_ticks||null};
+              posR.current={id:`P${++positionSeqR.current}`,strike:opt.strike,isCall:isC,entry:opt.price,current:opt.price,quoteSource:opt.quoteSource||executionMarket.quoteSource||"MODELED",contract:opt.contract||null,entryTime:ts,entrySpot:executionMarket.spySpot,stopSpot,targetSpot,maxLossPct,noiseTolerancePct:22,vehicleFailurePct:38,catastrophicLossPct:50,pathDeadlineTicks:tc>=85?5:4,minExpectedProgress:tc>=85?0.24:0.18,takeProfitPct,tradeConfidence:tc,planType:det.mode,size:balR.current,entryTick:tickR.current,entryAccel:executionMarket.accelerator,lastSpot:executionMarket.spySpot,lastIv:executionMarket.iv,peakPrice:opt.price,peakPnl:0,maxFavorableSpot:executionMarket.spySpot,maxAdverseSpot:executionMarket.spySpot,episodeKey:snapshotIntent.episodeKey||tradeEpisodeKey(isC?"CALL":"PUT",executionMarket,det),primaryCategory:nt.primaryCategory||"UNKNOWN",entryThesis:dec.current_thesis||`${snapshotIntent.direction} ${snapshotIntent.setupQuality}% setup`,expectedPath:dec.expected_next_path||(isC?`within ${tc>=85?5:4} ticks hold above ${stopSpot.toFixed(2)} and gain at least ${tc>=85?"0.24":"0.18"} before pressing toward ${targetSpot.toFixed(2)}`:`within ${tc>=85?5:4} ticks hold below ${stopSpot.toFixed(2)} and gain at least ${tc>=85?"0.24":"0.18"} before pressing toward ${targetSpot.toFixed(2)}`),aiNewEvidence:dec.new_evidence||"",aiPriorTradeEffect:dec.prior_trade_effect||"",reevaluateAfterTicks:dec.reevaluate_after_ticks||null};
               setPos({...posR.current});
-              logR.current=[...logR.current,{t:ts,action:`CANONICAL FILL ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} ${opt.tier||opt.quality||"QUALITY"} invalidation ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)} noise 22% vehicleFail 38% catastrophic 50% deadline ${tc>=85?5:4}t confidence ${tc.toFixed(0)}`,result:null}];
+              logR.current=[...logR.current,{t:ts,action:`CANONICAL FILL ${isC?"BUY CALL":"BUY PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} ${opt.tier||opt.quality||"QUALITY"} source:${opt.quoteSource||executionMarket.quoteSource||"MODELED"} invalidation ${stopSpot.toFixed(2)} target ${targetSpot.toFixed(2)} noise 22% vehicleFail 38% catastrophic 50% deadline ${tc>=85?5:4}t confidence ${tc.toFixed(0)}`,result:null,quoteSource:opt.quoteSource||executionMarket.quoteSource||"MODELED"}];
               setTradeLog([...logR.current]);
               reliabilityR.current.totalTrades++;if(source==="FALLBACK")reliabilityR.current.fallbackExecutions++;
-              addJournal(ts,`ENTRY_EXECUTED ${source} ${isC?"BUY_CALL":"BUY_PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} | SPY ${executionMarket.spySpot.toFixed(2)} | readiness ${snapshotIntent.executionReadiness??snapshotIntent.readiness}% | confidence ${tc.toFixed(0)}.`);
+              addJournal(ts,`ENTRY_EXECUTED ${source} ${isC?"BUY_CALL":"BUY_PUT"} ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} | QUOTE_SOURCE ${opt.quoteSource||executionMarket.quoteSource||"MODELED"} | SPY ${executionMarket.spySpot.toFixed(2)} | readiness ${snapshotIntent.executionReadiness??snapshotIntent.readiness}% | confidence ${tc.toFixed(0)}.`);
               const side=isC?"CALL":"PUT";
               tradeMemoryR.current={...tradeMemoryR.current,lastEntry:{side,strike:opt.strike,spot:executionMarket.spySpot,price:opt.price,tick:tickR.current,whyNow:snapshotIntent.whyNow||[]},totalEntries:(tradeMemoryR.current.totalEntries||0)+1,sameThesisAttempts:{...(tradeMemoryR.current.sameThesisAttempts||{}),[side]:(tradeMemoryR.current.sameThesisAttempts?.[side]||0)+1}};
             }
@@ -1845,7 +1869,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
   },[addJournal]);
 
   const startSession=useCallback((mode)=>{
-    const replayData=REPLAY_CATALOG[selectedReplayDate]||SPX_JUL1;
+    const replayData=selectedReplayDate==="2026-07-08"?REAL_REPLAY_DATA:(REPLAY_CATALOG[selectedReplayDate]||SPX_JUL1);
     engR.current=mode==="replay"?createReplayEngine(replayData):createSeedEngine();
     const sess=engR.current.getSession();
     archetypeIdR.current=mode==="seed"?sess.archetype:null;

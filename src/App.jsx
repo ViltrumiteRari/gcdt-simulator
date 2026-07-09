@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_DATA } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-native-real-fep-regime-20260708";
+const BUILD_ID = "v26-session-regime-context-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -1011,17 +1011,23 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     };
   }
 
-  const recent=hist.slice(-35),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0,move15=recent.length>=16?m.spySpot-recent.at(-16).spySpot:move6,move30=recent.length>=31?m.spySpot-recent.at(-31).spySpot:move15;
+  const session=hist.length?[...hist,m]:[m],recent=hist.slice(-35),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0,move15=recent.length>=16?m.spySpot-recent.at(-16).spySpot:move6,move30=recent.length>=31?m.spySpot-recent.at(-31).spySpot:move15;
   const fepMove6=recent.length>=7?m.fep-recent.at(-7).fep:0,fepMove15=recent.length>=16?m.fep-recent.at(-16).fep:fepMove6,fepMove30=recent.length>=31?m.fep-recent.at(-31).fep:fepMove15;
+  const sessionOpen=session[0].spySpot,sessionOpenFep=session[0].fep,sessionMove=m.spySpot-sessionOpen,sessionFepMove=m.fep-sessionOpenFep;
+  const sessionHigh=Math.max(...session.map(x=>x.spySpot)),sessionLow=Math.min(...session.map(x=>x.spySpot));
+  const belowFepShare=session.filter(x=>x.spySpot<x.fep).length/session.length,negativeGexShare=session.filter(x=>x.netGex<0).length/session.length;
+  const closeInLowerQuartile=sessionHigh>sessionLow?m.spySpot<=sessionLow+(sessionHigh-sessionLow)*0.25:false;
   const brainSide=brain?.active&&brain.active!=="WAIT"?brain.active:"WAIT";
   const localSide=det?.dir||"WAIT";
   const localDir=localSide==="CALL"?1:localSide==="PUT"?-1:0;
   const localMove=localDir?localDir*move3:0;
   const brainEdge=Math.abs((brain?.bullPressure||0)-(brain?.bearPressure||0));
+  const bearishSessionContext=session.length>=20&&sessionMove<=-0.80&&sessionFepMove<=-0.20&&belowFepShare>=0.60&&negativeGexShare>=0.60&&closeInLowerQuartile;
   const bearishExpansionContext=m.netGex<0&&m.spySpot<m.fep&&Math.min(fepMove6,fepMove15,fepMove30)<-0.20&&Math.min(move6,move15,move30)<-0.55;
-  const provenPinContext=m.netGex>0&&m.gexInfluence>=0.45&&Math.abs(m.spySpot-m.fep)<=0.35&&Math.abs(move15)<=0.45&&recent.slice(-6).filter(x=>Math.abs(x.spySpot-x.fep)<=0.45).length>=4;
+  const activeBearRegime=bearishExpansionContext||bearishSessionContext;
+  const provenPinContext=m.netGex>0&&m.gexInfluence>=0.45&&Math.abs(m.spySpot-m.fep)<=0.35&&Math.abs(move15)<=0.45&&recent.slice(-6).filter(x=>Math.abs(x.spySpot-x.fep)<=0.45).length>=4&&belowFepShare<0.65;
   let side=brainSide;
-  if(bearishExpansionContext&&!provenPinContext)side="PUT";
+  if(activeBearRegime&&!provenPinContext)side="PUT";
   if(localSide!=="WAIT"&&localSide!==brainSide&&localMove>=0.55)side=localSide;
   else if((side==="WAIT"||brainEdge<8)&&localSide!=="WAIT"&&localMove>=0.25)side=localSide;
   else if(side==="WAIT"&&thesis?.entryBias&&thesis.entryBias!=="WAIT")side=thesis.entryBias;
@@ -1046,6 +1052,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     {label:"FEP / flip location",passed:locationOk,weight:12},
     {label:"Response quality",passed:response>=0.42||localMove>=0.55,weight:12},
     {label:"Acceleration active",passed:m.accelerator>=4.2,weight:5},
+    {label:"Session regime agrees",passed:side!=="PUT"||activeBearRegime||!bearishSessionContext,weight:8},
   ];
   let setupQuality=Math.round(marketFactors.reduce((a,f)=>a+(f.passed?f.weight:0),0));
   const chaseRisk=dir!==0&&dir*move3>2.2&&Math.abs(move3)>Math.abs(move6)*0.72;
@@ -1056,7 +1063,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const legacyReentry=side!=="WAIT"?evaluateReentry(tradeMemory,side,m,hist,episodeKey):{allowed:true,newEvidence:[]};
   const discipline=side!=="WAIT"?evaluateReentryDiscipline(tradeMemory,side,thesis?.primaryCategory||"UNKNOWN",thesis?.gexVelocity?.state):{allowed:true};
   let reentry={...legacyReentry,allowed:legacyReentry.allowed&&discipline.allowed,discipline};
-  const freshBearContinuation=side==="PUT"&&bearishExpansionContext&&persistence>=2&&Math.min(move6,move15,move30)<-0.70;
+  const freshBearContinuation=side==="PUT"&&activeBearRegime&&persistence>=2&&(Math.min(move6,move15,move30)<-0.70||sessionMove<-1.00);
   if(freshBearContinuation)reentry={...reentry,allowed:true,newEvidence:[...(reentry.newEvidence||[]),"fresh bearish continuation: falling FEP + negative GEX + sustained downside"]};
   const contractQuality=!contract?0:contract.tier==="QUALITY"?100:76;
   let executionReadiness=Math.round(setupQuality*0.80+contractQuality*0.20);
@@ -1081,13 +1088,14 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const strongPathOverride=alignedPrimaryCount>=1&&setupQuality>=90&&persistence>=2&&localAgreement&&sustainedDirectionalMove>=0.70&&!chaseRisk;
   const primaryGatePassed=alignedPrimaryCount>=2||strongPathOverride;
   if(side!=="WAIT"&&!primaryGatePassed){blockers.push(`OPTION_B_PRIMARY_ALIGNMENT ${alignedPrimaryCount}/3`);executionReadiness=Math.min(executionReadiness,72);}
-  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
+  const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&primaryGatePassed&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70||(side==="PUT"&&activeBearRegime));
   const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
   const confidence=clamp(Math.round(setupQuality*.60+Math.max(brainConfidence,Math.min(90,Math.abs(localMove)*35))*.40),0,98);
   const whyNow=[
     ...(reentry.newEvidence||[]),
+    bearishSessionContext?"session context bearish: below FEP, negative GEX, lower-quartile location":"",
     localMove>=0.55?"fresh directional leg":"continuing structure",
-    persistence>=1?"multi-tick persistence":""
+    persistence>=1?"multi-window persistence":""
   ].filter(Boolean);
   return{
     action,direction:side==="WAIT"?null:side,
@@ -1096,7 +1104,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     bestRejected:rejected?{strike:rejected.strike,price:rejected.price,delta:rejected.delta,distance:rejected.distance,reasons:rejected.reasons}:null,
     blockers,supportingFactors:marketFactors.filter(f=>f.passed).map(f=>f.label),
     threshold,chaseRisk,whyNow,episodeKey,source:"SESSION_AWARE_INTENT",
-    diagnostics:{brainConfidence,edge,persistence,response,contractQuality,brainSide,localSide,localMove,reentry}
+    diagnostics:{brainConfidence,edge,persistence,response,contractQuality,brainSide,localSide,localMove,reentry,sessionMove,sessionFepMove,belowFepShare,negativeGexShare,bearishSessionContext,bearishExpansionContext,activeBearRegime,provenPinContext}
   };
 }
 function buildFallbackDecision(m,pos,intent,tradeMemory){

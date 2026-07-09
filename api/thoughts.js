@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' };
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' };
@@ -35,6 +35,20 @@ export default async function handler(req) {
       if (!resp.ok) return json({ error: text }, resp.status);
       const rows = JSON.parse(text).reverse();
       return json({ rows });
+    }
+
+    if (req.method === 'DELETE') {
+      const requestUrl = new URL(req.url);
+      const cleanup = requestUrl.searchParams.get('cleanup');
+      if (cleanup !== 'fallback_failures') return json({ error: 'unsupported cleanup' }, 400);
+      const endpoint = `${url}/rest/v1/gcdt_thoughts?content=ilike.*AI%20response%20failed*`;
+      const resp = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: headers(key, { Prefer: 'return=representation' }),
+      });
+      const text = await resp.text();
+      if (!resp.ok) return json({ error: text }, resp.status);
+      return json({ deleted: JSON.parse(text) });
     }
 
     if (req.method === 'POST') {

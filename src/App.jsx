@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-canonical-single-path-20260708";
+const BUILD_ID = "v26-gex-first-full-session-chart-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -1274,8 +1274,8 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
   const[scrollX,setScrollX]=useState(0),[drag,setDrag]=useState(false),[ds,setDs]=useState(0),[ss,setSs]=useState(0),[hov,setHov]=useState(null);
   // v10: default view only ever showed the latest ~56 ticks (W/STEP). fitDay compresses the
   // whole session's candle history into view instead — this is the "show the whole chart" fix.
-  const[fitDay,setFitDay]=useState(false);
-  const W=340,H=130,PT=6,PB=20,PL=6;
+  const[fitDay,setFitDay]=useState(true);
+  const W=900,H=180,PT=10,PB=24,PL=10;
   const STEP=fitDay?Math.max(0.6,(W-PL-6)/Math.max(1,candles.length)):6;
   const tot=Math.max(W,candles.length*STEP+PL+6),maxS=Math.max(0,tot-W);
   useEffect(()=>{if(!drag)setScrollX(maxS);},[candles.length,maxS,drag]);
@@ -1300,7 +1300,7 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
         <span style={{fontSize:9,color:"#4a5568"}}>{hc?`${hc.t} $${hc.spySpot.toFixed(2)}`:"drag"}</span>
       </div>
       <div ref={ref} style={{overflow:"hidden",cursor:drag?"grabbing":"grab",touchAction:"none",userSelect:"none"}} onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up} onTouchStart={down} onTouchMove={move} onTouchEnd={up}>
-        <svg width={W} height={H} style={{display:"block"}}>
+        <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:"block"}}>
           <rect width={W} height={H} fill="#0e1117"/>
           {openIdx>0&&(()=>{const x=toX(openIdx);if(x>0&&x<W)return<><rect x={0} y={0} width={x} height={H} fill="#f0c040" opacity={0.04}/><line x1={x} y1={PT} x2={x} y2={H-PB} stroke="#f0c040" strokeWidth={0.5} strokeDasharray="2,4" opacity={0.4}/></>;})()}
           {[{v:callWall,c:"#00d4a8",l:"CW"},{v:gammaFlip,c:"#f0c040",l:"FLIP"},{v:putWall,c:"#ff4060",l:"PW"}].map(({v,c,l})=>{const y=toY(v);if(y<PT-2||y>H-PB+2)return null;return<g key={l}><line x1={0} y1={y} x2={W} y2={y} stroke={c} strokeWidth={0.6} strokeDasharray="3,3" opacity={0.5}/><text x={W-4} y={y-2} fill={c} fontSize={7} textAnchor="end" opacity={0.8}>{l} ${v.toFixed(0)}</text></g>;})}
@@ -1316,6 +1316,29 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
       {maxS>0&&<div style={{height:2,background:"#1e2530",margin:"0 8px"}}><div style={{height:"100%",width:`${(W/tot)*100}%`,marginLeft:`${(scrollX/tot)*100}%`,background:"#4a5568",borderRadius:1}}/></div>}
     </div>
   );
+}
+
+
+function GexPanel({mkt,candles,gexInf}){
+  const prior5=candles.length>=6?candles.at(-6):candles[0];
+  const prior15=candles.length>=16?candles.at(-16):candles[0];
+  const d5=prior5?mkt.netGex-prior5.netGex:0,d15=prior15?mkt.netGex-prior15.netGex:0;
+  const s5=prior5?mkt.netGexSpx-prior5.netGexSpx:0,s15=prior15?mkt.netGexSpx-prior15.netGexSpx:0;
+  const regime=mkt.netGex<0?"NEGATIVE GEX Â· AMPLIFICATION":mkt.netGex>0?"POSITIVE GEX Â· PINNING":"NEUTRAL GEX";
+  const color=mkt.netGex<0?T.red:mkt.netGex>0?T.accent:T.yellow;
+  const fmtDelta=v=>`${v>=0?"+":""}${fmt.gex(v)}`;
+  return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}66`,margin:"0 14px 8px",padding:12}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <div><div style={{fontSize:9,color:T.muted,letterSpacing:"0.12em"}}>GAMMA EXPOSURE</div><div style={{fontSize:13,fontWeight:800,color,marginTop:3}}>{regime}</div></div>
+      <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:8,color}}>SPY Â· influence {(gexInf*100).toFixed(0)}%</div></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr 1fr",gap:8}}>
+      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>SPX GEX</div><div style={{fontSize:14,fontWeight:800,color:mkt.netGexSpx>=0?T.purple:T.red}}>{fmt.gex(mkt.netGexSpx??mkt.netGex*10)}</div></div>
+      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>5-MIN RATE</div><div style={{fontSize:13,fontWeight:800,color:d5>=0?T.accent:T.red}}>{fmtDelta(d5)}</div><div style={{fontSize:7,color:T.muted}}>SPX {fmtDelta(s5)}</div></div>
+      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>15-MIN RATE</div><div style={{fontSize:13,fontWeight:800,color:d15>=0?T.accent:T.red}}>{fmtDelta(d15)}</div><div style={{fontSize:7,color:T.muted}}>SPX {fmtDelta(s15)}</div></div>
+    </div>
+    <div style={{marginTop:8}}><Spark data={candles.map(c=>c.netGex/1e9)} color={color} h={42} w={860} fill={true}/></div>
+  </div>;
 }
 
 function ThesisBar({label,score,mom,color,scalpEdge}){
@@ -1640,7 +1663,7 @@ export default function App(){
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
-    const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
+    const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,netGexSpx:m.netGexSpx,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
     candR.current=[...candR.current.slice(-450),c];setCandles([...candR.current]);
     pinHistR.current=[...pinHistR.current.slice(-14),m.gexInfluence||0.1];
     const side=m.spySpot>=m.gammaFlip?'ABOVE':'BELOW';
@@ -2111,7 +2134,9 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           </div>
         </div>}
 
-        {mkt&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
+        {mkt&&<GexPanel mkt={mkt} candles={candles} gexInf={gexInf}/>}
+
+        {mkt&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>ITS SIGNAL</span>
             <div style={{display:"flex",alignItems:"center",gap:6}}>

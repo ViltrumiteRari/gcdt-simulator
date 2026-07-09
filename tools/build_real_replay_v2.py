@@ -39,6 +39,18 @@ def load_market():
         priority = {"gex_exposure": 0, "spot": 1, "market_context": 2}
         frame["_priority"] = frame["source"].map(priority).fillna(9)
         frame = frame.sort_values(["captured_at", "_priority"]).drop_duplicates("captured_at", keep="first")
+        # Reject stale intraminute spot injections when reliable 5-minute anchors exist.
+        # These can otherwise create impossible multi-dollar sawteeth in the replay chart.
+        spot_num = pd.to_numeric(frame["spot"], errors="coerce")
+        anchor_mask = (frame["captured_at"].dt.second == 0) & (frame["captured_at"].dt.minute % 5 == 0) & spot_num.notna()
+        anchors = frame.loc[anchor_mask, ["captured_at"]].copy()
+        anchors["anchor_spot"] = spot_num.loc[anchor_mask].to_numpy()
+        if len(anchors) >= 2:
+            anchor_series = anchors.set_index("captured_at")["anchor_spot"]
+            full_index = frame["captured_at"]
+            expected = anchor_series.reindex(anchor_series.index.union(full_index)).sort_index().interpolate(method="time").reindex(full_index).to_numpy()
+            stale = spot_num.notna() & np.isfinite(expected) & ((spot_num.to_numpy() - expected).astype(float).__abs__() > 1.50)
+            frame.loc[stale, "spot"] = np.nan
         frame = frame.set_index("captured_at")
         numeric = ["spot", "total_call_exposure", "total_put_exposure", "net_exposure", "call_dominance_pct", "max_abs_gamma_strike", "max_positive_strike", "max_negative_strike"]
         for col in numeric:

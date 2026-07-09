@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-gex-first-full-session-chart-20260708";
+const BUILD_ID = "v26-persistent-ai-memory-clean-replay-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -928,6 +928,37 @@ function updateVetoAudits(audits,chain,m,tick,onLog){
     return next;
   }).filter(a=>tick-a.startTick<=12);
 }
+function createAiSessionMemory(label="UNSET"){
+  return{sessionLabel:label,updatedAt:null,summary:"Session not yet assessed.",dominantThesis:"UNSET",competingThesis:"UNSET",expectedPath:"UNSET",invalidation:"UNSET",unresolved:"UNSET",lastDecision:"NONE",lastSpot:null,lastTime:null,entries:[]};
+}
+function aiMemoryText(mem){
+  const m=mem||createAiSessionMemory();
+  return `CURRENT WORKING MEMORY
+Session: ${m.sessionLabel}
+Updated: ${m.updatedAt||"never"}
+Dominant thesis: ${m.dominantThesis}
+Competing thesis: ${m.competingThesis}
+Expected next path: ${m.expectedPath}
+Invalidation: ${m.invalidation}
+Unresolved uncertainty: ${m.unresolved}
+Last decision: ${m.lastDecision}
+Summary: ${m.summary}
+
+DECISION HISTORY
+${(m.entries||[]).slice(-18).join("\n")||"No prior decisions."}`;
+}
+function updateAiSessionMemory(mem,dec,mkt,intent,time){
+  const prior=mem||createAiSessionMemory();
+  const move=Number.isFinite(prior.lastSpot)?mkt.spySpot-prior.lastSpot:null;
+  const observed=move==null?"first assessment":`SPY moved ${move>=0?"+":""}${move.toFixed(2)} since ${prior.lastTime||"prior decision"}`;
+  const thesis=dec.current_thesis||`${intent?.direction||"WAIT"} thesis`;
+  const expected=dec.expected_next_path||"No explicit path supplied.";
+  const invalidation=Number.isFinite(dec.invalidation_spot)?`SPY ${dec.invalidation_spot.toFixed(2)}`:(intent?.invalidation!=null?`SPY ${Number(intent.invalidation).toFixed(2)}`:"Not explicit");
+  const unresolved=dec.veto_reason&&dec.veto_reason!=="NONE"?`${dec.veto_reason}: ${dec.veto_evidence||"no detail"}`:(dec.new_evidence||"No material unresolved conflict stated.");
+  const entry=`[${time}] ${dec.decision} | ${observed} | thesis: ${thesis} | expected: ${expected} | new evidence: ${dec.new_evidence||"none"} | prior effect: ${dec.prior_trade_effect||"none"} | reasoning: ${dec.reasoning||"none"}`;
+  return{...prior,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved,lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-40)};
+}
+
 function normalizeTraderDecision(obj){
   const allowed=new Set(["WAIT","WAITING","BUY_CALL","BUY_PUT","SELL","HOLD"]);
   if(!obj||typeof obj!=="object")throw new Error("AI response was not an object");
@@ -1150,7 +1181,7 @@ function buildFallbackDecision(m,pos,intent,tradeMemory){
   });
 }
 
-async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,signal){
+async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,signal){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<45,eodPhase=mL<=15?'CLEANUP/RH_LOCK':mL<=30?'DEATH_ZONE':mL<=60?'BRUTAL_THETA':mL<=75?'GAME_CHANGING':'NORMAL',div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
@@ -1174,6 +1205,9 @@ BAL:$${bal.toFixed(0)} | ${posStr}
 SESSION JOURNAL:
 ${journal.slice(-3).map(j=>`[${j.t}] ${j.entry}`).join("\n")||"Session just started."}
 
+PERSISTENT SESSION DECISION FILE â€” READ THIS BEFORE DECIDING:
+${aiMemoryText(aiSessionMemory)}
+
 ${sessionSummary||"Session just opened."}
 
 REGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})
@@ -1193,6 +1227,7 @@ UNIFIED DIRECTIONAL STATE: ${thesisStr}
 
 TRADER IDENTITY — CONTINUOUS SESSION MANAGER:
 - You are not classifying isolated snapshots. You are managing one continuous SPY 0DTE session and one evolving thesis.
+- The PERSISTENT SESSION DECISION FILE is your working memory. Compare its prior expected path with what actually happened, explicitly weaken disproven theses, and build on validated observations. Do not repeat a thesis merely because it was previously written.
 - Every prior entry and exit changes the meaning of the next setup. Repeating the same direction after a failed attempt requires explicitly identified NEW evidence.
 - Before any entry answer: why is this tick better than 1, 3, and 5 ticks ago; is this a new leg, a reset, or stale evidence; and what exact path should occur next?
 - While in a position, manage the original spot thesis first. Contract P/L is evidence, not automatic truth. Normal 0DTE compression is not an exit unless spot invalidates, opposite control confirms, or the selected vehicle becomes catastrophically unusable.
@@ -1533,6 +1568,7 @@ export default function App(){
   const[tradeLog,setTradeLog]=useState([]);
   const[mindsetLog,setMindsetLog]=useState([]);
   const[journal,setJournal]=useState([]);
+  const[aiSessionMemory,setAiSessionMemory]=useState(()=>storageGet("ai_session_memory",createAiSessionMemory()));
   const[candles,setCandles]=useState([]);
   const[itsSPXHist,setItsSPXHist]=useState([]);
   const[itsSPYHist,setItsSPYHist]=useState([]);
@@ -1563,7 +1599,7 @@ export default function App(){
 
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
-  const journalR=useRef([]),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
+  const journalR=useRef([]),aiSessionMemoryR=useRef(storageGet("ai_session_memory",createAiSessionMemory())),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
@@ -1589,7 +1625,7 @@ export default function App(){
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
 
   useEffect(()=>{
-    const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
+    const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
     window.addEventListener("beforeunload",handler);return()=>window.removeEventListener("beforeunload",handler);
   },[done,sessionLabel,sessionMode]);
 
@@ -1794,6 +1830,8 @@ export default function App(){
           const mLn=(SESSION_END_H*60+SESSION_END_M)-(currentMarket.h*60+currentMarket.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
           lastWaitReasonR.current=dec.reasoning||"";
+          aiSessionMemoryR.current=updateAiSessionMemory(aiSessionMemoryR.current,dec,currentMarket,liveIntent,liveTs);
+          storageSet("ai_session_memory",aiSessionMemoryR.current);setAiSessionMemory({...aiSessionMemoryR.current});
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
           if(dec.memory_used&&dec.memory_used!=="none")addJournal(ts,`MEMORY_USED ${dec.memory_used}`);
@@ -1842,7 +1880,7 @@ export default function App(){
       };
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nCANONICAL EXECUTION STATE — AUTHORITATIVE:
 action ${intent.action}; direction ${intent.direction||"NONE"}; setup ${intent.setupQuality}%; readiness ${intent.executionReadiness}% / threshold ${intent.threshold??"—"}%; contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"}; hard blockers ${hardExecutionBlockers(intent).join(", ")||"NONE"}; all blockers ${(intent.blockers||[]).join(", ")||"NONE"}.
-If action is BUY and hard blockers are NONE, execute unless an allowed veto_reason is objectively true right now. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,controller.signal)
+If action is BUY and hard blockers are NONE, execute unless an allowed veto_reason is objectively true right now. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,controller.signal)
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time((latestMarketR.current||m).h,(latestMarketR.current||m).m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);
@@ -1923,7 +1961,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED v26 · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
-    setJournal([]);journalR.current=[];setCandles([]);candR.current=[];setConfHist([]);
+    setJournal([]);journalR.current=[];const freshAiMemory=createAiSessionMemory(label);aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
@@ -1937,7 +1975,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     const sv=storageGet("interrupted",null);if(!sv)return;
     balR.current=sv.bal;setBal(sv.bal);if(sv.pos){posR.current=sv.pos;setPos(sv.pos);}
     logR.current=sv.log||[];setTradeLog([...logR.current]);mindR.current=sv.mindset||[];setMindsetLog([...mindR.current]);
-    journalR.current=sv.journal||[];setJournal([...journalR.current]);candR.current=sv.candles||[];setCandles([...candR.current]);
+    journalR.current=sv.journal||[];setJournal([...journalR.current]);aiSessionMemoryR.current=sv.aiSessionMemory||storageGet("ai_session_memory",createAiSessionMemory(sv.sessionLabel||"RESUMED"));setAiSessionMemory({...aiSessionMemoryR.current});candR.current=sv.candles||[];setCandles([...candR.current]);
     tlR.current=sv.timeline||[];setTimeline([...tlR.current]);setSessionLabel(sv.sessionLabel||"RESUMED");setSessionMode(sv.sessionMode||"seed");
     archetypeIdR.current=sv.archetypeId||null;
     engR.current=sv.sessionMode==="replay"?createReplayEngine(SPX_JUL1):createSeedEngine(sv.archetypeId);
@@ -2172,7 +2210,13 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           </div>
         </div>}
 
-        {mkt&&<TradeIntentPanel intent={tradeIntentData}/>} 
+        {mkt&&<details style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:"9px 12px"}}>
+          <summary style={{fontSize:9,color:T.purple,letterSpacing:"0.1em",cursor:"pointer"}}>AI SESSION DECISION FILE Â· {aiSessionMemory.entries?.length||0} ENTRIES</summary>
+          <pre style={{whiteSpace:"pre-wrap",fontSize:8,lineHeight:1.55,color:T.text,maxHeight:260,overflowY:"auto",margin:"10px 0 8px"}}>{aiMemoryText(aiSessionMemory)}</pre>
+          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gcdt-session-memory-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
+        </details>}
+
+        <TradeIntentPanel intent={tradeIntentData}/> 
         {mkt&&<OptionChainPanel chain={optionChain} pos={pos}/>}
 
         {mkt&&<div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>

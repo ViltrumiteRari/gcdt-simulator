@@ -68,9 +68,19 @@ def latest_levels(gex, ticker, ts, spot):
     rows["net_exposure"] = pd.to_numeric(rows["net_exposure"], errors="coerce").fillna(0)
     rows["strike"] = pd.to_numeric(rows["strike"], errors="coerce")
     rows = rows.dropna(subset=["strike"])
-    gamma_flip = float(rows.iloc[(rows["strike"] - spot).abs().argsort()[:1]]["strike"].iloc[0])
-    call_wall = float(rows.loc[rows["net_exposure"].idxmax(), "strike"])
-    put_wall = float(rows.loc[rows["net_exposure"].idxmin(), "strike"])
+    levels = rows.groupby("strike", as_index=False)["net_exposure"].sum().sort_values("strike")
+    crossings = []
+    vals = levels[["strike", "net_exposure"]].to_numpy(float)
+    for i in range(1, len(vals)):
+        x0, y0 = vals[i - 1]
+        x1, y1 = vals[i]
+        if y0 == 0:
+            crossings.append(x0)
+        elif y0 * y1 < 0:
+            crossings.append(x0 + (x1 - x0) * (-y0) / (y1 - y0))
+    gamma_flip = float(min(crossings, key=lambda x: abs(x - spot))) if crossings else float(levels.iloc[(levels["net_exposure"].abs()).argsort()[:1]]["strike"].iloc[0])
+    call_wall = float(levels.loc[levels["net_exposure"].idxmax(), "strike"])
+    put_wall = float(levels.loc[levels["net_exposure"].idxmin(), "strike"])
     return gamma_flip, call_wall, put_wall
 
 

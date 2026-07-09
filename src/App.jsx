@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_DATA } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-native-sustainedpath-20260708";
+const BUILD_ID = "v26-native-real-fep-regime-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -235,10 +235,10 @@ function nativeChain(snapshot){
   return{spot:snapshot.spySpot,iv:(snapshot.iv||0.20)*100,mL:minutesLeft,rows,calls,puts,surface:{callState:"OBSERVED",putState:"OBSERVED"},quoteSource:snapshot.quoteSource||"NONE"};
 }
 function createNativeReplayEngine(replayData){
-  const snapshots=replayData.snapshots;let idx=-1,last=null,fep=snapshots[0].spySpot;
+  const snapshots=replayData.snapshots;let idx=-1,last=null;
   function mapSnap(x){
     const[h,m]=x.time.split(":").map(Number),prev=last||x,move=x.spySpot-prev.spySpot;
-    fep=fep*0.85+x.spySpot*0.15;
+    const fep=x.gammaFlip;
     const accelerator=clamp(2.5+Math.abs(move)*18,0,ACCEL_SCALE_MAX);
     const itsSPX=itsFromGex(x.callDomSpx,x.netGexSpx,5.5),itsSPY=itsFromGex(x.callDom,x.netGex,4.5);
     const out={spySpot:x.spySpot,spxSpot:x.spxSpot,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:x.quoteSource!=="REAL",quoteSource:x.quoteSource,optionChain:nativeChain(x),dataBasis:"native-replay"};
@@ -1012,12 +1012,16 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   }
 
   const recent=hist.slice(-35),move3=recent.length>=4?m.spySpot-recent.at(-4).spySpot:0,move6=recent.length>=7?m.spySpot-recent.at(-7).spySpot:0,move15=recent.length>=16?m.spySpot-recent.at(-16).spySpot:move6,move30=recent.length>=31?m.spySpot-recent.at(-31).spySpot:move15;
+  const fepMove6=recent.length>=7?m.fep-recent.at(-7).fep:0,fepMove15=recent.length>=16?m.fep-recent.at(-16).fep:fepMove6,fepMove30=recent.length>=31?m.fep-recent.at(-31).fep:fepMove15;
   const brainSide=brain?.active&&brain.active!=="WAIT"?brain.active:"WAIT";
   const localSide=det?.dir||"WAIT";
   const localDir=localSide==="CALL"?1:localSide==="PUT"?-1:0;
   const localMove=localDir?localDir*move3:0;
   const brainEdge=Math.abs((brain?.bullPressure||0)-(brain?.bearPressure||0));
+  const bearishExpansionContext=m.netGex<0&&m.spySpot<m.fep&&Math.min(fepMove6,fepMove15,fepMove30)<-0.20&&Math.min(move6,move15,move30)<-0.55;
+  const provenPinContext=m.netGex>0&&m.gexInfluence>=0.45&&Math.abs(m.spySpot-m.fep)<=0.35&&Math.abs(move15)<=0.45&&recent.slice(-6).filter(x=>Math.abs(x.spySpot-x.fep)<=0.45).length>=4;
   let side=brainSide;
+  if(bearishExpansionContext&&!provenPinContext)side="PUT";
   if(localSide!=="WAIT"&&localSide!==brainSide&&localMove>=0.55)side=localSide;
   else if((side==="WAIT"||brainEdge<8)&&localSide!=="WAIT"&&localMove>=0.25)side=localSide;
   else if(side==="WAIT"&&thesis?.entryBias&&thesis.entryBias!=="WAIT")side=thesis.entryBias;
@@ -1051,7 +1055,9 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   const episodeKey=side!=="WAIT"?tradeEpisodeKey(side,m,det):null;
   const legacyReentry=side!=="WAIT"?evaluateReentry(tradeMemory,side,m,hist,episodeKey):{allowed:true,newEvidence:[]};
   const discipline=side!=="WAIT"?evaluateReentryDiscipline(tradeMemory,side,thesis?.primaryCategory||"UNKNOWN",thesis?.gexVelocity?.state):{allowed:true};
-  const reentry={...legacyReentry,allowed:legacyReentry.allowed&&discipline.allowed,discipline};
+  let reentry={...legacyReentry,allowed:legacyReentry.allowed&&discipline.allowed,discipline};
+  const freshBearContinuation=side==="PUT"&&bearishExpansionContext&&persistence>=2&&Math.min(move6,move15,move30)<-0.70;
+  if(freshBearContinuation)reentry={...reentry,allowed:true,newEvidence:[...(reentry.newEvidence||[]),"fresh bearish continuation: falling FEP + negative GEX + sustained downside"]};
   const contractQuality=!contract?0:contract.tier==="QUALITY"?100:76;
   let executionReadiness=Math.round(setupQuality*0.80+contractQuality*0.20);
   const blockers=[];

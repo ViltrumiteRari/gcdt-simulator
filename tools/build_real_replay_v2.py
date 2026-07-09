@@ -9,6 +9,7 @@ import pandas as pd
 DAYS = ["2026-07-06", "2026-07-07", "2026-07-08"]
 ROOT = Path(r"D:\FirstSignal_GCDT_Dataset")
 OUT = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js")
+FALLBACK_CATALOG = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js")
 RISK_FREE = 0.045
 DAY = DAYS[-1]
 DATA = ROOT / DAY / "sim_input"
@@ -63,9 +64,26 @@ def load_market():
         frame = frame.reindex(frame.index.union(minute_index)).sort_index()
         frame[numeric] = frame[numeric].interpolate(method="time").ffill().bfill()
         out[ticker] = frame.loc[minute_index].reset_index(names="captured_at")
-    # When SPY collection starts late but SPX exists earlier, do not backfill a flat SPY price.
-    # Reconstruct pre-SPY movement from the observed SPX path at the natural ~10:1 scale,
-    # anchored to the first real SPY minute so the handoff is continuous.
+    # If native SPX collection starts late, restore the earlier five-minute historical path
+    # from the legacy catalog and interpolate it to one-minute resolution.
+    first_spx = first_native_spot.get("SPX")
+    if first_spx is not None and first_spx > minute_index[0] and FALLBACK_CATALOG.exists():
+        raw = FALLBACK_CATALOG.read_text(encoding="utf-8")
+        catalog_json = raw.split("=", 1)[1].split(";\nexport const REPLAY_DATES", 1)[0].strip()
+        payload = json.loads(catalog_json)
+        legacy = payload.get(DAY, {}).get("snapshots", [])
+        if legacy:
+            legacy_index = pd.to_datetime([f"{DAY} {row['time']}:00" for row in legacy])
+            legacy_spx = pd.Series([float(row["spot"]) for row in legacy], index=legacy_index)
+            legacy_spx = legacy_spx.reindex(legacy_spx.index.union(minute_index)).sort_index().interpolate(method="time").reindex(minute_index)
+            anchor_idx = int(np.searchsorted(minute_index.values, np.datetime64(first_spx), side="left"))
+            anchor_idx = min(max(anchor_idx, 0), len(minute_index) - 1)
+            native_anchor = float(out["SPX"].iloc[anchor_idx]["spot"])
+            legacy_anchor = float(legacy_spx.iloc[anchor_idx])
+            pre_mask = out["SPX"]["captured_at"] < first_spx
+            out["SPX"].loc[pre_mask, "spot"] = legacy_spx.loc[pre_mask.to_numpy()].to_numpy() + (native_anchor - legacy_anchor)
+    # When SPY collection starts late, reconstruct it from the now-complete SPX path at
+    # the natural ~10:1 scale, anchored to the first real SPY minute for continuity.
     first_spy = first_native_spot.get("SPY")
     if first_spy is not None and first_spy > minute_index[0]:
         anchor_idx = int(np.searchsorted(minute_index.values, np.datetime64(first_spy), side="left"))

@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_DATA } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 
-const BUILD_ID = "v26-airgap-multisession-20260708";
+const BUILD_ID = "v26-native-1min-chainfix-20260708";
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -226,11 +226,13 @@ function createSeedEngine(forceArcheId){
 }
 
 function nativeChain(snapshot){
-  const calls=(snapshot.chain||[]).filter(q=>q.side==="CALL").map(q=>({strike:q.strike,side:"CALL",price:q.ask||q.mid,mark:q.mid,bid:q.bid,ask:q.ask,delta:0.10,distance:Math.abs(q.strike-snapshot.spySpot),contract:q.contract,quoteSource:q.quoteSource}));
-  const puts=(snapshot.chain||[]).filter(q=>q.side==="PUT").map(q=>({strike:q.strike,side:"PUT",price:q.ask||q.mid,mark:q.mid,bid:q.bid,ask:q.ask,delta:-0.10,distance:Math.abs(q.strike-snapshot.spySpot),contract:q.contract,quoteSource:q.quoteSource}));
+  const [qh,qm]=String(snapshot.time||"16:15").split(":").map(Number);
+  const minutesLeft=Math.max(0,(SESSION_END_H*60+SESSION_END_M)-(qh*60+qm));
+  const calls=(snapshot.chain||[]).filter(q=>q.side==="CALL").map(q=>({strike:q.strike,side:"CALL",price:q.ask||q.mid,mark:q.mid,bid:q.bid,ask:q.ask,delta:q.delta??0.10,distance:Math.abs(q.strike-snapshot.spySpot),contract:q.contract,quoteSource:q.quoteSource}));
+  const puts=(snapshot.chain||[]).filter(q=>q.side==="PUT").map(q=>({strike:q.strike,side:"PUT",price:q.ask||q.mid,mark:q.mid,bid:q.bid,ask:q.ask,delta:q.delta??-0.10,distance:Math.abs(q.strike-snapshot.spySpot),contract:q.contract,quoteSource:q.quoteSource}));
   const strikes=[...new Set([...calls,...puts].map(q=>q.strike))].sort((a,b)=>a-b);
   const rows=strikes.map(strike=>({strike,distance:Math.abs(strike-snapshot.spySpot),call:calls.find(q=>q.strike===strike),put:puts.find(q=>q.strike===strike)}));
-  return{spot:snapshot.spySpot,iv:(snapshot.iv||0.20)*100,mL:0,rows,calls,puts,surface:{callState:"OBSERVED",putState:"OBSERVED"},quoteSource:snapshot.quoteSource||"NONE"};
+  return{spot:snapshot.spySpot,iv:(snapshot.iv||0.20)*100,mL:minutesLeft,rows,calls,puts,surface:{callState:"OBSERVED",putState:"OBSERVED"},quoteSource:snapshot.quoteSource||"NONE"};
 }
 function createNativeReplayEngine(replayData){
   const snapshots=replayData.snapshots;let idx=-1,last=null,fep=snapshots[0].spySpot;
@@ -599,8 +601,10 @@ function contractRank(o,idealPrice,targetDelta){
   return Math.abs(o.price-idealPrice)*1.4+Math.abs(Math.abs(o.delta)-targetDelta)*1.8+o.distance*0.04;
 }
 function affordableDirectionalContracts(chain,isCall){
-  const list=isCall?chain.calls:chain.puts;
-  return list.filter(o=>(isCall?o.strike>=chain.spot+0.5:o.strike<=chain.spot-0.5)&&o.price>=0.12&&o.price<=0.30&&o.distance<=5.5);
+  const list=isCall?chain.calls:chain.puts;
+  const normal=list.filter(o=>(isCall?o.strike>=chain.spot+0.5:o.strike<=chain.spot-0.5)&&o.price>=0.12&&o.price<=0.30&&o.distance<=5.5);
+  if(normal.length||chain.quoteSource!=="SYNTHETIC_CALIBRATED")return normal;
+  return list.filter(o=>(isCall?o.strike>=chain.spot-0.25:o.strike<=chain.spot+0.25)&&o.price>=0.12&&o.price<=1.50&&o.distance<=1.0).map(o=>({...o,syntheticAtmFallback:true}));
 }
 function bestRejectedContract(chain,isCall){
   const list=isCall?chain.calls:chain.puts;
@@ -618,12 +622,12 @@ function bestRejectedContract(chain,isCall){
 function selectContract(chain,isCall,mode="swing"){
   const cfg=mode==="pin"?{idealPrice:0.24,targetDelta:0.16,minDelta:0.055,maxDist:4.5}:mode==="expansion"?{idealPrice:0.20,targetDelta:0.12,minDelta:0.045,maxDist:5.5}:{idealPrice:0.22,targetDelta:0.14,minDelta:0.05,maxDist:5};
   const affordable=affordableDirectionalContracts(chain,isCall);
-  let tier="QUALITY";
-  let candidates=affordable.filter(o=>o.distance<=cfg.maxDist&&Math.abs(o.delta)>=cfg.minDelta);
-  if(!candidates.length){
-    tier="ADAPTIVE";
-    candidates=affordable.filter(o=>o.distance<=5.5&&Math.abs(o.delta)>=0.035);
-  }
+  let tier=affordable.some(o=>o.syntheticAtmFallback)?"SYNTH_ATM_FALLBACK":"QUALITY";
+  let candidates=affordable.filter(o=>o.distance<=cfg.maxDist&&Math.abs(o.delta)>=cfg.minDelta);
+  if(!candidates.length){
+    if(tier!=="SYNTH_ATM_FALLBACK")tier="ADAPTIVE";
+    candidates=affordable.filter(o=>o.distance<=5.5&&Math.abs(o.delta)>=0.035);
+  }
   candidates=candidates.map(o=>({...o,score:contractRank(o,cfg.idealPrice,cfg.targetDelta)+(tier==="ADAPTIVE"?0.10:0)})).sort((a,b)=>a.score-b.score);
   const x=candidates[0];
   return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?"CALL":"PUT",tier,contract:x.contract||null,quoteSource:x.quoteSource||chain.quoteSource||"MODELED"}:null;
@@ -1343,12 +1347,13 @@ function StateBars({probs}){
 
 function OptionChainPanel({chain,pos}){
   if(!chain)return null;
-  const calls=chain.calls.filter(o=>o.strike>chain.spot&&o.price<=0.50&&o.price>=0.12).sort((a,b)=>Math.abs(a.price-0.20)-Math.abs(b.price-0.20)||a.distance-b.distance).slice(0,6);
-  const puts=chain.puts.filter(o=>o.strike<chain.spot&&o.price<=0.50&&o.price>=0.12).sort((a,b)=>Math.abs(a.price-0.20)-Math.abs(b.price-0.20)||a.distance-b.distance).slice(0,6);
+  const synth=chain.quoteSource==="SYNTHETIC_CALIBRATED";
+  const calls=chain.calls.filter(o=>(synth?o.strike>=chain.spot-0.25:o.strike>chain.spot)&&o.price<=(synth?1.50:0.50)&&o.price>=0.12).sort((a,b)=>Math.abs(a.price-0.20)-Math.abs(b.price-0.20)||a.distance-b.distance).slice(0,6);
+  const puts=chain.puts.filter(o=>(synth?o.strike<=chain.spot+0.25:o.strike<chain.spot)&&o.price<=(synth?1.50:0.50)&&o.price>=0.12).sort((a,b)=>Math.abs(a.price-0.20)-Math.abs(b.price-0.20)||a.distance-b.distance).slice(0,6);
   const maxRows=Math.max(calls.length,puts.length);
   return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:12}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-      <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>LIVE OPTION CHAIN</span>
+      <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>REPLAY OPTION CHAIN</span>
       <span style={{fontSize:8,color:T.muted}}>SPY ${chain.spot.toFixed(2)} · IV {chain.iv.toFixed(1)}% · {chain.mL}m</span>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 8px",alignItems:"center"}}>
@@ -2047,7 +2052,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
             <div style={{width:6,height:6,borderRadius:"50%",background:running?T.accent:done?T.muted:T.yellow,boxShadow:running?`0 0 6px ${T.accent}`:"none"}}/>
             <span style={{fontSize:9,fontWeight:700,color:T.accent}}>GCDT · FS OS v3 · {BUILD_ID}</span>
             {isPremarket&&<span style={{fontSize:7,color:T.yellow,border:`1px solid ${T.yellow}40`,padding:"1px 4px",borderRadius:2}}>PRE</span>}
-            {mkt?.synthData&&<span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}40`,padding:"1px 4px",borderRadius:2}}>SYNTH</span>}
+            {mkt?.synthData&&<span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}40`,padding:"1px 4px",borderRadius:2}}>CHAIN SYNTH</span>}
             {thinking&&<span style={{fontSize:9,color:T.yellow}}>◈</span>}
           </div>
           <div style={{display:"flex",gap:6}}>
@@ -2056,7 +2061,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           </div>
         </div>
         <div style={{fontSize:8,color:T.muted,marginBottom:2}}>{sessionLabel}{sessionMode==="seed"&&mkt?.fidelity&&<span style={{color:mkt.fidelity==="dense-series"?T.accent:T.yellow}}> · {mkt.fidelity==="dense-series"?"dense (Jul 1 series)":"sparse (field-log range)"}</span>}</div>
-        <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode · SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:"SPX anchored to real Jul 1 snapshots · SPY is independent lag/noise estimate"}</div>
+        <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode · SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:`Native Jul 8 SPY/SPX · 1-minute replay · chain ${mkt?.quoteSource||"NONE"}`}</div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {mkt&&<span style={{fontSize:10,color:isPremarket?T.yellow:T.muted,fontWeight:700}}>{fmt.time(mkt.h,mkt.m)} ET</span>}
           {mLeft<90&&!isPremarket&&<span style={{fontSize:8,color:T.red}}>THETA</span>}
@@ -2104,7 +2109,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
               </div>
               <Spark data={itsSPXHist} color={T.purple} h={32} w={130} fill={true}/>
               <div style={{fontSize:8,color:T.muted,marginTop:3}}>{mkt.spxSpot.toFixed(0)} · GEX {fmt.gex(mkt.netGexSpx??mkt.netGex*10)}</div>
-              <div style={{fontSize:6,color:sessionMode==="replay"&&!mkt.synthData?T.accent:T.yellow,marginTop:2,letterSpacing:"0.04em"}}>{sessionMode==="replay"?(mkt.synthData?"SYNTH · gap-fill":"REAL · Jul 1 snapshot"):"SYNTH · archetype"}</div>
+              <div style={{fontSize:6,color:sessionMode==="replay"&&!mkt.synthData?T.accent:T.yellow,marginTop:2,letterSpacing:"0.04em"}}>{sessionMode==="replay"?(mkt.quoteSource==="REAL"?"DERIVED · native SPX GEX/call-dom":"DERIVED · native SPX GEX/call-dom · chain synthetic"):"SYNTH · archetype"}</div>
             </div>
             <div style={{flex:1,background:T.surface2,borderRadius:6,padding:"8px 10px"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
@@ -2113,7 +2118,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
               </div>
               <Spark data={itsSPYHist} color={T.text} h={32} w={130} fill={false}/>
               <div style={{fontSize:8,color:T.muted,marginTop:3}}>${mkt.spySpot.toFixed(2)} · GEX {fmt.gex(mkt.netGex)}</div>
-              <div style={{fontSize:6,color:T.accent,marginTop:2,letterSpacing:"0.04em"}}>MODELED · independent lag/noise stream</div>
+              <div style={{fontSize:6,color:T.accent,marginTop:2,letterSpacing:"0.04em"}}>DERIVED · native SPY GEX/call-dom</div>
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:8}}>

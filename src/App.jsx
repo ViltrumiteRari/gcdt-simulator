@@ -5,6 +5,7 @@ import { JULY10_REPLAY } from "./realReplayDataJul10";
 import { replayQualityFor } from "./replayQuality";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
+import { geminiLiveTrader } from "./geminiLiveTrader";
 
 const BUILD_ID = "firstsignal-sim-v1-20260710";
 const REAL_REPLAY_CATALOG={...BASE_REAL_REPLAY_CATALOG,"2026-07-10":JULY10_REPLAY};
@@ -1378,24 +1379,14 @@ ${rulesStr}
 
 Respond ONLY valid JSON. Put thought_append first so it can stream into the live notepad before the final decision is parsed:
 {"thought_append":"free-form compact working note, or empty string if nothing worth carrying forward","architecture_reflection":"required only when BOOT UPGRADE HANDSHAKE is present; otherwise empty","flow_hypothesis":"independent current inference from execution evidence, or empty","self_audit":"material sanity-check finding, or empty","missing_angle":"potentially valuable unmodeled angle, or empty","coherence_check":"COHERENT|TENSION|DATA_GAP|STALE_ASSUMPTION","decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"session or historical memory used","current_thesis":"one phrase","expected_next_path":"what should happen next","new_evidence":"what changed since prior decision","prior_trade_effect":"how previous entries/exits affect this decision","reevaluate_after_ticks":2,"veto_reason":"NONE|DIRECTION_FLIPPED|CONTRACT_INVALID|CHASE_RISK|EPISODE_STALE|OPPOSITE_ACCEPTANCE|FINAL_THETA_WINDOW","veto_evidence":"specific current-state evidence or empty"}`;
-  const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,response_format:{type:"json_object"},temperature:0.2,stream:true}),signal});
-  if(!resp.ok)throw new Error(`API ${resp.status}`);
-  const rawText=(resp.headers.get("content-type")||"").includes("text/event-stream")?await readTraderStream(resp,onThought):await resp.text();
-  let data;
-  try{data=JSON.parse(rawText);}catch{data=rawText;}
-  const payload=extractTraderPayload(data);
-  if(!payload){
-    const err=new Error(`AI_SCHEMA_FAILURE raw:${rawText.slice(0,500)}`);
-    err.rawResponse=rawText;
-    throw err;
-  }
-  const normalized=normalizeTraderDecision(payload);
-  if(isSemanticAiFailure(normalized)){
-    const err=new Error(`AI_SEMANTIC_FAILURE ${normalized.reasoning||normalized.mindset}`);
-    err.rawResponse=rawText;
-    throw err;
-  }
-  return{...normalized,callOpt,putOpt};
+  const payload=await geminiLiveTrader.request(prompt,onThought,signal);
+  const normalized=normalizeTraderDecision(payload);
+  if(isSemanticAiFailure(normalized)){
+    const err=new Error(`AI_SEMANTIC_FAILURE ${normalized.reasoning||normalized.mindset}`);
+    err.rawResponse=JSON.stringify(payload).slice(0,700);
+    throw err;
+  }
+  return{...normalized,callOpt,putOpt,provider:"GEMINI_3_1_LIVE"};
 }
 
 async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){

@@ -225,7 +225,7 @@ def calibration_anchor(day, same_day_chain):
 def quote_rows_from_real(current, spot):
     rows = []
     for _, q in current[(current["strike"] - spot).abs() <= 10].iterrows():
-        rows.append({"contract": str(q["contract"]), "strike": float(q["strike"]), "side": "CALL" if str(q["type"]).lower() == "call" else "PUT", "bid": float(q["bid"]), "ask": float(q["ask"]), "mid": float(q["mid"]), "iv": float(q["iv"]), "delta": None, "quoteSource": "REAL_QUOTE"})
+        rows.append({"contract": str(q["contract"]), "strike": float(q["strike"]), "side": "CALL" if str(q["type"]).lower() == "call" else "PUT", "bid": float(q["bid"]), "ask": float(q["ask"]), "mid": float(q["mid"]), "iv": float(q["iv"]), "delta": None, "volume": int(float(q.get("volume", 0) or 0)), "openInterest": int(float(q.get("open_interest", 0) or 0)), "quoteSource": "REAL_QUOTE"})
     return rows
 
 

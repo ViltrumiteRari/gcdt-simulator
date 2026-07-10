@@ -58,21 +58,18 @@ export function choosePrimarySignal({ gex, callDom, fepDistance, accelScore = 0,
 }
 
 export function evaluateReentryDiscipline(memory, side, primaryCategory, gexState, currentTick = null) {
-  const losses = (memory?.attempts || []).filter(x => x.side === side && x.pnl <= 0).slice(-3);
-  const streak = memory?.consecutiveFailures?.[side] || 0;
-  const oppositeOverride = side === 'CALL'
-    ? ['CROSSING_POS_TO_NEG', 'TERMINAL_SPIKE_POSITIVE'].includes(gexState)
-    : ['CROSSING_NEG_TO_POS', 'TERMINAL_SPIKE_NEGATIVE'].includes(gexState);
-  if (streak >= 3 && !oppositeOverride) {
-    return { allowed: false, code: 'REENTRY_HARD_BLOCK', repeatedCategory: losses.at(-1)?.primaryCategory || 'UNKNOWN', override: 'opposite GEX crossing or terminal spike' };
-  }
-  const lastTwo = losses.slice(-2);
-  const lastLossTick = lastTwo.at(-1)?.tick;
-  const categoryBlockFresh = currentTick == null || lastLossTick == null || currentTick - lastLossTick <= 20;
-  if (categoryBlockFresh && lastTwo.length === 2 && lastTwo.every(x => x.primaryCategory && x.primaryCategory === lastTwo[0].primaryCategory) && primaryCategory === lastTwo[0].primaryCategory) {
-    return { allowed: false, code: 'REENTRY_CATEGORY_BLOCK', repeatedCategory: primaryCategory, override: 'a different primary signal category' };
-  }
-  return { allowed: true, code: null, repeatedCategory: null, override: null };
+  const prior = (memory?.attempts || []).filter(x => x.side === side).slice(-3);
+  const last = prior.at(-1) || null;
+  const repeatedCategory = !!last && last.primaryCategory === primaryCategory;
+  return {
+    allowed: true,
+    code: repeatedCategory ? 'REENTRY_REASSESS_REQUIRED' : null,
+    repeatedCategory: repeatedCategory ? primaryCategory : null,
+    override: repeatedCategory ? 'AI must identify material new evidence or explicitly decline the retry' : null,
+    priorAttempt: last,
+    gexState,
+    currentTick,
+  };
 }
 
 export function reliabilityRates(stats) {

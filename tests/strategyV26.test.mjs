@@ -30,8 +30,8 @@ const repeatedLossMemory = {
   consecutiveFailures: { CALL: 2, PUT: 0 },
 };
 const categoryBlock = evaluateReentryDiscipline(repeatedLossMemory, 'CALL', 'FEP_DISTANCE', 'OSCILLATING');
-assert.equal(categoryBlock.allowed, false);
-assert.equal(categoryBlock.code, 'REENTRY_CATEGORY_BLOCK');
+assert.equal(categoryBlock.allowed, true);
+assert.equal(categoryBlock.code, 'REENTRY_REASSESS_REQUIRED');
 const changedCategory = evaluateReentryDiscipline(repeatedLossMemory, 'CALL', 'GEX_VELOCITY', 'CROSSING_NEG_TO_POS');
 assert.equal(changedCategory.allowed, true);
 
@@ -44,8 +44,8 @@ const hardBlockMemory = {
   consecutiveFailures: { CALL: 0, PUT: 3 },
 };
 const hardBlock = evaluateReentryDiscipline(hardBlockMemory, 'PUT', 'GEX_VELOCITY', 'OSCILLATING');
-assert.equal(hardBlock.allowed, false);
-assert.equal(hardBlock.code, 'REENTRY_HARD_BLOCK');
+assert.equal(hardBlock.allowed, true);
+assert.equal(hardBlock.code, null);
 const hardOverride = evaluateReentryDiscipline(hardBlockMemory, 'PUT', 'GEX_VELOCITY', 'CROSSING_NEG_TO_POS');
 assert.equal(hardOverride.allowed, true);
 

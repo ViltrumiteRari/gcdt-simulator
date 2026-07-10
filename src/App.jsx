@@ -1936,7 +1936,7 @@ export default function App(){
             addJournal(liveTs,`AI_WAIT_FINAL request:${requestCtx.id} canonical:${liveIntent.action} veto:${veto.code||"NONE"} evidence:${dec.veto_evidence||dec.reasoning||veto.reason}.`);
           }
           const materialAiEvent=semantic.mode!=="JOURNAL_ONLY"||["BUY_CALL","BUY_PUT","SELL","HOLD"].includes(dec.decision)||["ENTRY_READY","IN_TRADE","EXITING"].includes(dec.edge_state)||!!dec.self_audit||!!dec.missing_angle;
-          if(materialAiEvent)addJournal(liveTs,`AI_DECISION_ACCEPTED request:${requestCtx.id} decision:${dec.decision} age:${semantic.ageTicks??(tickR.current-requestCtx.tick)}t/${Math.round(semantic.ageMs??0)}ms mode:${semantic.mode} current:${liveIntent?.action||"WAIT"}.`);
+          if(materialAiEvent)addJournal(liveTs,`AI_DECISION_ACCEPTED request:${requestCtx.id} decision:${dec.decision} age:${semantic.ageTicks??(tickR.current-requestCtx.tick)}t/${Math.round(semantic.ageMs??0)}ms mode:${semantic.mode} current:${liveIntent?.action||"WAIT"} provider:${dec.provider||source}.`);
           const mb=marketBrainR.current;
           const mLn=(SESSION_END_H*60+SESSION_END_M)-(currentMarket.h*60+currentMarket.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;

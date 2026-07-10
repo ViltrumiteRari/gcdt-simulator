@@ -4,7 +4,7 @@ import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
 
-const BUILD_ID = "v26-its-flow-self-model-20260710";
+const BUILD_ID = "firstsignal-sim-v1-20260710";
 const ARCHITECTURE_MANIFEST=`FIRSTSIGNAL ARCHITECTURE SELF-MODEL
 Purpose: identify and exploit temporary SPY 0DTE environments where repeated asymmetric wins become structurally plausible.
 Authority order: observed market/options data -> feature lenses -> Structural ITS playbook -> Local ITS timing -> unified CALL/PUT/WAIT thesis -> canonical executable intent -> AI execution and management.
@@ -1255,7 +1255,7 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
-  const prompt=`GCDT SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
+  const prompt=`FIRSTSIGNAL SIM v1 Â· SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
 BAL:$${bal.toFixed(0)} | ${posStr}
 
 SESSION JOURNAL:
@@ -1294,12 +1294,13 @@ UNIFIED DIRECTIONAL STATE: ${thesisStr}
 
 TRADER IDENTITY — CONTINUOUS SESSION MANAGER:
 - You are not classifying isolated snapshots. You are managing one continuous SPY 0DTE session and one evolving thesis.
-- The AI THOUGHTS JOURNAL is your persistent working notebook. Add a compact, useful note only when your interpretation changes, an expectation succeeds or fails, a comparison matters, or a trade teaches something. Do not mechanically restate the supplied market data.
+- The AI THOUGHTS JOURNAL is your private persistent working notebook, not a public commentary feed. Every AI check is an opportunity to add, revise, or decline a thought. Use thought_append freely for compact reflection, hypotheses, questions, expectation tracking, or self-correction; leave it empty when nothing is worth preserving. Do not mechanically restate supplied market data. A thought may be worth storing even when no visible session-journal update or trade action is needed.
 - Every prior entry and exit changes the meaning of the next setup. Repeating the same direction after a failed attempt requires explicitly identified NEW evidence.
 - Before any entry answer: why is this tick better than 1, 3, and 5 ticks ago; is this a new leg, a reset, or stale evidence; and what exact path should occur next?
 - While in a position, manage the original spot thesis first. Contract P/L is evidence, not automatic truth. Normal 0DTE compression is not an exit unless spot invalidates, opposite control confirms, or the selected vehicle becomes catastrophically unusable.
 - Do not abandon a trade merely because the option briefly falls 10-30%. Do not hold merely because the broad session bias still agrees. Track the expected next path, elapsed ticks, location, opposite pressure, and contract attribution.
 - Never issue BUY while a position is open. Open-position actions are HOLD or SELL only.
+- When no market action is needed, decision WAIT is simply the no-action envelope required by the execution interface. It does not force a WAIT-regime interpretation and does not prevent you from using the tick entirely for private thought_append reflection.
 - A previous failed CALL/PUT should make you skeptical of the same evidence, not permanently biased against the direction. Demand a new extreme, fresh momentum leg, re-expansion, reclaim, or materially better contract.
 - Use session trade memory and entry/exit locations as first-class market evidence.
 - Prefer fewer coherent trades over repeated threshold-triggered churn.
@@ -1450,14 +1451,14 @@ function ThesisBar({label,score,mom,color,scalpEdge}){
       <span style={{fontSize:9,color,letterSpacing:"0.06em"}}>{label}{scalpEdge&&<span style={{marginLeft:5,color:"#00ff88"}}>⚡SCALP</span>}</span>
       <span style={{fontSize:10,fontWeight:700,color}}>{score}% <span style={{fontSize:8}}>{arrow}{mom>=0?"+":""}{mom}</span></span>
     </div>
-    <div style={{height:3,background:"#1e2530",borderRadius:2}}><div style={{height:"100%",width:`${score}%`,background:color,borderRadius:2,transition:"width 0.4s"}}/></div>
+    <div style={{height:3,background:"#1e2530",borderRadius:2}}><div style={{height:"100%",width:`${clamp(score,0,100)}%`,background:color,borderRadius:2,transition:"width 0.4s"}}/></div>
   </div>;
 }
 function TradeIntentPanel({intent}){
   const action=intent?.action||"WAIT",dir=intent?.direction;
   const color=action.includes("CALL")?T.accent:action.includes("PUT")?T.red:action==="EXIT"?T.yellow:T.yellow;
   const label=action.replaceAll("_"," "),setup=intent?.setupQuality??intent?.readiness??0,ready=intent?.executionReadiness??intent?.readiness??0;
-  const Bar=({value,labelText,barColor})=><><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}><span style={{fontSize:8,color:T.muted}}>{labelText}</span><span style={{fontSize:14,fontWeight:800,color:barColor}}>{value}%</span></div><div style={{height:5,background:T.dim,borderRadius:4,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:`${value}%`,background:barColor,transition:"width .35s"}}/></div></>;
+  const Bar=({value,labelText,barColor})=><><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}><span style={{fontSize:8,color:T.muted}}>{labelText}</span><span style={{fontSize:14,fontWeight:800,color:barColor}}>{value}%</span></div><div style={{height:5,background:T.dim,borderRadius:4,overflow:"hidden",marginBottom:8}}><div style={{height:"100%",width:`${clamp(value,0,100)}%`,background:barColor,transition:"width .35s"}}/></div></>;
   return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}55`,margin:"0 14px 8px",padding:12}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}><span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>CURRENT TRADE INTENT</span><span style={{fontSize:12,fontWeight:800,color}}>{label}</span></div>
     <Bar value={setup} labelText="SETUP QUALITY" barColor={color}/>
@@ -1623,7 +1624,7 @@ function updateMarketBrain(m,hist,prev){
   b.summary=`${b.active} ${b.confidence}% | bullP ${b.bullPressure.toFixed(0)} bearP ${b.bearPressure.toFixed(0)} | session ${sessionMove>=0?"+":""}${sessionMove.toFixed(2)} | ITS3 SPX ${spx3>=0?"+":""}${spx3.toFixed(2)} SPY ${spy3>=0?"+":""}${spy3.toFixed(2)} | highP ${b.highPressure.toFixed(2)} lowP ${b.lowPressure.toFixed(2)} | aboveQ ${b.aboveFlipQuality.toFixed(2)} belowQ ${b.belowFlipQuality.toFixed(2)} | bullResp ${b.bullResponse.toFixed(2)} bearResp ${b.bearResponse.toFixed(2)} | ${b.actualResponse}`;
   return b;
 }
-function brainPrompt(b){return `SESSION PRESSURE MODEL\n${b.summary}\nEXPECTED: ${b.expectedResponse}\nINVALIDATION: ${b.invalidation}\nENTRY WINDOW: ${b.entryReady?b.entrySide+" READY for "+b.readyTicks+" ticks — "+b.entryReason:"NOT READY — "+b.entryReason}\nInterpret structure continuously. A single missed level or one countertrend tick is not a failed auction. Pressure must accumulate through persistence, acceptance quality, response efficiency, and meaningful location. Do not invent extra confirmation after ENTRY WINDOW is ready.`;}
+function brainPrompt(b){return `SESSION PRESSURE LENS (EVIDENCE ONLY - NOT A VETO OR HIGHER AUTHORITY)\n${b.summary}\nEXPECTED: ${b.expectedResponse}\nINVALIDATION: ${b.invalidation}\nPRESSURE WINDOW: ${b.entryReady?b.entrySide+" ALIGNED for "+b.readyTicks+" ticks - "+b.entryReason:"NOT YET ALIGNED - "+b.entryReason}\nThis lens is one contextual input. It must never override unified canonical intent or AI execution authority by itself. Interpret structure continuously and do not invent extra confirmation after the full hierarchy is executable.`;}
 
 export default function App(){
   const[screen,setScreen]=useState("home");
@@ -1635,7 +1636,7 @@ export default function App(){
   const[tradeLog,setTradeLog]=useState([]);
   const[mindsetLog,setMindsetLog]=useState([]);
   const[journal,setJournal]=useState([]);
-  const[aiSessionMemory,setAiSessionMemory]=useState(()=>storageGet("ai_session_memory",createAiSessionMemory()));
+  const[aiSessionMemory,setAiSessionMemory]=useState(()=>createAiSessionMemory());
   const[liveThought,setLiveThought]=useState("");
   const[thoughtSync,setThoughtSync]=useState("LOCAL");
   const[candles,setCandles]=useState([]);
@@ -1668,7 +1669,8 @@ export default function App(){
 
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
-  const journalR=useRef([]),aiSessionMemoryR=useRef(storageGet("ai_session_memory",createAiSessionMemory())),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
+  const journalR=useRef([]),aiSessionMemoryR=useRef(createAiSessionMemory()),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
+  const contextMemoryR=useRef(createContextMemory());
   const thoughtSessionIdR=useRef(`gcdt-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
@@ -1694,7 +1696,7 @@ export default function App(){
   const addM=useCallback(e=>{const key=`${e.edgeState}|${e.decision}|${e.mindset}|${String(e.reasoning||'').slice(0,80)}`;if((e.edgeState||'').startsWith('LOCAL')&&key===lastMindsetKeyR.current)return;lastMindsetKeyR.current=key;mindR.current=[...mindR.current.slice(-100),e];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
 
-  useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));const localEntries=(aiSessionMemoryR.current.entries||[]).filter(e=>!String(e||"").toLowerCase().includes("ai response failed"));const prior=cleanRows.map(r=>`[${r.market_time||new Date(r.created_at).toLocaleString()}]\n${r.content}${r.decision?`\nDecision: ${r.decision}`:""}`);aiSessionMemoryR.current={...aiSessionMemoryR.current,summary:"Loaded durable continuity from Supabase.",entries:[...prior,...localEntries].slice(-60)};setAiSessionMemory({...aiSessionMemoryR.current});storageSet("ai_session_memory",aiSessionMemoryR.current);setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
+  useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-200));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
 
   useEffect(()=>{
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
@@ -1894,7 +1896,8 @@ export default function App(){
             if(audit)aiVetoAuditsR.current=[...aiVetoAuditsR.current,audit].slice(-12);
             addJournal(liveTs,`AI_WAIT_FINAL request:${requestCtx.id} canonical:${liveIntent.action} veto:${veto.code||"NONE"} evidence:${dec.veto_evidence||dec.reasoning||veto.reason}.`);
           }
-          addJournal(liveTs,`AI_DECISION_ACCEPTED request:${requestCtx.id} decision:${dec.decision} age:${semantic.ageTicks??(tickR.current-requestCtx.tick)}t/${Math.round(semantic.ageMs??0)}ms mode:${semantic.mode} current:${liveIntent?.action||"WAIT"}.`);
+          const materialAiEvent=semantic.mode!=="JOURNAL_ONLY"||["BUY_CALL","BUY_PUT","SELL","HOLD"].includes(dec.decision)||["ENTRY_READY","IN_TRADE","EXITING"].includes(dec.edge_state)||!!dec.self_audit||!!dec.missing_angle;
+          if(materialAiEvent)addJournal(liveTs,`AI_DECISION_ACCEPTED request:${requestCtx.id} decision:${dec.decision} age:${semantic.ageTicks??(tickR.current-requestCtx.tick)}t/${Math.round(semantic.ageMs??0)}ms mode:${semantic.mode} current:${liveIntent?.action||"WAIT"}.`);
           const mb=marketBrainR.current;
           const mLn=(SESSION_END_H*60+SESSION_END_M)-(currentMarket.h*60+currentMarket.m);
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
@@ -2039,12 +2042,12 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED v26 · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
-    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const freshAiMemory={...createAiSessionMemory(label),summary:aiSessionMemoryR.current.summary||"Continuing prior journal context.",entries:(aiSessionMemoryR.current.entries||[]).slice(-30)};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
+    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const freshAiMemory={...createAiSessionMemory(label),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
-    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};
+    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};contextMemoryR.current=createContextMemory();
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);setLiveThought("");
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[selectedReplayDate]);
@@ -2073,7 +2076,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     const r=((balR.current-STARTING_BALANCE)/STARTING_BALANCE)*100,cl=logR.current.filter(l=>l.pnl!==undefined),ws=cl.filter(l=>(l.pnl||0)>=0);
     const signalTotal=sessionModelR.current.accelFollow+sessionModelR.current.accelFail,signalCleanliness=signalTotal?sessionModelR.current.accelFollow/signalTotal:0,tradeFollowThrough=cl.length?cl.filter(t=>(t.pnl||0)>0).length/cl.length:0;
     const reliability=reliabilityRates(reliabilityR.current);
-    const sess={id:Date.now(),signalCleanliness,tradeFollowThrough,...reliability,fallbackUsed:reliability.fallbackExecutionRate>0,gexVelocityState:thesisR.current?.gexVelocity?.state||"OSCILLATING",marketBrain:marketBrainR.current,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
+    const sess={id:Date.now(),aiSessionMemory:aiSessionMemoryR.current,signalCleanliness,tradeFollowThrough,...reliability,fallbackUsed:reliability.fallbackExecutionRate>0,gexVelocityState:thesisR.current?.gexVelocity?.state||"OSCILLATING",marketBrain:marketBrainR.current,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
     const upd=[sess,...sessions];setSessions(upd);storageSet("sessions",upd);setSaved(true);
     setThinking(true);
     try{const props=await generatePatchProposals(logR.current,mindR.current,journalR.current,{balance:balR.current,returnPct:r,trades:cl.length,wins:ws.length,label:sessionLabel});if(props.length>0){setPatchProposals(props);setPatchIdx(0);setScreen("patch");}}catch(e){console.log("patch gen failed",e);}
@@ -2104,9 +2107,9 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
 
   if(screen==="home")return(
     <div style={{background:T.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"monospace"}}>
-      <div style={{fontSize:9,color:T.muted,letterSpacing:"0.2em",marginBottom:8}}>FIRSTSIGNAL OS v3</div>
-      <div style={{fontSize:26,fontWeight:700,color:T.accent,marginBottom:4}}>GCDT</div>
-      <div style={{fontSize:9,color:T.muted,marginBottom:28,textAlign:"center",opacity:0.6}}>GEX Composite Divergence Trading</div>
+      <div style={{fontSize:9,color:T.muted,letterSpacing:"0.2em",marginBottom:8}}>FIRSTSIGNAL SIM v1</div>
+      <div style={{fontSize:26,fontWeight:700,color:T.accent,marginBottom:4}}>FirstSignal Sim</div>
+      <div style={{fontSize:9,color:T.muted,marginBottom:28,textAlign:"center",opacity:0.6}}>Regime-aware SPY 0DTE research engine</div>
       {resumeAvailable&&<button onClick={resumeSession} style={{width:"100%",maxWidth:280,padding:"11px 0",background:T.yellowDim,color:T.yellow,border:`1px solid ${T.yellow}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer",marginBottom:10}}>RESUME SESSION ↩</button>}
       <div style={{width:"100%",maxWidth:280,marginBottom:16}}>
         <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION · v26 AIR-GAP</div>
@@ -2114,7 +2117,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           {REPLAY_DATES.map(d=><option key={d} value={d}>{REPLAY_CATALOG[d].label}</option>)}
         </select>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>SEED v26<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
+          <button onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
           <button onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>REPLAY<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{REPLAY_CATALOG[selectedReplayDate]?.label||"Select date"}</div></button>
         </div>
       </div>
@@ -2219,7 +2222,8 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           </div>
         </div>
         <div style={{fontSize:8,color:T.muted,marginBottom:2}}>{sessionLabel}{sessionMode==="seed"&&mkt?.fidelity&&<span style={{color:mkt.fidelity==="dense-series"?T.accent:T.yellow}}> · {mkt.fidelity==="dense-series"?"dense (Jul 1 series)":"sparse (field-log range)"}</span>}</div>
-        <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode · SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:`Native Jul 8 SPY/SPX · 1-minute replay · chain ${mkt?.quoteSource||"NONE"}`}</div>
+        <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode Â· SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:`${selectedReplayDate} native SPY/SPX Â· 1-minute replay Â· chain ${mkt?.quoteSource||"NONE"}`}</div>
+        {thesisData?.contextHierarchy&&<div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:3}}><span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}55`,padding:"1px 4px",borderRadius:3}}>STRUCT {thesisData.contextHierarchy.structural?.regime||"WAIT"} {Math.round(thesisData.contextHierarchy.structural?.confidence||0)}% Â· age {thesisData.contextHierarchy.structural?.age||0} Â· stable {Math.round(thesisData.contextHierarchy.structural?.stability||0)}%</span><span style={{fontSize:7,color:T.accent,border:`1px solid ${T.accent}55`,padding:"1px 4px",borderRadius:3}}>LOCAL {thesisData.contextHierarchy.local?.state||"OBSERVE"} Â· {thesisData.contextHierarchy.local?.direction||"NONE"} Â· heat {Math.round(thesisData.contextHierarchy.structural?.transitionHeat||0)}%</span></div>}
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {mkt&&<span style={{fontSize:10,color:isPremarket?T.yellow:T.muted,fontWeight:700}}>{fmt.time(mkt.h,mkt.m)} ET</span>}
           {mLeft<90&&!isPremarket&&<span style={{fontSize:8,color:T.red}}>THETA</span>}

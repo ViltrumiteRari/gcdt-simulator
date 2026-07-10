@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DAYS = ["2026-07-06", "2026-07-07", "2026-07-08"]
+DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09"]
 ROOT = Path(r"D:\FirstSignal_GCDT_Dataset")
 OUT = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js")
 FALLBACK_CATALOG = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js")
@@ -142,12 +142,25 @@ def latest_levels(gex, ticker, ts, spot):
 
 
 def read_trade_history(day):
-    path = ROOT / day / "options_historical_quantdata" / "contract_price_time" / "regular_0930_1615_contract_ohlcv.csv"
-    if not path.exists():
+    base = ROOT / day / "options_historical_quantdata" / "contract_price_time"
+    candidates = [
+        base / "regular_0930_1615_contract_ohlcv.csv",
+        base / "regular_0930_1615_contract_ohlcv.csv.gz",
+        base / "morning_0930_1200_contract_ohlcv.csv",
+        base / "morning_0930_1200_contract_ohlcv.csv.gz",
+    ]
+    frames = []
+    for path in candidates:
+        if path.exists():
+            try:
+                frame = pd.read_csv(path)
+                if not frame.empty:
+                    frames.append(frame)
+            except Exception:
+                pass
+    if not frames:
         return pd.DataFrame()
-    frame = pd.read_csv(path)
-    if frame.empty:
-        return frame
+    frame = pd.concat(frames, ignore_index=True).drop_duplicates()
     frame["captured_at"] = pd.to_datetime(frame["captured_at"])
     frame = frame[(frame["ticker"] == "SPY") & (frame["expiration"].astype(str) == day)].copy()
     for col in ["strike", "open", "high", "low", "close", "volume", "underlying_close"]:
@@ -309,8 +322,19 @@ def load_order_flow(day):
                     payloads.append(json.load(tf.extractfile(member)))
                 except Exception:
                     pass
-    elif latest.exists():
-        payloads.append(json.loads(latest.read_text(encoding="utf-8")))
+    else:
+        raw_dir = ROOT / day / "SPY" / "order_flow" / "raw"
+        if raw_dir.exists():
+            for path in sorted(raw_dir.glob("*.json")):
+                try:
+                    payloads.append(json.loads(path.read_text(encoding="utf-8")))
+                except Exception:
+                    pass
+        if latest.exists():
+            try:
+                payloads.append(json.loads(latest.read_text(encoding="utf-8")))
+            except Exception:
+                pass
     for payload in payloads:
         body = payload.get("response", payload)
         for trade in body.get("trades", []) or []:
@@ -359,7 +383,23 @@ def build_day(day):
             real_contracts = {row["contract"] for row in real_rows}
             fill_rows = [row for row in fill_rows if row["contract"] not in real_contracts]
             chain_rows = real_rows + fill_rows
-            if real_rows and fill_rows:
+            live_quote_rows = []
+            if has_real_quotes:
+                eligible = real_chain[real_chain["captured_at"] <= ts]
+                if not eligible.empty:
+                    stamp = eligible["captured_at"].max()
+                    # Do not carry a stale chain snapshot indefinitely.
+                    if (ts - stamp).total_seconds() <= 7 * 60:
+                        live_quote_rows = quote_rows_from_real(eligible[eligible["captured_at"] == stamp], spot)
+            if live_quote_rows:
+                by_contract = {row["contract"]: row for row in chain_rows}
+                by_contract.update({row["contract"]: row for row in live_quote_rows})
+                chain_rows = list(by_contract.values())
+            if live_quote_rows and real_rows:
+                quote_source = "REAL_QUOTE_PLUS_REAL_TRADE_OHLCV"
+            elif live_quote_rows:
+                quote_source = "REAL_QUOTE_WITH_HISTORY_FILL" if fill_rows else "REAL_QUOTE"
+            elif real_rows and fill_rows:
                 quote_source = "REAL_TRADE_OHLCV_WITH_PATH_FILL"
             elif real_rows:
                 quote_source = "REAL_TRADE_OHLCV"

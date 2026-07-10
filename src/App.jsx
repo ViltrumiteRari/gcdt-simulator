@@ -298,16 +298,26 @@ function createReplayEngine(replayData){
 }
 
 function computeProbs(mkt,hist){
-  const div=mkt.itsSPX-mkt.itsSPY,ac=mkt.accelerator,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3;
-  let D=0,H=0,M=0;
-  if(div<-0.4)D+=22;if(div<-0.9)D+=16;if(ac>6)D+=17;if(ac>9)D+=11;if(mkt.ndf>0.12)D+=13;if(mkt.dealerPct<28)D+=11;if(gi<0.3)D+=9;
-  const l8=hist.slice(-8);
-  if(l8.length>=5){const r=Math.max(...l8.map(c=>c.spySpot))-Math.min(...l8.map(c=>c.spySpot));if(r<1.0)H+=28;if(r<0.5)H+=18;}
-  if(ac<3.5)H+=17;if(mkt.dealerPct>55)H+=15;if(Math.abs(fg)<0.35)H+=11;if(gi>0.7)H+=11;
-  if(hist.length>=3){const rs=hist.slice(-3).map(c=>c.spySpot),mv=Math.max(...rs.map((v,i)=>i>0?Math.abs(v-rs[i-1]):0));if(mv>1.2)M+=34;if(mv>2.0)M+=24;if(mv>3.0)M+=18;}
-  if(Math.abs(div)>1.8&&ac>8)M+=17;
-  const Tr=Math.max(0,100-(D+H+M)*0.72),tot=D+H+M+Tr;
-  return{discovery:Math.round(D/tot*100),pin:Math.round(H/tot*100),transition:Math.round(Tr/tot*100),macro:Math.round(M/tot*100)};
+  const div=mkt.itsSPX-mkt.itsSPY,ac=mkt.accelerator,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3;
+  let D=0,H=0,M=0;
+  const l8=hist.slice(-8),l20=hist.slice(-20),session=hist.length?hist:[mkt];
+  const sessionHigh=Math.max(...session.map(c=>c.spySpot)),sessionLow=Math.min(...session.map(c=>c.spySpot));
+  const localHigh=l20.length?Math.max(...l20.map(c=>c.spySpot)):mkt.spySpot,localLow=l20.length?Math.min(...l20.map(c=>c.spySpot)):mkt.spySpot;
+  const nearHigh=mkt.spySpot>=sessionHigh-0.12||mkt.spySpot>=localHigh-0.08;
+  const nearLow=mkt.spySpot<=sessionLow+0.12||mkt.spySpot<=localLow+0.08;
+  const frontier=nearHigh||nearLow;
+  const move8=l8.length>1?mkt.spySpot-l8[0].spySpot:0;
+  const alignedFrontier=(nearHigh&&move8>0.35)||(nearLow&&move8<-0.35);
+  if(Math.abs(div)>0.4)D+=12;if(Math.abs(div)>0.9)D+=10;if(ac>6)D+=17;if(ac>9)D+=11;if(Math.abs(mkt.ndf)>0.12)D+=13;if(mkt.dealerPct<28)D+=11;if(gi<0.3)D+=9;
+  if(frontier)D+=16;if(alignedFrontier)D+=22;if(Math.abs(fg)>0.75&&Math.sign(fg)===Math.sign(move8))D+=12;
+  if(l8.length>=5){const r=Math.max(...l8.map(c=>c.spySpot))-Math.min(...l8.map(c=>c.spySpot));if(r<1.0)H+=28;if(r<0.5)H+=18;if(frontier&&Math.abs(move8)>0.35)H-=18;}
+  if(ac<3.5)H+=17;if(mkt.dealerPct>55)H+=15;if(Math.abs(fg)<0.35)H+=11;if(gi>0.7)H+=11;
+  if(alignedFrontier&&Math.abs(fg)>0.6)H-=14;
+  if(hist.length>=3){const rs=hist.slice(-3).map(c=>c.spySpot),mv=Math.max(...rs.map((v,i)=>i>0?Math.abs(v-rs[i-1]):0));if(mv>1.2)M+=34;if(mv>2.0)M+=24;if(mv>3.0)M+=18;}
+  if(Math.abs(div)>1.8&&ac>8)M+=17;
+  D=Math.max(0,D);H=Math.max(0,H);M=Math.max(0,M);
+  const Tr=Math.max(0,100-(D+H+M)*0.72),tot=D+H+M+Tr;
+  return{discovery:Math.round(D/tot*100),pin:Math.round(H/tot*100),transition:Math.round(Tr/tot*100),macro:Math.round(M/tot*100)};
 }
 
 function computeConf(mkt,probs){
@@ -1902,14 +1912,14 @@ export default function App(){
         startedPerf:typeof performance!=="undefined"?performance.now():null,
         lastActiveAt:Date.now(),
         entryCritical,
-        freezeSim:entryCritical,
+        freezeSim:false,
         cancelled:false
       };
       const controller=new AbortController();
       requestCtx.controller=controller;
       const timeoutId=setTimeout(()=>{requestCtx.cancelled=true;controller.abort("AI_TIMEOUT");},AI_REQUEST_TIMEOUT_MS);
       requestCtx.timeoutId=timeoutId;
-      if(entryCritical)aiFreezeR.current=true;
+      aiFreezeR.current=false;
       activeDecisionR.current=requestCtx;
       // v10: ground "how long has this been flat" in a real computed number instead of letting
       // the AI guess a duration it can't actually verify (it only ever sees ~8 candles). Count

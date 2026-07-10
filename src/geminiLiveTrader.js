@@ -41,6 +41,7 @@ class GeminiLiveTrader {
     this.connectedAt = 0;
     this.pending = null;
     this.connecting = null;
+    this.bootstrapped = false;
   }
 
   async mintToken() {
@@ -55,6 +56,7 @@ class GeminiLiveTrader {
     try { this.session?.close(); } catch {}
     this.session = null;
     this.connectedAt = 0;
+    this.bootstrapped = false;
     if (this.pending) {
       clearTimeout(this.pending.timer);
       this.pending.reject(new Error(`GEMINI_LIVE_CLOSED:${reason}`));
@@ -103,9 +105,6 @@ class GeminiLiveTrader {
 
   handleMessage(message) {
     if (!this.pending) return;
-    if (message?.serverContent?.outputTranscription?.text && this.pending.onThought) {
-      this.pending.onThought(message.serverContent.outputTranscription.text);
-    }
     const calls = message?.toolCall?.functionCalls || [];
     const call = calls.find(x => x.name === 'submit_trade_decision');
     if (!call) return;
@@ -130,6 +129,18 @@ class GeminiLiveTrader {
     }
   }
 
+  compactPrompt(prompt) {
+    if (!this.bootstrapped) return prompt;
+    const architectureAt = prompt.indexOf('ARCHITECTURE SELF-MODEL:');
+    const regimeAt = prompt.indexOf('REGIME:');
+    const identityAt = prompt.indexOf('TRADER IDENTITY');
+    const prefix = architectureAt > 0 ? prompt.slice(0, architectureAt) : prompt.slice(0, 7000);
+    const market = regimeAt >= 0 ? prompt.slice(regimeAt, identityAt > regimeAt ? identityAt : undefined) : '';
+    return `${prefix}
+LIVE SESSION CONTINUITY: Architecture, authority hierarchy, execution rules, and output schema remain unchanged from session boot. Evaluate only the updated state below.
+${market}`;
+  }
+
   async request(prompt, onThought, signal) {
     if (this.pending) throw new Error('GEMINI_LIVE_BUSY');
     const session = await this.ensureSession();
@@ -147,7 +158,10 @@ class GeminiLiveTrader {
       signal?.addEventListener('abort', abort, { once: true });
       this.pending = { resolve: value => { signal?.removeEventListener('abort', abort); resolve(value); }, reject: err => { signal?.removeEventListener('abort', abort); reject(err); }, timer, onThought };
       try {
-        session.sendRealtimeInput({ text: prompt });
+        const livePrompt = this.compactPrompt(prompt);
+        if (onThought) onThought('Gemini Live is evaluating the current market state...');
+        session.sendRealtimeInput({ text: livePrompt });
+        this.bootstrapped = true;
       } catch (err) {
         clearTimeout(timer);
         this.pending = null;

@@ -20,9 +20,9 @@ const OPEN_H = 9, OPEN_M = 30;
 const TRADER_API = "/api/trader";
 const STORAGE_KEY = "gcdt_shared";
 const LEGACY_STORAGE_KEYS = ["gcdt_v14","gcdt_v13"];
-const SIGNAL_EXIT_MIN_HOLD_TICKS=8;
+const SIGNAL_EXIT_MIN_HOLD_TICKS=12;
 const LEAD_LAG_SUSTAIN_TICKS=3;
-const AI_REQUEST_TIMEOUT_MS=25000,AI_MAX_ENTRY_AGE_TICKS=10,AI_MAX_WAIT_AGE_TICKS=12;
+const AI_REQUEST_TIMEOUT_MS=45000,AI_MAX_ENTRY_AGE_TICKS=10,AI_MAX_WAIT_AGE_TICKS=12;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
 const ACCEL_SCALE_MAX=12,ACCEL_EXTREME_HIGH=8.8,ACCEL_EXTREME_LOW=2,ACCEL_BUILD_MIN=4.2,ACCEL_BUILD_MAX=8.7,ACCEL_RETEST_MAX=6.8;
 
@@ -1034,7 +1034,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     const adverseSpot=(pos.isCall?-1:1)*(m.spySpot-pos.entrySpot);
     const heldTicks=(m.tick??0)-(pos.entryTick??(m.tick??0));
     const dirProgress=(pos.isCall?1:-1)*(m.spySpot-pos.entrySpot);
-    const pathDeadlineMiss=heldTicks>=(pos.pathDeadlineTicks??5)&&dirProgress<(pos.minExpectedProgress??0.20);
+    const pathDeadlineMiss=heldTicks>=(pos.pathDeadlineTicks??8)&&dirProgress<(pos.minExpectedProgress??0.12);
     const vehicleFailure=pnl<=-(pos.vehicleFailurePct??38)&&dirProgress<0.15;
     const hardLoss=pnl<=-(pos.catastrophicLossPct??50);
     const action=invalid||vehicleFailure||hardLoss||pathDeadlineMiss||(oppositeBrain&&oppositeThesis&&adverseSpot>0.25)?"EXIT":"HOLD";
@@ -1255,7 +1255,7 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
-  const prompt=`FIRSTSIGNAL SIM v1 Â· SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
+  const prompt=`FIRSTSIGNAL SIM v1 | SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
 BAL:$${bal.toFixed(0)} | ${posStr}
 
 SESSION JOURNAL:
@@ -1366,10 +1366,10 @@ async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
 }
 
 function Spark({data,color,h=36,w=120,fill=false}){
-  if(!data||data.length<2)return<div style={{width:w,height:h,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:8,color:"#4a5568"}}>--</span></div>;
-  const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
-  const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mn)/rng)*(h-4)-2}`).join(" ");
-  return<svg width={w} height={h} style={{display:"block"}}>{fill&&<polygon points={`0,${h} ${pts} ${w},${h}`} fill={color} opacity={0.12}/>}<polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/></svg>;
+  if(!data||data.length<2)return<div style={{width:"100%",height:h,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}><span style={{fontSize:8,color:"#4a5568"}}>--</span></div>;
+  const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
+  const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mn)/rng)*(h-4)-2}`).join(" ");
+  return<svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{display:"block",width:"100%",height:h,maxWidth:"100%",overflow:"hidden"}}>{fill&&<polygon points={`0,${h} ${pts} ${w},${h}`} fill={color} opacity={0.12}/>}<polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round"/></svg>;
 }
 
 function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,callTrigger,putTrigger,callStop,putStop}){
@@ -1425,22 +1425,23 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
 function GexPanel({mkt,candles,gexInf}){
   const prior5=candles.length>=6?candles.at(-6):candles[0];
   const prior15=candles.length>=16?candles.at(-16):candles[0];
-  const d5=prior5?mkt.netGex-prior5.netGex:0,d15=prior15?mkt.netGex-prior15.netGex:0;
-  const s5=prior5?mkt.netGexSpx-prior5.netGexSpx:0,s15=prior15?mkt.netGexSpx-prior15.netGexSpx:0;
-  const regime=mkt.netGex<0?"NEGATIVE GEX · LOADED / UNSTABLE":mkt.netGex>0?"POSITIVE GEX · DEALERS COMFORTABLE":"NEUTRAL GEX";
-  const color=mkt.netGex<0?T.red:mkt.netGex>0?T.accent:T.yellow;
+  const spy5=prior5?mkt.netGex-prior5.netGex:0,spy15=prior15?mkt.netGex-prior15.netGex:0;
+  const spx5=prior5?mkt.netGexSpx-prior5.netGexSpx:0,spx15=prior15?mkt.netGexSpx-prior15.netGexSpx:0;
+  const primary=mkt.netGexSpx??mkt.netGex*10;
+  const regime=primary<0?"NEGATIVE SPX GEX | LOADED / UNSTABLE":primary>0?"POSITIVE SPX GEX | DEALERS COMFORTABLE":"NEUTRAL SPX GEX";
+  const color=primary<0?T.red:primary>0?T.purple:T.yellow;
   const fmtDelta=v=>`${v>=0?"+":""}${fmt.gex(v)}`;
-  return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}66`,margin:"0 14px 8px",padding:12}}>
+  return <div style={{background:T.surface,borderRadius:8,border:`1px solid ${color}66`,margin:"0 14px 8px",padding:12,overflow:"hidden"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-      <div><div style={{fontSize:9,color:T.muted,letterSpacing:"0.12em"}}>GAMMA EXPOSURE</div><div style={{fontSize:13,fontWeight:800,color,marginTop:3}}>{regime}</div></div>
-      <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color}}>{fmt.gex(mkt.netGex)}</div><div style={{fontSize:8,color}}>SPY · influence {(gexInf*100).toFixed(0)}%</div></div>
+      <div><div style={{fontSize:9,color:T.muted,letterSpacing:"0.12em"}}>SPX GAMMA EXPOSURE</div><div style={{fontSize:13,fontWeight:800,color,marginTop:3}}>{regime}</div></div>
+      <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800,color}}>{fmt.gex(primary)}</div><div style={{fontSize:8,color}}>SPX primary | SPY influence {(gexInf*100).toFixed(0)}%</div></div>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr 1fr",gap:8}}>
-      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>SPX GEX</div><div style={{fontSize:14,fontWeight:800,color:mkt.netGexSpx>=0?T.purple:T.red}}>{fmt.gex(mkt.netGexSpx??mkt.netGex*10)}</div></div>
-      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>5-MIN RATE</div><div style={{fontSize:13,fontWeight:800,color:d5>=0?T.accent:T.red}}>{fmtDelta(d5)}</div><div style={{fontSize:7,color:T.muted}}>SPX {fmtDelta(s5)}</div></div>
-      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>15-MIN RATE</div><div style={{fontSize:13,fontWeight:800,color:d15>=0?T.accent:T.red}}>{fmtDelta(d15)}</div><div style={{fontSize:7,color:T.muted}}>SPX {fmtDelta(s15)}</div></div>
+      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>SPY GEX</div><div style={{fontSize:14,fontWeight:800,color:mkt.netGex>=0?T.accent:T.red}}>{fmt.gex(mkt.netGex)}</div></div>
+      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>SPX 5-MIN RATE</div><div style={{fontSize:13,fontWeight:800,color:spx5>=0?T.purple:T.red}}>{fmtDelta(spx5)}</div><div style={{fontSize:7,color:T.muted}}>SPY {fmtDelta(spy5)}</div></div>
+      <div style={{background:T.surface2,borderRadius:6,padding:"8px 10px"}}><div style={{fontSize:8,color:T.muted}}>SPX 15-MIN RATE</div><div style={{fontSize:13,fontWeight:800,color:spx15>=0?T.purple:T.red}}>{fmtDelta(spx15)}</div><div style={{fontSize:7,color:T.muted}}>SPY {fmtDelta(spy15)}</div></div>
     </div>
-    <div style={{marginTop:8}}><Spark data={candles.map(c=>c.netGex/1e9)} color={color} h={42} w={860} fill={true}/></div>
+    <div style={{marginTop:8,width:"100%",overflow:"hidden"}}><Spark data={candles.map(c=>(c.netGexSpx??c.netGex*10)/1e9)} color={color} h={42} w={860} fill={true}/></div>
   </div>;
 }
 
@@ -1744,19 +1745,19 @@ export default function App(){
       const wallAgainst=p.isCall?(prevCallWallR.current!=null&&m.callWall<prevCallWallR.current):(prevPutWallR.current!=null&&m.putWall>prevPutWallR.current);
       const adverseSpot=-spotProgress;
       const oppositeCount=[leadSustained,brainOpposes,thesisOpposes,wallAgainst,adverseSpot>0.35].filter(Boolean).length;
-      const pathDeadlineMiss=heldTicks>=(p.pathDeadlineTicks??5)&&spotProgress<(p.minExpectedProgress??0.20);
+      const pathDeadlineMiss=heldTicks>=(p.pathDeadlineTicks??8)&&spotProgress<(p.minExpectedProgress??0.12);
       const responsiveness=(Math.abs(attr.delta)||0)*(Math.abs(attr.spotMove)||0);
       const vehicleFailure=optPnl<=-(p.vehicleFailurePct??38)&&(spotProgress<0.15||responsiveness<0.01);
       const catastrophicLoss=optPnl<=-(p.catastrophicLossPct??50);
       const signalExit=heldTicks>=SIGNAL_EXIT_MIN_HOLD_TICKS&&oppositeCount>=3;
-      const trailingProfit=peakPnl>=40&&(peakPnl-optPnl)>=Math.max(18,peakPnl*0.35)&&heldTicks>=3;
-      const spotTarget=spotTargetRaw&&optPnl>0&&heldTicks>=3;
+      const trailingProfit=peakPnl>=70&&(peakPnl-optPnl)>=Math.max(28,peakPnl*0.42)&&heldTicks>=6;
+      const spotTarget=spotTargetRaw&&optPnl>0&&heldTicks>=5;
       setBal(size*(p.current/p.entry));
       if(Math.abs(attr.price-p0.current)>=0.03||Math.abs(attr.spotMove)>=0.15||attr.residualCapped){
         addJournal(fmt.time(m.h,m.m),`OPTION_ATTR ${p.strike}${p.isCall?"C":"P"} ${p0.current.toFixed(2)}→${attr.price.toFixed(2)} | spot ${attr.spotContribution>=0?"+":""}${attr.spotContribution.toFixed(3)} | gamma ${attr.gammaContribution>=0?"+":""}${attr.gammaContribution.toFixed(3)} | theta ${attr.thetaContribution.toFixed(3)} | IV ${attr.ivContribution>=0?"+":""}${attr.ivContribution.toFixed(3)} | momentum-vol ${attr.momentumVolContribution>=0?"+":""}${attr.momentumVolContribution.toFixed(3)} | compression ${attr.compressionContribution.toFixed(3)} | residual ${attr.residual>=0?"+":""}${attr.residual.toFixed(3)}${attr.residualCapped?" CAPPED":""}.`);
       }
       if(!spotFail&&!vehicleFailure&&!catastrophicLoss&&!pathDeadlineMiss&&!signalExit&&!trailingProfit&&!spotTarget&&oppositeCount>0){
-        addJournal(fmt.time(m.h,m.m),`POSITION_REVIEW ${side} opposite ${oppositeCount}/5, held ${heldTicks}, progress ${spotProgress>=0?"+":""}${spotProgress.toFixed(2)}, option ${fmt.pct(optPnl)}, deadline ${p.pathDeadlineTicks??5}.`);
+        addJournal(fmt.time(m.h,m.m),`POSITION_REVIEW ${side} opposite ${oppositeCount}/5, held ${heldTicks}, progress ${spotProgress>=0?"+":""}${spotProgress.toFixed(2)}, option ${fmt.pct(optPnl)}, deadline ${p.pathDeadlineTicks??8}.`);
       }
       if(spotFail||vehicleFailure||catastrophicLoss||pathDeadlineMiss||signalExit||trailingProfit||spotTarget){
         const dollar=size*optPnl/100;balR.current=size*(p.current/p.entry);
@@ -2222,8 +2223,8 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           </div>
         </div>
         <div style={{fontSize:8,color:T.muted,marginBottom:2}}>{sessionLabel}{sessionMode==="seed"&&mkt?.fidelity&&<span style={{color:mkt.fidelity==="dense-series"?T.accent:T.yellow}}> · {mkt.fidelity==="dense-series"?"dense (Jul 1 series)":"sparse (field-log range)"}</span>}</div>
-        <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode Â· SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:`${selectedReplayDate} native SPY/SPX Â· 1-minute replay Â· chain ${mkt?.quoteSource||"NONE"}`}</div>
-        {thesisData?.contextHierarchy&&<div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:3}}><span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}55`,padding:"1px 4px",borderRadius:3}}>STRUCT {thesisData.contextHierarchy.structural?.regime||"WAIT"} {Math.round(thesisData.contextHierarchy.structural?.confidence||0)}% Â· age {thesisData.contextHierarchy.structural?.age||0} Â· stable {Math.round(thesisData.contextHierarchy.structural?.stability||0)}%</span><span style={{fontSize:7,color:T.accent,border:`1px solid ${T.accent}55`,padding:"1px 4px",borderRadius:3}}>LOCAL {thesisData.contextHierarchy.local?.state||"OBSERVE"} Â· {thesisData.contextHierarchy.local?.direction||"NONE"} Â· heat {Math.round(thesisData.contextHierarchy.structural?.transitionHeat||0)}%</span></div>}
+        <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode | SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:`${selectedReplayDate} native SPY/SPX | 1-minute replay | chain ${mkt?.quoteSource||"NONE"}`}</div>
+        {thesisData?.contextHierarchy&&<div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:3}}><span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}55`,padding:"1px 4px",borderRadius:3}}>STRUCT {thesisData.contextHierarchy.structural?.state||"WAIT"} {Math.round(thesisData.contextHierarchy.structural?.confidence||0)}% | held {thesisData.contextHierarchy.structural?.age||0}m | stable {Math.round(thesisData.contextHierarchy.structural?.stability||0)}%</span><span style={{fontSize:7,color:T.accent,border:`1px solid ${T.accent}55`,padding:"1px 4px",borderRadius:3}}>LOCAL {thesisData.contextHierarchy.local?.state||"OBSERVE"} | {thesisData.contextHierarchy.local?.direction||"NONE"} | heat {Math.round(thesisData.contextHierarchy.structural?.transitionHeat||0)}%</span></div>}
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {mkt&&<span style={{fontSize:10,color:isPremarket?T.yellow:T.muted,fontWeight:700}}>{fmt.time(mkt.h,mkt.m)} ET</span>}
           {mLeft<90&&!isPremarket&&<span style={{fontSize:8,color:T.red}}>THETA</span>}

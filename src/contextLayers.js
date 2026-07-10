@@ -9,8 +9,8 @@ export function createContextMemory(){
 function localState(m,h){
   const l6=h.slice(-6),l12=h.slice(-12),fg=m.spySpot-m.fep,ps=slope(l6,"spySpot"),as=slope(l6,"accel");
   const range=l12.length?Math.max(...l12.map(x=>x.spySpot))-Math.min(...l12.map(x=>x.spySpot)):0;
-  const g0=l6[0]?.netGex??m.netGex,groc=(m.netGex-g0)/Math.max(1e9,Math.abs(g0||1e9));
-  const pin=m.netGex>0&&(m.gexInfluence||0)>.35&&range<1.5;
+  const g0=l6[0]?.netGexSpx??m.netGexSpx??m.netGex,groc=((m.netGexSpx??m.netGex)-g0)/Math.max(1e9,Math.abs(g0||1e9));
+  const pin=(m.netGexSpx??m.netGex)>0&&(m.gexInfluence||0)>.28&&range<1.5;
   const up=ps>.10&&fg>.18&&as>-.15,down=ps<-.10&&fg<-.18&&as>-.15;
   let state="WAIT",direction="NONE",confidence=25;
   if(pin&&Math.abs(fg)>.35){state="PIN_STRETCH";direction=fg>0?"PUT":"CALL";confidence=clamp(45+Math.abs(fg)*22+(m.gexInfluence||0)*20,0,96);}
@@ -22,9 +22,9 @@ function localState(m,h){
 export function computeItsHierarchy(m,h,prior=createContextMemory()){
   const local=localState(m,h),l30=h.slice(-30),price30=slope(l30,"spySpot")*Math.max(1,l30.length-1),fep30=slope(l30,"fep")*Math.max(1,l30.length-1);
   const above=l30.filter(x=>x.spySpot>x.fep).length,below=l30.filter(x=>x.spySpot<x.fep).length,accept=Math.max(above,below)/Math.max(1,l30.length);
-  const meanGex=avg(l30.map(x=>x.netGex||0)),meanGI=avg(l30.map(x=>x.gexInf||0));
+  const meanGex=avg(l30.map(x=>x.netGexSpx??x.netGex??0)),meanGI=avg(l30.map(x=>x.gexInf||0));
   let candidate="WAIT",direction="NONE",raw=25;
-  if(meanGex>0&&meanGI>.32&&Math.abs(price30)<2.2){candidate="PINNING";raw=45+meanGI*35+(accept<.72?8:0);}
+  if(meanGex>0&&meanGI>.28&&Math.abs(price30)<2.2){candidate="PINNING";raw=45+meanGI*35+(accept<.72?8:0);}
   if(price30>1.0&&accept>.62){candidate="EXPANSION";direction="CALL";raw=52+Math.min(30,price30*8)+Math.max(0,fep30)*5;}
   if(price30<-1.0&&accept>.62){candidate="BREAKDOWN";direction="PUT";raw=52+Math.min(30,Math.abs(price30)*8)+Math.max(0,-fep30)*5;}
   const same=candidate===prior.structuralState,age=same?(prior.structuralAge||0)+1:1;
@@ -54,7 +54,7 @@ export function contextPrompt(ctx,flow){
   if(!ctx)return "";
   const s=ctx.structural,l=ctx.local,f=flow||{available:false};
   const flowText=f.available?`${f.label} aggression ${f.aggression.toFixed(0)} directional-purity ${f.directionalPurity.toFixed(0)} hedge-probability ${f.hedgeProbability.toFixed(0)} direction ${f.direction}`:"unavailable";
-  return `ITS HIERARCHY:\nSTRUCTURAL ${s.state} ${s.direction} conf ${s.confidence.toFixed(0)} age ${s.age} stability ${s.stability.toFixed(0)} heat ${s.heat.toFixed(0)} transition ${s.transitionRisk} lens ${s.lens}\nLOCAL ${l.state} ${l.direction} conf ${l.confidence.toFixed(0)} fepGap ${l.fepGap.toFixed(2)} slope ${l.priceSlope.toFixed(2)} alignment ${ctx.alignment}\nFLOW LENS: ${flowText}\nHierarchy rule: structural ITS selects the playbook; local ITS selects timing; flow only changes conviction/urgency and never overrides contradictory price/regime structure.`;
+  return `ITS HIERARCHY:\nSTRUCTURAL ${s.state} ${s.direction} conf ${s.confidence.toFixed(0)} persistence ${s.age}m stability ${s.stability.toFixed(0)} heat ${s.heat.toFixed(0)} transition ${s.transitionRisk} lens ${s.lens}\nLOCAL ${l.state} ${l.direction} conf ${l.confidence.toFixed(0)} fepGap ${l.fepGap.toFixed(2)} slope ${l.priceSlope.toFixed(2)} alignment ${ctx.alignment}\nFLOW LENS: ${flowText}\nHierarchy rule: structural ITS selects the playbook; local ITS selects timing; flow only changes conviction/urgency and never overrides contradictory price/regime structure.`;
 }
 export function harmonizeThesis(thesis,ctx,flow){
   if(!thesis||!ctx)return thesis;

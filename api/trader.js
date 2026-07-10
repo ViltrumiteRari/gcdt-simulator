@@ -45,7 +45,7 @@ function fail(status, message, detail) {
 }
 
 function geminiBody(prompt) {
-  const thinkingBudget = Number(process.env.GEMINI_THINKING_BUDGET || 512);
+  const thinkingBudget = Number(process.env.GEMINI_THINKING_BUDGET || 256);
   return {
     systemInstruction: {
       parts: [{ text: 'You are the continuous-session SPY 0DTE trader described in the user prompt. Return exactly one schema-valid JSON trading decision. Put thought_append first and add no prose outside the JSON object.' }],
@@ -53,7 +53,7 @@ function geminiBody(prompt) {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 1200,
+      maxOutputTokens: 1000,
       responseMimeType: 'application/json',
       responseJsonSchema: TRADER_SCHEMA,
       thinkingConfig: { thinkingBudget },
@@ -119,18 +119,26 @@ export default async function handler(req) {
     const suffix = wantsStream ? '?alt=sse' : '';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:${action}${suffix}`;
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': key,
-      },
-      body: JSON.stringify(geminiBody(prompt)),
-    });
+    let resp;
+    let errorText = '';
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': key,
+        },
+        body: JSON.stringify(geminiBody(prompt)),
+      });
+      if (resp.ok) break;
+      errorText = await resp.text();
+      const retryable = resp.status === 429 || resp.status === 500 || resp.status === 503;
+      if (!retryable || attempt === 3) break;
+      await new Promise(resolve => setTimeout(resolve, 700 * attempt));
+    }
 
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      return fail(502, `Gemini HTTP ${resp.status}`, errorText);
+    if (!resp?.ok) {
+      return fail(502, `Gemini HTTP ${resp?.status || 'NO_RESPONSE'}`, errorText);
     }
 
     if (wantsStream) {

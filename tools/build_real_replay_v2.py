@@ -81,6 +81,27 @@ def load_market():
         frame = frame.reindex(frame.index.union(minute_index)).sort_index()
         frame[numeric] = frame[numeric].interpolate(method="time").ffill().bfill()
         out[ticker] = frame.loc[minute_index].reset_index(names="captured_at")
+
+    # Repair stale captured spot values with the independent option-chain underlying path.
+    # July 9's GEX/spot endpoint repeated one stale spot after noon even while the chain's
+    # underlying field continued updating. Prefer the chain path for price only; keep GEX
+    # and call-dominance from their native exposure feeds.
+    focus_path = DATA / "options_focus.csv"
+    if focus_path.exists():
+        focus = pd.read_csv(focus_path)
+        focus["captured_at"] = pd.to_datetime(focus["captured_at"])
+        for ticker, underlying in (("SPY", "SPY"), ("SPX", "^SPX")):
+            fx = focus[focus["underlying"] == underlying].copy()
+            if fx.empty:
+                continue
+            fx["spot"] = pd.to_numeric(fx["spot"], errors="coerce")
+            series = fx.dropna(subset=["spot"]).groupby("captured_at")["spot"].median().sort_index()
+            if series.empty:
+                continue
+            series = series.reindex(series.index.union(minute_index)).sort_index().interpolate(method="time").ffill().bfill().reindex(minute_index)
+            start = fx["captured_at"].min().floor("min")
+            mask = out[ticker]["captured_at"] >= start
+            out[ticker].loc[mask, "spot"] = series.loc[mask.to_numpy()].to_numpy()
     # If native SPX collection starts late, restore the earlier five-minute historical path
     # from the legacy catalog and interpolate it to one-minute resolution.
     first_spx = first_native_spot.get("SPX")

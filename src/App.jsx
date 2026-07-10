@@ -1112,7 +1112,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
 
   const episodeKey=side!=="WAIT"?tradeEpisodeKey(side,m,det):null;
   const legacyReentry=side!=="WAIT"?evaluateReentry(tradeMemory,side,m,hist,episodeKey):{allowed:true,newEvidence:[]};
-  const discipline=side!=="WAIT"?evaluateReentryDiscipline(tradeMemory,side,thesis?.primaryCategory||"UNKNOWN",thesis?.gexVelocity?.state):{allowed:true};
+  const discipline=side!=="WAIT"?evaluateReentryDiscipline(tradeMemory,side,thesis?.primaryCategory||"UNKNOWN",thesis?.gexVelocity?.state,m.tick):{allowed:true};
   let reentry={...legacyReentry,allowed:legacyReentry.allowed&&discipline.allowed,discipline};
   const freshBearContinuation=side==="PUT"&&activeBearRegime&&persistence>=2&&(Math.min(move6,move15,move30)<-0.70||sessionMove<-1.00);
   if(freshBearContinuation)reentry={...reentry,allowed:true,newEvidence:[...(reentry.newEvidence||[]),"fresh bearish continuation: falling FEP + negative GEX + sustained downside"]};

@@ -57,7 +57,7 @@ export function choosePrimarySignal({ gex, callDom, fepDistance, accelScore = 0,
   return candidates.sort((a, b) => b.score - a.score)[0].category;
 }
 
-export function evaluateReentryDiscipline(memory, side, primaryCategory, gexState) {
+export function evaluateReentryDiscipline(memory, side, primaryCategory, gexState, currentTick = null) {
   const losses = (memory?.attempts || []).filter(x => x.side === side && x.pnl <= 0).slice(-3);
   const streak = memory?.consecutiveFailures?.[side] || 0;
   const oppositeOverride = side === 'CALL'
@@ -67,7 +67,9 @@ export function evaluateReentryDiscipline(memory, side, primaryCategory, gexStat
     return { allowed: false, code: 'REENTRY_HARD_BLOCK', repeatedCategory: losses.at(-1)?.primaryCategory || 'UNKNOWN', override: 'opposite GEX crossing or terminal spike' };
   }
   const lastTwo = losses.slice(-2);
-  if (lastTwo.length === 2 && lastTwo.every(x => x.primaryCategory && x.primaryCategory === lastTwo[0].primaryCategory) && primaryCategory === lastTwo[0].primaryCategory) {
+  const lastLossTick = lastTwo.at(-1)?.tick;
+  const categoryBlockFresh = currentTick == null || lastLossTick == null || currentTick - lastLossTick <= 20;
+  if (categoryBlockFresh && lastTwo.length === 2 && lastTwo.every(x => x.primaryCategory && x.primaryCategory === lastTwo[0].primaryCategory) && primaryCategory === lastTwo[0].primaryCategory) {
     return { allowed: false, code: 'REENTRY_CATEGORY_BLOCK', repeatedCategory: primaryCategory, override: 'a different primary signal category' };
   }
   return { allowed: true, code: null, repeatedCategory: null, override: null };

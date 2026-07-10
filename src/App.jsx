@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG } from "./realReplayData";
+import { replayQualityFor } from "./replayQuality";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
 
 const BUILD_ID = "firstsignal-sim-v1-20260710";
+const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_CATALOG),...REPLAY_DATES])].sort().reverse();
 const ARCHITECTURE_MANIFEST=`FIRSTSIGNAL ARCHITECTURE SELF-MODEL
 Purpose: identify and exploit temporary SPY 0DTE environments where repeated asymmetric wins become structurally plausible.
 Authority order: observed market/options data -> feature lenses -> Structural ITS playbook -> Local ITS timing -> unified CALL/PUT/WAIT thesis -> canonical executable intent -> AI execution and management.
@@ -1708,7 +1710,7 @@ export default function App(){
   const[patchDenyNote,setPatchDenyNote]=useState("");
   const[showMindsetAll,setShowMindsetAll]=useState(false);
   const[resumeAvailable,setResumeAvailable]=useState(()=>!!storageGet("interrupted",null));
-  const[selectedReplayDate,setSelectedReplayDate]=useState(REPLAY_DATES[0]||"2026-07-06");
+  const[selectedReplayDate,setSelectedReplayDate]=useState(AVAILABLE_REPLAY_DATES[0]||"2026-07-06");
   const[chopGate,setChopGate]=useState("OFF");
 
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
@@ -2155,7 +2157,11 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
   const div=mkt?(mkt.itsSPX-mkt.itsSPY):0;
   const divColor=div>0.5?T.accent:div<-0.5?T.red:T.yellow;
 
-  if(screen==="home")return(
+  
+  const selectedReplayData=REAL_REPLAY_CATALOG[selectedReplayDate]||REPLAY_CATALOG[selectedReplayDate];
+  const selectedReplayQuality=replayQualityFor(selectedReplayDate);
+  const replayQualityColor=selectedReplayQuality.level==="GREEN"?T.accent:selectedReplayQuality.level==="YELLOW"?T.yellow:T.red;
+if(screen==="home")return(
     <div style={{background:T.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"monospace"}}>
       <div style={{fontSize:9,color:T.muted,letterSpacing:"0.2em",marginBottom:8}}>FIRSTSIGNAL SIM v1</div>
       <div style={{fontSize:26,fontWeight:700,color:T.accent,marginBottom:4}}>FirstSignal Sim</div>
@@ -2164,11 +2170,16 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
       <div style={{width:"100%",maxWidth:280,marginBottom:16}}>
         <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION · v26 AIR-GAP</div>
         <select value={selectedReplayDate} onChange={e=>setSelectedReplayDate(e.target.value)} style={{width:"100%",marginBottom:8,padding:"8px 10px",background:T.surface,color:T.text,border:`1px solid ${T.border}`,borderRadius:6,fontFamily:"monospace",fontSize:10}}>
-          {REPLAY_DATES.map(d=><option key={d} value={d}>{REPLAY_CATALOG[d].label}</option>)}
+          {AVAILABLE_REPLAY_DATES.map(d=>{const q=replayQualityFor(d),data=REAL_REPLAY_CATALOG[d]||REPLAY_CATALOG[d];return <option key={d} value={d}>{q.level==="GREEN"?"●":q.level==="YELLOW"?"▲":"■"} {data?.label||d} · {q.label}</option>;})}
         </select>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{marginBottom:8,padding:"8px 10px",background:selectedReplayQuality.level==="GREEN"?T.accentDim:selectedReplayQuality.level==="YELLOW"?T.yellowDim:"#ef444418",border:`1px solid ${replayQualityColor}55`,borderRadius:6,color:replayQualityColor,fontSize:8,lineHeight:1.45}}>
+          <div style={{fontWeight:700,marginBottom:3}}>{selectedReplayQuality.level} · {selectedReplayQuality.label}</div>
+          <div>{selectedReplayQuality.summary}</div>
+          {selectedReplayQuality.missingEssential?.length>0&&<div style={{marginTop:4}}>Missing: {selectedReplayQuality.missingEssential.join(" · ")}</div>}
+        </div>
+        <div style={{display:"flex",gap:8}}>
           <button onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
-          <button onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>REPLAY<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{REPLAY_CATALOG[selectedReplayDate]?.label||"Select date"}</div></button>
+          <button onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>REPLAY<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{selectedReplayData?.label||"Select date"}</div></button>
         </div>
       </div>
       <div style={{width:"100%",maxWidth:280,display:"flex",gap:8,marginBottom:16}}>

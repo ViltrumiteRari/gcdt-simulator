@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09"]
+DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"]
 ROOT = Path(r"D:\FirstSignal_GCDT_Dataset")
 OUT = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js")
 FALLBACK_CATALOG = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js")
@@ -49,7 +49,7 @@ def implied_vol_delta(spot, strike, t_years, price, kind):
 
 def load_market():
     market = pd.read_csv(DATA / "market_timeline.csv")
-    market["captured_at"] = pd.to_datetime(market["captured_at"])
+    market["captured_at"] = pd.to_datetime(market["captured_at"], format="mixed")
     minute_index = pd.date_range(f"{DAY} 09:30:00", f"{DAY} 16:15:00", freq="1min")
     out = {}
     first_native_spot = {}
@@ -169,6 +169,8 @@ def read_trade_history(day):
         base / "regular_0930_1615_contract_ohlcv.csv.gz",
         base / "morning_0930_1200_contract_ohlcv.csv",
         base / "morning_0930_1200_contract_ohlcv.csv.gz",
+        base / "intraday_contract_ohlcv.csv",
+        base / "intraday_contract_ohlcv.csv.gz",
     ]
     frames = []
     for path in candidates:

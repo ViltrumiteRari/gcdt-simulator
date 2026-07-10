@@ -1,5 +1,6 @@
 import json
 import math
+import tarfile
 from datetime import datetime
 from pathlib import Path
 
@@ -294,6 +295,44 @@ def synth_rows(anchor, ts, spot, quote_source):
     return rows
 
 
+def load_order_flow(day):
+    archive = ROOT / day / "SPY" / "order_flow" / "raw.tar.gz"
+    latest = ROOT / day / "SPY" / "order_flow" / "latest_order_flow.json"
+    records = {}
+    payloads = []
+    if archive.exists():
+        with tarfile.open(archive, "r:gz") as tf:
+            for member in tf.getmembers():
+                if not member.isfile() or not member.name.endswith(".json"):
+                    continue
+                try:
+                    payloads.append(json.load(tf.extractfile(member)))
+                except Exception:
+                    pass
+    elif latest.exists():
+        payloads.append(json.loads(latest.read_text(encoding="utf-8")))
+    for payload in payloads:
+        body = payload.get("response", payload)
+        for trade in body.get("trades", []) or []:
+            if trade.get("ticker") == "SPY" and trade.get("id"):
+                records[trade["id"]] = trade
+    if not records:
+        return {}
+    rows = []
+    for t in records.values():
+        dt = pd.to_datetime(t.get("tradeTime"), unit="ms", utc=True).tz_convert("America/New_York").tz_localize(None)
+        premium = float(t.get("premiumInCents") or 0) / 100.0
+        side = str(t.get("tradeSideCode") or "")
+        ctype = str(t.get("contractType") or "")
+        children = t.get("comprisingTrades") or []
+        prices = {c.get("optionPriceInCents") for c in children if c.get("optionPriceInCents") is not None}
+        rows.append({"minute":dt.floor("min"),"premium":premium,"size":float(t.get("size") or 0),"ask":premium if side in ("A","AA") else 0,"bid":premium if side in ("B","BB") else 0,"sweep":premium if t.get("tradeConsolidationType")=="SWEEP" else 0,"block":premium if t.get("tradeConsolidationType")=="BLOCK" else 0,"multi":premium if t.get("exchange")=="MULTIPLE" else 0,"callAsk":premium if ctype=="CALL" and side in ("A","AA") else 0,"putAsk":premium if ctype=="PUT" and side in ("A","AA") else 0,"callBid":premium if ctype=="CALL" and side in ("B","BB") else 0,"putBid":premium if ctype=="PUT" and side in ("B","BB") else 0,"levels":len(prices) or 1})
+    frame = pd.DataFrame(rows)
+    out = {}
+    for minute,g in frame.groupby("minute"):
+        out[minute] = {"tradeCount":int(len(g)),"totalPremium":float(g.premium.sum()),"askPremium":float(g.ask.sum()),"bidPremium":float(g.bid.sum()),"sweepPremium":float(g.sweep.sum()),"blockPremium":float(g.block.sum()),"multiExchangePremium":float(g.multi.sum()),"callAskPremium":float(g.callAsk.sum()),"putAskPremium":float(g.putAsk.sum()),"callBidPremium":float(g.callBid.sum()),"putBidPremium":float(g.putBid.sum()),"maxContracts":float(g["size"].max()),"maxPriceLevels":int(g.levels.max()),"clusteredLegs":int((g.premium>0).sum()>3),"oppositeSideNear":int(g.ask.sum()>0 and g.bid.sum()>0),"repeatedSameSide":int(max((g.ask>0).sum(),(g.bid>0).sum())>=3)}
+    return out
+
 def build_day(day):
     global DAY, DATA
     DAY = day
@@ -302,6 +341,7 @@ def build_day(day):
     gex = load_gex()
     trade_history = read_trade_history(DAY)
     real_chain = read_chain(DAY)
+    order_flow = load_order_flow(DAY)
     has_trade_history = not trade_history.empty
     has_real_quotes = not real_chain.empty
     first_real = trade_history["captured_at"].min() if has_trade_history else (real_chain["captured_at"].min() if has_real_quotes else None)
@@ -337,7 +377,7 @@ def build_day(day):
             quote_source = "SYNTHETIC_CALIBRATED" if has_real_quotes else "SYNTHETIC_CROSS_DAY_CALIBRATED"
             chain_rows = synth_rows(anchor, ts, spot, quote_source)
         iv_values = [q["iv"] for q in chain_rows if q.get("iv") is not None]
-        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_TIME_INTERPOLATION", "fepSource": fep_source, "chain": chain_rows})
+        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_TIME_INTERPOLATION", "fepSource": fep_source, "orderFlow": order_flow.get(ts.floor("min")), "chain": chain_rows})
     return {"date": DAY, "label": f"{DAY} · Unified native SPY/SPX · 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC")}, "snapshots": snapshots}
 
 

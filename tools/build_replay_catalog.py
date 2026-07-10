@@ -1,10 +1,10 @@
-import json
+﻿import json
 from datetime import datetime
 from pathlib import Path
 
 DATA=Path(r'D:\FirstSignal_GCDT_Dataset')
 OUT=Path(r'C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js')
-DAYS=['2026-07-06','2026-07-07','2026-07-08']
+DAYS=sorted([d.name for d in DATA.iterdir() if d.is_dir() and d.name.startswith('2026-')])
 
 def load_interval(day,ticker='SPY'):
     p=DATA/day/ticker/'interval_map'/'latest_interval_map.json'
@@ -42,3 +42,4 @@ for day in DAYS:
 OUT.write_text('export const REPLAY_CATALOG = '+json.dumps(catalog,separators=(',',':'))+';\nexport const REPLAY_DATES = Object.keys(REPLAY_CATALOG).sort().reverse();\n',encoding='utf-8')
 for day,item in catalog.items():
     print(day,len(item['snapshots']),item['snapshots'][0]['time'],item['snapshots'][-1]['time'])
+

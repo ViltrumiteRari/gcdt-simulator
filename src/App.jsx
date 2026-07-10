@@ -2,8 +2,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG } from "./realReplayData";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
+import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
 
-const BUILD_ID = "v26-live-thoughts-supabase-20260708";
+const BUILD_ID = "v26-its-flow-self-model-20260710";
+const ARCHITECTURE_MANIFEST=`FIRSTSIGNAL ARCHITECTURE SELF-MODEL
+Purpose: identify and exploit temporary SPY 0DTE environments where repeated asymmetric wins become structurally plausible.
+Authority order: observed market/options data -> feature lenses -> Structural ITS playbook -> Local ITS timing -> unified CALL/PUT/WAIT thesis -> canonical executable intent -> AI execution and management.
+Structural ITS chooses PINNING, EXPANSION, BREAKDOWN, or WAIT and carries confidence, age, stability, transition heat, and regime-change risk.
+Local ITS reads the current stretch, response, acceptance, acceleration, and GEX rate of change inside that structural world.
+Options flow now includes sweep, multi-exchange, block, bid/ask-side premium, repeated activity, and comprisingTrades price-level evidence. Flow is rich evidence of urgency and possible intent, but broker routing, hedges, rolls, and packages remain competing explanations.
+The AI is the convergence layer: inspect interactions, form hypotheses, execute canonical opportunities, manage positions, and write durable reflections when new evidence changes how the architecture should be understood.`;
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -241,7 +249,7 @@ function createNativeReplayEngine(replayData){
     const fep=x.gammaFlip;
     const accelerator=clamp(2.5+Math.abs(move)*18,0,ACCEL_SCALE_MAX);
     const itsSPX=itsFromGex(x.callDomSpx,x.netGexSpx,5.5),itsSPY=itsFromGex(x.callDom,x.netGex,4.5);
-    const out={spySpot:x.spySpot,spxSpot:x.spxSpot,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:!String(x.quoteSource||"").startsWith("REAL"),quoteSource:x.quoteSource,optionChain:nativeChain(x),dataBasis:"native-replay"};
+    const out={spySpot:x.spySpot,spxSpot:x.spxSpot,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:!String(x.quoteSource||"").startsWith("REAL"),quoteSource:x.quoteSource,orderFlow:x.orderFlow||null,optionChain:nativeChain(x),dataBasis:"native-replay"};
     last=x;return out;
   }
   function tick(){idx=Math.min(idx+1,snapshots.length-1);return mapSnap(snapshots[idx]);}
@@ -929,16 +937,20 @@ function updateVetoAudits(audits,chain,m,tick,onLog){
   }).filter(a=>tick-a.startTick<=12);
 }
 function createAiSessionMemory(label="UNSET"){
-  return{sessionLabel:label,updatedAt:null,summary:"Session not yet assessed.",dominantThesis:"UNSET",competingThesis:"UNSET",expectedPath:"UNSET",invalidation:"UNSET",unresolved:"UNSET",lastDecision:"NONE",lastSpot:null,lastTime:null,entries:[]};
+  const priorArch=storageGet("ai_architecture_memory",{}),upgradePending=priorArch.buildId!==BUILD_ID;
+  return{sessionLabel:label,updatedAt:null,summary:"Session not yet assessed.",dominantThesis:"UNSET",competingThesis:"UNSET",expectedPath:"UNSET",invalidation:"UNSET",unresolved:"UNSET",lastDecision:"NONE",lastSpot:null,lastTime:null,entries:[],architecture:{buildId:BUILD_ID,upgradePending,priorBuild:priorArch.buildId||"UNKNOWN",reflection:priorArch.reflection||"UNSET"}};
 }
 function aiMemoryText(mem){
   const m=mem||createAiSessionMemory();
   return `GCDT AI THOUGHTS JOURNAL
 Session: ${m.sessionLabel}
 Continuity: ${m.summary}
+Architecture: ${m.architecture?.upgradePending?`UPGRADE PENDING from ${m.architecture?.priorBuild||"UNKNOWN"} to ${m.architecture?.buildId}`:`Build ${m.architecture?.buildId||BUILD_ID} understood`}
+Architecture reflection: ${m.architecture?.reflection||"UNSET"}
 
 ${(m.entries||[]).slice(-30).join("\n\n")||"The journal is empty. The AI has not written a thought yet."}`;
 }
+function lastFlowHypothesis(dec,fallback){return dec.flow_hypothesis?`Flow hypothesis: ${dec.flow_hypothesis}`:fallback;}
 function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const prior=mem||createAiSessionMemory();
   const move=Number.isFinite(prior.lastSpot)?mkt.spySpot-prior.lastSpot:null;
@@ -949,7 +961,9 @@ function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const unresolved=dec.veto_reason&&dec.veto_reason!=="NONE"?`${dec.veto_reason}: ${dec.veto_evidence||"no detail"}`:(dec.new_evidence||"No material unresolved conflict stated.");
   const thought=(dec.thought_append||dec.reasoning||"").trim();
   const entry=`[${time}]\n${thought||`${dec.decision}: ${observed}`}\nDecision: ${dec.decision}${expected?` | Watching: ${expected}`:""}`;
-  return{...prior,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved,lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-40)};
+  const reflection=(dec.architecture_reflection||prior.architecture?.reflection||"UNSET").trim();
+  const architecture={...(prior.architecture||{}),buildId:BUILD_ID,upgradePending:false,reflection};
+  return{...prior,architecture,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved:lastFlowHypothesis(dec,unresolved),lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-40)};
 }
 
 function normalizeTraderDecision(obj){
@@ -960,6 +974,11 @@ function normalizeTraderDecision(obj){
   return{
     decision,
     thought_append:String(obj.thought_append||"").slice(0,4000),
+    architecture_reflection:String(obj.architecture_reflection||"").slice(0,3000),
+    flow_hypothesis:String(obj.flow_hypothesis||"").slice(0,1200),
+    self_audit:String(obj.self_audit||"").slice(0,1600),
+    missing_angle:String(obj.missing_angle||"").slice(0,1200),
+    coherence_check:String(obj.coherence_check||"COHERENT").slice(0,40),
     reasoning:String(obj.reasoning||"").slice(0,600),
     mindset:String(obj.mindset||"").slice(0,240),
     journal_entry:String(obj.journal_entry||"").slice(0,600),
@@ -1227,7 +1246,11 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
     :pos?"MANAGE POSITION":"NO ENTRIES";
   const rH=hist.slice(-8).map(c=>`${c.t} SPY:${c.spySpot.toFixed(2)} SPX-ITS:${c.itsSPX.toFixed(2)} SPY-ITS:${c.itsSPY.toFixed(2)} DIV:${(c.itsSPX-c.itsSPY).toFixed(2)} ACCEL:${c.accel.toFixed(1)}`).join("\n");
   const posStr=pos?`OPEN: ${pos.strike}${pos.isCall?"C":"P"} entry $${pos.entry.toFixed(2)} now $${pos.current.toFixed(2)} (${((pos.current/pos.entry-1)*100).toFixed(0)}%)`:"NO POSITION";
-  const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
+  const contextStr=contextPrompt(th.contextHierarchy,th.flowLens);
+  const capabilityInventory={market:true,spxSpyIts:true,structuralIts:!!th.contextHierarchy?.structural,localIts:!!th.contextHierarchy?.local,gex:true,fep:true,walls:true,accelerator:true,optionChain:!!mkt.optionChain,orderFlow:!!mkt.orderFlow?.tradeCount,comprisingTradeDepth:(mkt.orderFlow?.maxPriceLevels||0)>1,persistentJournal:!!aiSessionMemory,tradeMemory:true};
+  const auditDue=!!aiSessionMemory?.architecture?.upgradePending||(mkt.tick||0)%30===0||th.contextHierarchy?.alignment==="CONFLICT"||(th.flowLens?.available&&th.flowLens.aggression>=70)||(th.flowLens?.available&&th.flowLens.hedgeProbability>=70);
+  const inventoryStr=Object.entries(capabilityInventory).map(([k,v])=>`${k}:${v?"AVAILABLE":"ABSENT"}`).join(" | ");
+  const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
 
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
@@ -1242,6 +1265,17 @@ AI THOUGHTS JOURNAL — READ THIS BEFORE DECIDING:
 ${aiMemoryText(aiSessionMemory)}
 
 ${sessionSummary||"Session just opened."}
+
+ARCHITECTURE SELF-MODEL:
+${ARCHITECTURE_MANIFEST}
+DATA / CAPABILITY INVENTORY:
+${inventoryStr}
+${aiSessionMemory?.architecture?.upgradePending?`
+BOOT UPGRADE HANDSHAKE: This is your first live assessment on build ${BUILD_ID}. Before writing architecture_reflection, independently compare the available capabilities, live fields, hierarchy, and prior architecture memory. Identify only what is materially new, newly useful, missing, contradictory, or misunderstood. Do not assume any named capability is important merely because it appears in the inventory. Write your own architecture reflection from that audit.`:""}
+${auditDue?`
+AUTONOMOUS SANITY AUDIT DUE: Independently verify that the current interpretation is internally coherent across structure, local behavior, price response, execution data, contract behavior, and session history. Look for stale assumptions, double-counted evidence, unexplained contradictions, absent data, or a potentially valuable angle the framework is not currently using. This audit must not delay a valid executable trade. Only record a durable finding when it is material.`:""}
+
+${contextStr}
 
 REGIME: ${top[0].toUpperCase()} ${top[1]}% (D:${probs.discovery} PIN:${probs.pin} T:${probs.transition} M:${probs.macro})
 CONVICTION: ${conf.score}/100 | ${conf.factors.slice(0,3).map(f=>f.label+(f.delta>0?"+":"")+f.delta).join(", ")}
@@ -1295,7 +1329,7 @@ RULES:
 ${rulesStr}
 
 Respond ONLY valid JSON. Put thought_append first so it can stream into the live notepad before the final decision is parsed:
-{"thought_append":"free-form compact working note, or empty string if nothing worth carrying forward","decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"session or historical memory used","current_thesis":"one phrase","expected_next_path":"what should happen next","new_evidence":"what changed since prior decision","prior_trade_effect":"how previous entries/exits affect this decision","reevaluate_after_ticks":2,"veto_reason":"NONE|DIRECTION_FLIPPED|CONTRACT_INVALID|CHASE_RISK|EPISODE_STALE|OPPOSITE_ACCEPTANCE|FINAL_THETA_WINDOW","veto_evidence":"specific current-state evidence or empty"}`;
+{"thought_append":"free-form compact working note, or empty string if nothing worth carrying forward","architecture_reflection":"required only when BOOT UPGRADE HANDSHAKE is present; otherwise empty","flow_hypothesis":"independent current inference from execution evidence, or empty","self_audit":"material sanity-check finding, or empty","missing_angle":"potentially valuable unmodeled angle, or empty","coherence_check":"COHERENT|TENSION|DATA_GAP|STALE_ASSUMPTION","decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"session or historical memory used","current_thesis":"one phrase","expected_next_path":"what should happen next","new_evidence":"what changed since prior decision","prior_trade_effect":"how previous entries/exits affect this decision","reevaluate_after_ticks":2,"veto_reason":"NONE|DIRECTION_FLIPPED|CONTRACT_INVALID|CHASE_RISK|EPISODE_STALE|OPPOSITE_ACCEPTANCE|FINAL_THETA_WINDOW","veto_evidence":"specific current-state evidence or empty"}`;
   const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,response_format:{type:"json_object"},temperature:0.2,stream:true}),signal});
   if(!resp.ok)throw new Error(`API ${resp.status}`);
   const rawText=(resp.headers.get("content-type")||"").includes("text/event-stream")?await readTraderStream(resp,onThought):await resp.text();
@@ -1751,7 +1785,10 @@ export default function App(){
     const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
     if(nextBrain.active!==priorBrain.active||Math.abs(nextBrain.bullPressure-priorBrain.bullPressure)>=8||Math.abs(nextBrain.bearPressure-priorBrain.bearPressure)>=8||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
-    const np=computeProbs(m,candR.current),nc=computeConf(m,np),rawThesis=computeTheses(m,candR.current,thesisR.current),nt=unifyDirectionalState(rawThesis,nextBrain,thesisR.current);
+    const np=computeProbs(m,candR.current),nc=computeConf(m,np);
+    const contextHierarchy=computeItsHierarchy(m,candR.current,contextMemoryR.current); contextMemoryR.current=contextHierarchy.memory;
+    const flowLens=computeFlowLens(m.orderFlow);
+    const rawThesis=harmonizeThesis(computeTheses(m,candR.current,thesisR.current),contextHierarchy,flowLens),nt=unifyDirectionalState(rawThesis,nextBrain,thesisR.current);
     if(nt.gexVelocity?.terminalSpike)addJournal(c.t,`TERMINAL_SPIKE_BLOCK ${nt.gexVelocity.state} near structural wall; spike-direction entry blocked, opposite conviction boosted.`);
     if(nt.callDomSignal?.direction&&nt.gexVelocity?.direction&&nt.callDomSignal.direction!==nt.gexVelocity.direction)addJournal(c.t,`CALLDOM_GEX_DIVERGENCE callDom:${nt.callDomSignal.state} gex:${nt.gexVelocity.state}.`);
     probR.current=np;confR.current=nc;thesisR.current=nt;setProbs({...np});setConfData({...nc});setThesisData({...nt});
@@ -1863,12 +1900,16 @@ export default function App(){
           if((dec.decision==="WAIT"||dec.decision==="WAITING")&&dec.reasoning===lastWaitReasonR.current)repeatWaitR.current++;else repeatWaitR.current=0;
           lastWaitReasonR.current=dec.reasoning||"";
           aiSessionMemoryR.current=updateAiSessionMemory(aiSessionMemoryR.current,dec,currentMarket,liveIntent,liveTs);
-          storageSet("ai_session_memory",aiSessionMemoryR.current);setAiSessionMemory({...aiSessionMemoryR.current});
+          storageSet("ai_session_memory",aiSessionMemoryR.current);
+          if(dec.architecture_reflection){storageSet("ai_architecture_memory",{buildId:BUILD_ID,reflection:dec.architecture_reflection,updatedAt:liveTs});}
+          setAiSessionMemory({...aiSessionMemoryR.current});
           setLiveThought("");
-          const durableThought=(dec.thought_append||dec.reasoning||"").trim();
+          const durableThought=(dec.thought_append||dec.self_audit||dec.missing_angle||dec.reasoning||"").trim();
           if(source==="AI"&&durableThought){setThoughtSync("SAVING");persistThought({session_id:thoughtSessionIdR.current,market_time:liveTs,kind:"thought",content:durableThought,decision:dec.decision,spot:currentMarket.spySpot,metadata:{thesis:dec.current_thesis||"",expected_next_path:dec.expected_next_path||"",new_evidence:dec.new_evidence||""}}).then(()=>setThoughtSync("SYNCED")).catch(()=>setThoughtSync("LOCAL"));}
           addM({t:ts,mindset:dec.mindset||"—",reasoning:dec.reasoning||"—",decision:dec.decision,score:confR.current.score,edgeState:dec.edge_state||"—",confTrend:dec.confidence_trend||"—"});
           if(dec.journal_entry)addJournal(ts,dec.journal_entry);
+          if(dec.self_audit)addJournal(ts,`SELF_AUDIT ${dec.coherence_check||"COHERENT"}: ${dec.self_audit}`);
+          if(dec.missing_angle)addJournal(ts,`MISSING_ANGLE ${dec.missing_angle}`);
           if(dec.memory_used&&dec.memory_used!=="none")addJournal(ts,`MEMORY_USED ${dec.memory_used}`);
           if(dec.decision==="SELL"&&posR.current){
             const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;

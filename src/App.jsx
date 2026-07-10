@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
-import { REAL_REPLAY_CATALOG } from "./realReplayData";
+import { REAL_REPLAY_CATALOG as BASE_REAL_REPLAY_CATALOG } from "./realReplayData";
+import { JULY10_REPLAY } from "./realReplayDataJul10";
 import { replayQualityFor } from "./replayQuality";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
 
 const BUILD_ID = "firstsignal-sim-v1-20260710";
+const REAL_REPLAY_CATALOG={...BASE_REAL_REPLAY_CATALOG,"2026-07-10":JULY10_REPLAY};
 const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_CATALOG),...REPLAY_DATES])].sort().reverse();
 const ARCHITECTURE_MANIFEST=`FIRSTSIGNAL ARCHITECTURE SELF-MODEL
 Purpose: identify and exploit temporary SPY 0DTE environments where repeated asymmetric wins become structurally plausible.

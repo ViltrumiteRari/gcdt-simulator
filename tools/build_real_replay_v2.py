@@ -10,6 +10,7 @@ import pandas as pd
 DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"]
 ROOT = Path(r"D:\FirstSignal_GCDT_Dataset")
 OUT = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js")
+OUT_JUL10 = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayDataJul10.js")
 FALLBACK_CATALOG = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js")
 RISK_FREE = 0.045
 DAY = DAYS[-1]
@@ -446,7 +447,10 @@ def build_day(day):
 
 def main():
     catalog = {day: build_day(day) for day in DAYS}
+    july10 = catalog.pop("2026-07-10", None)
     OUT.write_text("export const REAL_REPLAY_CATALOG = " + json.dumps(catalog, separators=(",", ":")) + ";\n", encoding="utf-8")
+    if july10 is not None:
+        OUT_JUL10.write_text("export const JULY10_REPLAY = " + json.dumps(july10, separators=(",", ":")) + ";\n", encoding="utf-8")
     for day, payload in catalog.items():
         counts = pd.Series([x["quoteSource"] for x in payload["snapshots"]]).value_counts().to_dict()
         print(day, len(payload["snapshots"]), counts, payload["coverage"])

@@ -2040,7 +2040,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
           addJournal(ts,`FALLBACK_DECISION ${fallback.decision} — ${fallback.reasoning}`);
           applyDecision(fallback,"FALLBACK");
         })
-        .finally(()=>{clearTimeout(requestCtx.timeoutId);if(activeDecisionR.current?.id===requestCtx.id)activeDecisionR.current=null;if(requestCtx.freezeSim)aiFreezeR.current=false;thinkR.current=false;setThinking(false);});
+        .finally(()=>{clearTimeout(requestCtx.timeoutId);if(activeDecisionR.current?.id===requestCtx.id)activeDecisionR.current=null;if(requestCtx.freezeSim)aiFreezeR.current=false;thinkR.current=false;setThinking(false);setLiveThought("");});
     }
   },[aiFreq,addM,addJournal,rules.approved]);
 

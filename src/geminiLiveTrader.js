@@ -2,7 +2,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const SESSION_MAX_MS = 8 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 45000;
+const REQUEST_TIMEOUT_MS = 22000;
 
 const decisionSchema = {
   type: 'object',
@@ -148,11 +148,19 @@ ${market}`;
     return await new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending = null;
+        try { this.session?.close(); } catch {}
+        this.session = null;
+        this.connectedAt = 0;
+        this.bootstrapped = false;
         reject(new Error('GEMINI_LIVE_TIMEOUT'));
       }, REQUEST_TIMEOUT_MS);
       const abort = () => {
         clearTimeout(timer);
         this.pending = null;
+        try { this.session?.close(); } catch {}
+        this.session = null;
+        this.connectedAt = 0;
+        this.bootstrapped = false;
         reject(new DOMException('Aborted', 'AbortError'));
       };
       signal?.addEventListener('abort', abort, { once: true });

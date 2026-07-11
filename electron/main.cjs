@@ -32,11 +32,13 @@ function reportFolder() {
 }
 
 function trayIcon(state = 'WATCHING') {
-  const color = state.includes('APPROVAL') ? '#ff4060' : state === 'ANALYZING' ? '#f0c040' : state.startsWith('OFFLINE') ? '#4a5568' : '#00d4a8';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect x="3" y="3" width="26" height="26" rx="7" fill="#0e1117" stroke="${color}" stroke-width="4"/><circle cx="16" cy="16" r="5" fill="${color}"/></svg>`;
-  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
-}
-function refreshTray() {
+  const asset = state.includes('APPROVAL') ? 'approval' : state === 'ANALYZING' ? 'analyzing' : state.startsWith('OFFLINE') ? 'offline' : 'watching';
+  const icoPath = path.join(__dirname, 'assets', `tray-${asset}.ico`);
+  const pngPath = path.join(__dirname, 'assets', `tray-${asset}.png`);
+  const ico = nativeImage.createFromPath(icoPath);
+  if (!ico.isEmpty()) return ico;
+  return nativeImage.createFromPath(pngPath);
+}function refreshTray() {
   if (!tray) return;
   tray.setImage(trayIcon(currentStatus.state));
   tray.setToolTip(`FirstSignal QA · ${currentStatus.state}`);

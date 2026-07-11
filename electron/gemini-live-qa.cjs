@@ -1,17 +1,19 @@
-const fs = require('fs');
-const path = require('path');
-
 const MODEL = 'gemini-3.1-flash-live-preview';
 const TIMEOUT_MS = 22000;
+const SESSION_MAX_MS = 8 * 60 * 1000;
+const TOKEN_URL = process.env.FIRSTSIGNAL_TOKEN_URL || 'http://127.0.0.1:5173/api/live-token';
 
-function readEnvKey() {
-  const envPath = path.join(__dirname, '..', '.env.local');
-  const text = fs.readFileSync(envPath, 'utf8');
-  const match = text.match(/^GEMINI_API_KEY\s*=\s*["']?([^\r\n"']+)/m);
-  if (!match) throw new Error('GEMINI_API_KEY_MISSING');
-  return match[1].trim();
+async function mintToken() {
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  if (!response.ok) throw new Error(`QA_LIVE_TOKEN_${response.status}: ${await response.text()}`);
+  const data = await response.json();
+  if (!data.token) throw new Error('QA_LIVE_TOKEN_MISSING');
+  return data.token;
 }
-
 const schema = {
   type: 'object',
   properties: {
@@ -25,14 +27,15 @@ const schema = {
 };
 
 class GeminiLiveQa {
-  constructor() { this.session = null; this.pending = null; this.connecting = null; }
+  constructor() { this.session = null; this.connectedAt = 0; this.pending = null; this.connecting = null; }
 
   async ensureSession() {
-    if (this.session) return this.session;
+    if (this.session && Date.now() - this.connectedAt < SESSION_MAX_MS) return this.session;
     if (this.connecting) return this.connecting;
     this.connecting = (async () => {
       const { GoogleGenAI, Modality } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: readEnvKey(), httpOptions: { apiVersion: 'v1alpha' } });
+      const token = await mintToken();
+      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
       this.session = await ai.live.connect({
         model: MODEL,
         callbacks: {
@@ -42,11 +45,12 @@ class GeminiLiveQa {
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          thinkingConfig: { thinkingLevel: 'low' }, outputAudioTranscription: {},
+          thinkingConfig: { thinkingLevel: 'low' }, outputAudioTranscription: {}, sessionResumption: {},
           tools: [{ functionDeclarations: [{ name: 'report_simulator_observation', description: 'Return one evidence-based FirstSignal QA report using GREEN, YELLOW, or RED authority.', parameters: schema }] }],
           systemInstruction: { parts: [{ text: 'You are FirstSignal simulator QA. Never trade or modify anything. Distinguish bugs, data defects, trader behavior, and normal variance. Call report_simulator_observation exactly once and never speak.' }] },
         },
       });
+      this.connectedAt = Date.now();
       return this.session;
     })();
     try { return await this.connecting; } finally { this.connecting = null; }
@@ -66,6 +70,7 @@ class GeminiLiveQa {
   fail(error) {
     const pending = this.pending;
     this.session = null;
+    this.connectedAt = 0;
     if (pending) { clearTimeout(pending.timer); this.pending = null; pending.reject(error); }
   }
 
@@ -73,7 +78,7 @@ class GeminiLiveQa {
     if (this.pending) throw new Error('QA_BUSY');
     const session = await this.ensureSession();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending = null; try { this.session?.close(); } catch {} this.session = null; reject(new Error('QA_TIMEOUT')); }, TIMEOUT_MS);
+      const timer = setTimeout(() => { this.pending = null; try { this.session?.close(); } catch {} this.session = null; this.connectedAt = 0; reject(new Error('QA_TIMEOUT')); }, TIMEOUT_MS);
       this.pending = { resolve, reject, timer };
       session.sendRealtimeInput({ text: `SIMULATOR QA SNAPSHOT\n${JSON.stringify(snapshot)}\nReturn the highest-value supported observation.` });
     });

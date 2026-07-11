@@ -80,7 +80,7 @@ const agentMain = fs.readFileSync(new URL('../electron/main.cjs', import.meta.ur
 assert.match(agentMain, /currentSessionId/);
 assert.match(agentMain, /snapshot\.sessionId !== currentSessionId/);
 assert.match(agentMain, /snapshot\.tick - lastAnalyzedTick >= 20/);
-assert.match(agentMain, /PAUSED: GEMINI QUOTA/);
+assert.match(agentMain, /COOLDOWN: GEMINI RATE LIMIT/);
 const viteConfig = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8');
 assert.match(viteConfig, /firstsignal-local-live-token/);
 assert.match(viteConfig, /authTokens\.create/);

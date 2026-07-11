@@ -1786,7 +1786,7 @@ export default function App(){
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
 
   useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-200));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
-  useEffect(()=>{fetch("http://127.0.0.1:8766/status").then(r=>r.json()).then(x=>{setQaFolder(x.settings?.reportFolder||"Agent service connected");setQaStatus(x.status?.state||"WATCHING");if(x.reports?.length)setQaReports(x.reports.slice(-20));}).catch(()=>setQaStatus("OFFLINE: START AGENT CONSOLE"));},[]);
+  useEffect(()=>{let alive=true;const poll=()=>fetch("http://127.0.0.1:8766/status").then(r=>r.json()).then(x=>{if(!alive)return;setQaFolder(x.settings?.reportFolder||"Agent service connected");setQaStatus(x.status?.state||"WATCHING");if(x.reports)setQaReports(x.reports.slice(-20));}).catch(()=>alive&&setQaStatus("OFFLINE: START AGENT CONSOLE"));poll();const id=setInterval(poll,1000);return()=>{alive=false;clearInterval(id);};},[]);
 
   useEffect(()=>{
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,archetypeId:archetypeIdR.current});}}
@@ -1903,17 +1903,8 @@ export default function App(){
     const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
     if(nextBrain.active!==priorBrain.active||Math.abs(nextBrain.bullPressure-priorBrain.bullPressure)>=8||Math.abs(nextBrain.bearPressure-priorBrain.bearPressure)>=8||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
-    if(tickR.current-qaLastTickR.current>=20&&!qaBusyR.current){
-      qaLastTickR.current=tickR.current;qaBusyR.current=true;setQaStatus("ANALYZING");
-      const qaSnapshot={buildId:BUILD_ID,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,time:c.t,running:true,balance:balR.current,position:posR.current?{side:posR.current.isCall?"CALL":"PUT",strike:posR.current.strike,entry:posR.current.entry,current:posR.current.current,entryTick:posR.current.entryTick}:null,market:{spy:m.spySpot,spx:m.spxSpot,gexSpy:m.netGex,gexSpx:m.netGexSpx,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accelerator:m.accelerator,fep:m.fep,quoteSource:m.quoteSource||"MODELED",synthData:!!m.synthData},intent:tradeIntentR.current,dataHealth:dataHealthR.current,transmission:transmissionR.current,reliability:reliabilityRates(reliabilityR.current),recentTrades:logR.current.slice(-4),recentJournal:journalR.current.slice(-8),recentMindset:mindR.current.slice(-5)};
-      fetch("http://127.0.0.1:8766/observe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(qaSnapshot)}).then(async r=>{const x=await r.json();if(!r.ok)throw new Error(x.error||`QA_HTTP_${r.status}`);return x;}).then(clean=>{
-        setQaReports(prev=>[...prev.slice(-19),clean]);
-        storageSet("qa_reports",[...storageGet("qa_reports",[]).slice(-99),clean]);
-        if(clean.level!=="GREEN")addJournal(c.t,`QA_${clean.level} ${clean.category}: ${clean.title} — ${clean.summary}`);
-        setQaStatus(clean.level==="RED"?"APPROVAL REQUIRED":"WATCHING");
-      }).catch(err=>setQaStatus(`OFFLINE: ${String(err?.message||err).slice(0,40)}`)).finally(()=>{qaBusyR.current=false;});
-    }
-    const np=computeProbs(m,candR.current),nc=computeConf(m,np);
+    const qaSnapshot={buildId:BUILD_ID,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,time:c.t,running:true,balance:balR.current,position:posR.current?{side:posR.current.isCall?"CALL":"PUT",strike:posR.current.strike,entry:posR.current.entry,current:posR.current.current,entryTick:posR.current.entryTick}:null,market:{spy:m.spySpot,spx:m.spxSpot,gexSpy:m.netGex,gexSpx:m.netGexSpx,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accelerator:m.accelerator,fep:m.fep,quoteSource:m.quoteSource||"MODELED",synthData:!!m.synthData},intent:tradeIntentR.current,dataHealth:dataHealthR.current,transmission:transmissionR.current,reliability:reliabilityRates(reliabilityR.current),recentTrades:logR.current.slice(-4),recentJournal:journalR.current.slice(-8),recentMindset:mindR.current.slice(-5)};
+    fetch("http://127.0.0.1:8766/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(qaSnapshot)}).catch(()=>{});    const np=computeProbs(m,candR.current),nc=computeConf(m,np);
     const contextHierarchy=computeItsHierarchy(m,candR.current,contextMemoryR.current); contextMemoryR.current=contextHierarchy.memory;
     const flowLens=computeFlowLens(m.orderFlow);
     const rawThesis=harmonizeThesis(computeTheses(m,candR.current,thesisR.current),contextHierarchy,flowLens),nt=unifyDirectionalState(rawThesis,nextBrain,thesisR.current);

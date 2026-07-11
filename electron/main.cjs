@@ -9,6 +9,10 @@ let tray;
 let runQa;
 let server;
 let reports = [];
+let events = [];
+let activities = [];
+let analyzing = false;
+let lastAnalyzedTick = -99;
 let currentStatus = { state: 'STARTING' };
 
 const settingsPath = () => path.join(app.getPath('userData'), 'agent-settings.json');
@@ -44,8 +48,19 @@ function refreshTray() {
     { type: 'separator' },
     { label: 'Quit Agent', click: () => app.quit() },
   ]));
-  win?.webContents.send('agent:update', { status: currentStatus, reports, settings: loadSettings() });
+  win?.webContents.send('agent:update', { status: currentStatus, reports, activities, eventCount: events.length, settings: loadSettings() });
 }
+function addActivity(kind, message) {
+  activities = [...activities.slice(-149), { id: 'ACT-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), at: new Date().toISOString(), kind, message }];
+  refreshTray();
+}
+
+function inspectContext(windowSize = 40, includePriorReports = true) {
+  const recent = events.slice(-Math.max(1, Math.min(windowSize, 200)));
+  const first = recent[0] || {}; const last = recent.at(-1) || {};
+  return { recentEvents: recent, priorReports: includePriorReports ? reports.slice(-10) : [], delta: { ticks: (last.tick ?? 0) - (first.tick ?? 0), balance: (last.balance ?? 0) - (first.balance ?? 0), positionChanged: JSON.stringify(first.position || null) !== JSON.stringify(last.position || null), intentChanged: first.intent?.action !== last.intent?.action, dataHealthChanged: first.dataHealth?.state !== last.dataHealth?.state } };
+}
+
 async function chooseFolder() {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
   if (result.canceled || !result.filePaths[0]) return loadSettings();
@@ -83,26 +98,35 @@ async function readBody(req) {
 function startServer() {
   server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return json(res, 204, {});
-    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, reports, settings: loadSettings() });
+    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, reports, activities, eventCount: events.length, settings: loadSettings() });
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
     if (req.url === '/open-notebook' && req.method === 'POST') { const day = new Date().toISOString().slice(0, 10); await shell.openPath(path.join(reportFolder(), `${day}-qa-notebook.txt`)); return json(res, 200, { ok: true }); }
     if (req.url === '/choose-folder' && req.method === 'POST') return json(res, 200, await chooseFolder());
-    if (req.url === '/observe' && req.method === 'POST') {
+    if ((req.url === '/event' || req.url === '/observe') && req.method === 'POST') {
       try {
         const snapshot = await readBody(req);
-        currentStatus = { state: 'ANALYZING', tick: snapshot.tick, time: snapshot.time };
-        refreshTray();
-        const report = await runQa(snapshot);
-        const clean = { ...report, t: snapshot.time, tick: snapshot.tick, id: `QA-${Date.now()}` };
-        saveReport(clean);
-        currentStatus = { state: clean.level === 'RED' ? 'APPROVAL REQUIRED' : 'WATCHING', level: clean.level, title: clean.title, tick: clean.tick, time: clean.t };
-        refreshTray();
-        return json(res, 200, clean);
-      } catch (error) {
-        currentStatus = { state: `OFFLINE: ${String(error?.message || error).slice(0, 60)}` };
-        refreshTray();
-        return json(res, 500, { error: currentStatus.state });
-      }
+        const prior = events.at(-1);
+        events = [...events.slice(-499), snapshot];
+        const meaningful = !prior || snapshot.tick - lastAnalyzedTick >= 20 ||
+          JSON.stringify(prior.position || null) !== JSON.stringify(snapshot.position || null) ||
+          prior.intent?.action !== snapshot.intent?.action ||
+          snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
+        if (meaningful && !analyzing) {
+          analyzing = true; lastAnalyzedTick = snapshot.tick;
+          currentStatus = { state: 'ANALYZING', tick: snapshot.tick, time: snapshot.time };
+          addActivity('WAKE', `Meaningful simulator event at tick ${snapshot.tick}`);
+          runQa(snapshot).then(report => {
+            const clean = { ...report, t: snapshot.time, tick: snapshot.tick, id: `QA-${Date.now()}` };
+            saveReport(clean);
+            currentStatus = { state: clean.level === 'RED' ? 'APPROVAL REQUIRED' : 'WATCHING', level: clean.level, title: clean.title, tick: clean.tick, time: clean.t };
+            addActivity(clean.level, `${clean.title}: ${clean.summary}`);
+          }).catch(error => {
+            currentStatus = { state: `OFFLINE: ${String(error?.message || error).slice(0, 60)}` };
+            addActivity('ERROR', currentStatus.state);
+          }).finally(() => { analyzing = false; refreshTray(); });
+        }
+        return json(res, 202, { accepted: true, meaningful, analyzing, status: currentStatus });
+      } catch (error) { return json(res, 400, { error: String(error?.message || error) }); }
     }
     return json(res, 404, { error: 'Not found' });
   });
@@ -122,7 +146,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  runQa = await createRunner();
+  runQa = await createRunner({ activity: addActivity, inspect: inspectContext });
   createWindow();
   startServer();
   tray = new Tray(trayIcon('WATCHING'));
@@ -134,7 +158,7 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => { app.isQuitting = true; server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
-ipcMain.handle('agent:get-state', () => ({ status: currentStatus, reports, settings: loadSettings() }));
+ipcMain.handle('agent:get-state', () => ({ status: currentStatus, reports, activities, eventCount: events.length, settings: loadSettings() }));
 ipcMain.handle('agent:choose-folder', () => chooseFolder());
 ipcMain.handle('agent:open-folder', () => shell.openPath(reportFolder()));
 ipcMain.handle('agent:open-notebook', () => {

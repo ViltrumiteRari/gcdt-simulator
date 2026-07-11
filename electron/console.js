@@ -15,6 +15,9 @@ function render(data) {
   $('dot').style.background = color;
   $('dot').style.boxShadow = `0 0 9px ${color}`;
   $('folder').textContent = `Saves to: ${data.settings?.reportFolder || 'Not configured'}`;
+  $('eventCount').textContent = `${data.eventCount || 0} live events received`;
+  const activity = [...(data.activities || [])].reverse().slice(0,30);
+  $('activity').innerHTML = activity.length ? activity.map(a => `<div class="activity-line"><span class="activity-kind">${escapeHtml(a.kind)}</span> | ${escapeHtml(a.message)}</div>`).join('') : '<div class="activity-line">Waiting for simulator events...</div>';
   const reports = [...(data.reports || [])].reverse();
   $('reports').innerHTML = reports.length ? reports.map(r => {
     const cls = String(r.level || 'GREEN').toLowerCase();

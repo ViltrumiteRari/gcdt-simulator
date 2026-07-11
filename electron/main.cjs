@@ -14,6 +14,9 @@ let activities = [];
 let analyzing = false;
 let lastAnalyzedTick = -99;
 let currentStatus = { state: 'STARTING' };
+let currentSessionId = null;
+let quotaBlocked = false;
+const recentFingerprints = new Map();
 
 const settingsPath = () => path.join(app.getPath('userData'), 'agent-settings.json');
 const defaultFolder = () => path.join(app.getPath('documents'), 'FirstSignal Agent Reports');
@@ -55,6 +58,34 @@ function trayIcon(state = 'WATCHING') {
 function addActivity(kind, message) {
   activities = [...activities.slice(-149), { id: 'ACT-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), at: new Date().toISOString(), kind, message }];
   refreshTray();
+}
+
+function resetSession(sessionId, meta = {}) {
+  currentSessionId = sessionId || null;
+  events = [];
+  reports = [];
+  activities = [];
+  analyzing = false;
+  lastAnalyzedTick = -99;
+  quotaBlocked = false;
+  recentFingerprints.clear();
+  currentStatus = currentSessionId ? { state: 'WATCHING', sessionId: currentSessionId, replayDate: meta.replayDate || null } : { state: 'IDLE' };
+  if (currentSessionId) addActivity('SESSION', `Started ${currentSessionId}${meta.replayDate ? ` · ${meta.replayDate}` : ''}`);
+  else refreshTray();
+}
+
+function normalizeReport(report) {
+  const clean = { ...report };
+  if (clean.level === 'RED') clean.approval_required = true;
+  clean.confidence = Math.max(0, Math.min(1, Number(clean.confidence) || 0));
+  return clean;
+}
+
+function isDuplicateReport(report, tick) {
+  const fingerprint = `${report.level}|${report.category}|${String(report.title || '').toLowerCase()}`;
+  const previousTick = recentFingerprints.get(fingerprint);
+  recentFingerprints.set(fingerprint, tick);
+  return previousTick != null && tick - previousTick < 90;
 }
 
 function inspectContext(windowSize = 40, includePriorReports = true) {
@@ -100,31 +131,38 @@ async function readBody(req) {
 function startServer() {
   server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return json(res, 204, {});
-    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, reports, activities, eventCount: events.length, settings: loadSettings() });
+    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, reports, activities, eventCount: events.length, settings: loadSettings() });
+    if (req.url === '/session/start' && req.method === 'POST') { const body = await readBody(req); resetSession(body.sessionId, body); return json(res, 200, { ok: true, sessionId: currentSessionId }); }
+    if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!body.sessionId || body.sessionId === currentSessionId) resetSession(null); return json(res, 200, { ok: true }); }
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
     if (req.url === '/open-notebook' && req.method === 'POST') { const day = new Date().toISOString().slice(0, 10); await shell.openPath(path.join(reportFolder(), `${day}-qa-notebook.txt`)); return json(res, 200, { ok: true }); }
     if (req.url === '/choose-folder' && req.method === 'POST') return json(res, 200, await chooseFolder());
     if ((req.url === '/event' || req.url === '/observe') && req.method === 'POST') {
       try {
         const snapshot = await readBody(req);
+        if (!snapshot.sessionId) return json(res, 409, { error: 'SESSION_ID_REQUIRED' });
+        if (snapshot.sessionId !== currentSessionId) resetSession(snapshot.sessionId, { replayDate: snapshot.replayDate });
         const prior = events.at(-1);
         events = [...events.slice(-499), snapshot];
-        const meaningful = !prior || snapshot.tick - lastAnalyzedTick >= 20 ||
-          JSON.stringify(prior.position || null) !== JSON.stringify(snapshot.position || null) ||
-          prior.intent?.action !== snapshot.intent?.action ||
-          snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
-        if (meaningful && !analyzing) {
+        const critical = snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
+        const positionChanged = JSON.stringify(prior?.position || null) !== JSON.stringify(snapshot.position || null);
+        const periodic = !prior || snapshot.tick - lastAnalyzedTick >= 45;
+        const meaningful = critical || positionChanged || periodic;
+        if (meaningful && !analyzing && !quotaBlocked) {
           analyzing = true; lastAnalyzedTick = snapshot.tick;
           currentStatus = { state: 'ANALYZING', tick: snapshot.tick, time: snapshot.time };
           addActivity('WAKE', `Meaningful simulator event at tick ${snapshot.tick}`);
           runQa(snapshot).then(report => {
-            const clean = { ...report, t: snapshot.time, tick: snapshot.tick, id: `QA-${Date.now()}` };
-            saveReport(clean);
+            const clean = normalizeReport({ ...report, t: snapshot.time, tick: snapshot.tick, id: `QA-${Date.now()}` });
+            if (!isDuplicateReport(clean, snapshot.tick)) saveReport(clean);
+            else addActivity('DEDUPE', `Suppressed repeated ${clean.level} finding: ${clean.title}`);
             currentStatus = { state: clean.level === 'RED' ? 'APPROVAL REQUIRED' : 'WATCHING', level: clean.level, title: clean.title, tick: clean.tick, time: clean.t };
             addActivity(clean.level, `${clean.title}: ${clean.summary}`);
           }).catch(error => {
-            currentStatus = { state: `OFFLINE: ${String(error?.message || error).slice(0, 60)}` };
-            addActivity('ERROR', currentStatus.state);
+            const message = String(error?.message || error);
+            if (/quota|resource_exhausted|429/i.test(message)) quotaBlocked = true;
+            currentStatus = { state: quotaBlocked ? 'PAUSED: GEMINI QUOTA' : `OFFLINE: ${message.slice(0, 60)}` };
+            addActivity('ERROR', quotaBlocked ? 'Gemini developer API quota exhausted; model calls paused for this session.' : currentStatus.state);
           }).finally(() => { analyzing = false; refreshTray(); });
         }
         return json(res, 202, { accepted: true, meaningful, analyzing, status: currentStatus });
@@ -160,7 +198,7 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => { app.isQuitting = true; server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
-ipcMain.handle('agent:get-state', () => ({ status: currentStatus, reports, activities, eventCount: events.length, settings: loadSettings() }));
+ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, reports, activities, eventCount: events.length, settings: loadSettings() }));
 ipcMain.handle('agent:choose-folder', () => chooseFolder());
 ipcMain.handle('agent:open-folder', () => shell.openPath(reportFolder()));
 ipcMain.handle('agent:open-notebook', () => {

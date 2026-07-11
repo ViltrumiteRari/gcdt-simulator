@@ -76,6 +76,21 @@ function resetSession(sessionId, meta = {}) {
   else refreshTray();
 }
 
+function completeSession(meta = {}) {
+  analyzing = false;
+  quotaBlocked = false;
+  cooldownUntil = 0;
+  const completedSessionId = currentSessionId;
+  currentStatus = {
+    state: 'COMPLETED',
+    sessionId: completedSessionId,
+    replayDate: meta.replayDate || currentStatus.replayDate || null,
+    eventCount: events.length,
+    reportCount: reports.length,
+  };
+  addActivity('SESSION', `Completed ${completedSessionId || 'session'} with ${reports.length} findings across ${events.length} events.`);
+}
+
 function normalizeReport(report) {
   const clean = { ...report };
   if (clean.level === 'RED') clean.approval_required = true;
@@ -165,7 +180,7 @@ function startServer() {
     if (req.method === 'OPTIONS') return json(res, 204, {});
     if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, reports, activities, eventCount: events.length, settings: loadSettings() });
     if (req.url === '/session/start' && req.method === 'POST') { const body = await readBody(req); resetSession(body.sessionId, body); return json(res, 200, { ok: true, sessionId: currentSessionId }); }
-    if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!body.sessionId || body.sessionId === currentSessionId) resetSession(null); return json(res, 200, { ok: true }); }
+    if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!body.sessionId || body.sessionId === currentSessionId) completeSession(body); return json(res, 200, { ok: true, status: currentStatus }); }
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
     if (req.url === '/open-notebook' && req.method === 'POST') { const day = new Date().toISOString().slice(0, 10); await shell.openPath(path.join(reportFolder(), `${day}-qa-notebook.txt`)); return json(res, 200, { ok: true }); }
     if (req.url === '/choose-folder' && req.method === 'POST') return json(res, 200, await chooseFolder());

@@ -16,6 +16,7 @@ let lastAnalyzedTick = -99;
 let currentStatus = { state: 'STARTING' };
 let currentSessionId = null;
 let quotaBlocked = false;
+let cooldownUntil = 0;
 const recentFingerprints = new Map();
 
 const settingsPath = () => path.join(app.getPath('userData'), 'agent-settings.json');
@@ -68,6 +69,7 @@ function resetSession(sessionId, meta = {}) {
   analyzing = false;
   lastAnalyzedTick = -99;
   quotaBlocked = false;
+  cooldownUntil = 0;
   recentFingerprints.clear();
   currentStatus = currentSessionId ? { state: 'WATCHING', sessionId: currentSessionId, replayDate: meta.replayDate || null } : { state: 'IDLE' };
   if (currentSessionId) addActivity('SESSION', `Started ${currentSessionId}${meta.replayDate ? ` � ${meta.replayDate}` : ''}`);
@@ -92,10 +94,36 @@ function positionIdentity(position) {
   if (!position) return 'FLAT';
   return [position.side || '', position.strike || '', position.entryTick ?? '', position.entry ?? ''].join(':');
 }
-function inspectContext(windowSize = 40, includePriorReports = true) {
-  const recent = events.slice(-Math.max(1, Math.min(windowSize, 200)));
-  const first = recent[0] || {}; const last = recent.at(-1) || {};
-  return { recentEvents: recent, priorReports: includePriorReports ? reports.slice(-10) : [], delta: { ticks: (last.tick ?? 0) - (first.tick ?? 0), balance: (last.balance ?? 0) - (first.balance ?? 0), positionChanged: positionIdentity(first.position) !== positionIdentity(last.position), intentChanged: first.intent?.action !== last.intent?.action, dataHealthChanged: first.dataHealth?.state !== last.dataHealth?.state } };
+function compactEvent(event = {}) {
+  return {
+    tick: event.tick, time: event.time, balance: event.balance,
+    position: event.position ? { side: event.position.side, strike: event.position.strike, entry: event.position.entry, current: event.position.current, entryTick: event.position.entryTick } : null,
+    market: event.market,
+    intent: event.intent ? { action: event.intent.action, direction: event.intent.direction, readiness: event.intent.readiness, confidence: event.intent.confidence, blockers: (event.intent.blockers || []).slice(0, 3) } : null,
+    dataHealth: event.dataHealth?.state || event.dataHealth,
+    transmission: event.transmission?.state || event.transmission,
+    recentTrades: (event.recentTrades || []).slice(-2),
+    recentJournal: (event.recentJournal || []).slice(-3),
+    recentMindset: (event.recentMindset || []).slice(-2),
+  };
+}
+
+function inspectContext(windowSize = 20, includePriorReports = true) {
+  const raw = events.slice(-Math.max(1, Math.min(windowSize, 60)));
+  const stride = Math.max(1, Math.floor(raw.length / 10));
+  const sampled = raw.filter((_, i) => i % stride === 0 || i === raw.length - 1).slice(-12).map(compactEvent);
+  const first = raw[0] || {}; const last = raw.at(-1) || {};
+  return {
+    recentEvents: sampled,
+    priorReports: includePriorReports ? reports.slice(-5).map(r => ({ tick:r.tick, level:r.level, category:r.category, title:r.title, summary:r.summary })) : [],
+    delta: {
+      ticks: (last.tick ?? 0) - (first.tick ?? 0),
+      balance: (last.balance ?? 0) - (first.balance ?? 0),
+      positionChanged: positionIdentity(first.position) !== positionIdentity(last.position),
+      intentChanged: first.intent?.action !== last.intent?.action,
+      dataHealthChanged: first.dataHealth?.state !== last.dataHealth?.state,
+    },
+  };
 }
 
 async function chooseFolder() {
@@ -150,8 +178,9 @@ function startServer() {
         events = [...events.slice(-499), snapshot];
         const critical = snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
         const positionChanged = positionIdentity(prior?.position) !== positionIdentity(snapshot.position);
-        const periodic = !prior || snapshot.tick - lastAnalyzedTick >= 45;
+        const periodic = !prior || snapshot.tick - lastAnalyzedTick >= 20;
         const meaningful = critical || positionChanged || periodic;
+        if (cooldownUntil && Date.now() >= cooldownUntil) { cooldownUntil = 0; quotaBlocked = false; currentStatus = { state: currentSessionId ? 'WATCHING' : 'IDLE' }; addActivity('RECOVERY', 'Gemini cooldown ended; model investigations resumed.'); }
         if (meaningful && !analyzing && !quotaBlocked) {
           analyzing = true; lastAnalyzedTick = snapshot.tick;
           currentStatus = { state: 'ANALYZING', tick: snapshot.tick, time: snapshot.time };
@@ -164,9 +193,10 @@ function startServer() {
             addActivity(clean.level, `${clean.title}: ${clean.summary}`);
           }).catch(error => {
             const message = String(error?.message || error);
-            if (/quota|resource_exhausted|429/i.test(message)) quotaBlocked = true;
-            currentStatus = { state: quotaBlocked ? 'PAUSED: GEMINI QUOTA' : `OFFLINE: ${message.slice(0, 60)}` };
-            addActivity('ERROR', quotaBlocked ? 'Gemini developer API quota exhausted; model calls paused for this session.' : currentStatus.state);
+            const rateLimited = /quota|resource_exhausted|429/i.test(message);
+            if (rateLimited) { quotaBlocked = true; cooldownUntil = Date.now() + 60_000; }
+            currentStatus = { state: rateLimited ? 'COOLDOWN: GEMINI RATE LIMIT' : `OFFLINE: ${message.slice(0, 80)}` };
+            addActivity('ERROR', `${currentStatus.state} | ${message}`);
           }).finally(() => { analyzing = false; refreshTray(); });
         }
         return json(res, 202, { accepted: true, meaningful, analyzing, status: currentStatus });

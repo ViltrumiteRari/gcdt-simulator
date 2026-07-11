@@ -27,10 +27,11 @@ const schema = {
 };
 
 class GeminiLiveQa {
-  constructor() { this.session = null; this.connectedAt = 0; this.pending = null; this.connecting = null; }
+  constructor() { this.session = null; this.connectedAt = 0; this.pending = null; this.connecting = null; this.requestsOnSession = 0; }
 
   async ensureSession() {
-    if (this.session && Date.now() - this.connectedAt < SESSION_MAX_MS) return this.session;
+    if (this.session && Date.now() - this.connectedAt < SESSION_MAX_MS && this.requestsOnSession < 6) return this.session;
+    if (this.session) { try { this.session.close(); } catch {} this.session = null; this.connectedAt = 0; this.requestsOnSession = 0; }
     if (this.connecting) return this.connecting;
     this.connecting = (async () => {
       const { GoogleGenAI, Modality } = await import('@google/genai');
@@ -40,8 +41,8 @@ class GeminiLiveQa {
         model: MODEL,
         callbacks: {
           onmessage: message => this.handleMessage(message),
-          onerror: event => this.fail(new Error(`GEMINI_LIVE_ERROR:${event?.message || 'unknown'}`)),
-          onclose: event => this.fail(new Error(`GEMINI_LIVE_CLOSE:${event?.reason || 'closed'}`)),
+          onerror: event => this.fail(new Error(`GEMINI_LIVE_ERROR:${JSON.stringify({message:event?.message,reason:event?.reason,code:event?.code,error:event?.error?.message||event?.error})}`)),
+          onclose: event => this.fail(new Error(`GEMINI_LIVE_CLOSE:${JSON.stringify({message:event?.message,reason:event?.reason,code:event?.code})}`)),
         },
         config: {
           responseModalities: [Modality.AUDIO],
@@ -51,6 +52,7 @@ class GeminiLiveQa {
         },
       });
       this.connectedAt = Date.now();
+      this.requestsOnSession = 0;
       return this.session;
     })();
     try { return await this.connecting; } finally { this.connecting = null; }
@@ -71,14 +73,16 @@ class GeminiLiveQa {
     const pending = this.pending;
     this.session = null;
     this.connectedAt = 0;
+    this.requestsOnSession = 0;
     if (pending) { clearTimeout(pending.timer); this.pending = null; pending.reject(error); }
   }
 
   async observe(snapshot) {
     if (this.pending) throw new Error('QA_BUSY');
     const session = await this.ensureSession();
+    this.requestsOnSession++;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending = null; try { this.session?.close(); } catch {} this.session = null; this.connectedAt = 0; reject(new Error('QA_TIMEOUT')); }, TIMEOUT_MS);
+      const timer = setTimeout(() => { this.pending = null; try { this.session?.close(); } catch {} this.session = null; this.connectedAt = 0; this.requestsOnSession = 0; reject(new Error('QA_TIMEOUT')); }, TIMEOUT_MS);
       this.pending = { resolve, reject, timer };
       session.sendRealtimeInput({ text: `SIMULATOR QA SNAPSHOT\n${JSON.stringify(snapshot)}\nReturn the highest-value supported observation.` });
     });

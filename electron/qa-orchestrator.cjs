@@ -38,11 +38,12 @@ async function createRunner(hooks) {
       const recorded = toolResult(request, 'record_observation');
       if (!inspection) {
         hooks.activity('RUNNER', 'Agent requested live context inspection');
-        return { usage: {}, output: [{ type: 'function_call', callId: `inspect_${Date.now()}`, name: 'inspect_live_context', status: 'completed', arguments: JSON.stringify({ eventWindow: 40, includePriorReports: true }) }] };
+        return { usage: {}, output: [{ type: 'function_call', callId: `inspect_${Date.now()}`, name: 'inspect_live_context', status: 'completed', arguments: JSON.stringify({ eventWindow: 20, includePriorReports: true }) }] };
       }
       if (!recorded) {
         hooks.activity('MODEL', 'Gemini Live is evaluating inspected evidence');
-        const report = await geminiLiveQa.observe({ current: this.snapshot, inspection });
+        const current = { ...this.snapshot, recentTrades:(this.snapshot.recentTrades||[]).slice(-2), recentJournal:(this.snapshot.recentJournal||[]).slice(-3), recentMindset:(this.snapshot.recentMindset||[]).slice(-2) };
+        const report = await geminiLiveQa.observe({ current, inspection });
         return { usage: {}, output: [{ type: 'function_call', callId: `record_${Date.now()}`, name: 'record_observation', status: 'completed', arguments: JSON.stringify(report) }] };
       }
       return { usage: {}, output: [{ id: `qa_${Date.now()}`, type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: JSON.stringify(recorded) }] }] };

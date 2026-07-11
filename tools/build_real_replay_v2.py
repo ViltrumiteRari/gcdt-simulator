@@ -134,6 +134,22 @@ def load_market():
     return minute_index, out
 
 
+def load_dedicated_spot(day, ticker, minute_index):
+    path = ROOT / day / ticker / "spot" / "spot_intraday_5m.csv"
+    if not path.exists():
+        return None
+    frame = pd.read_csv(path)
+    if frame.empty or "timestamp_local" not in frame or "spot" not in frame:
+        return None
+    frame["captured_at"] = pd.to_datetime(frame["timestamp_local"], format="mixed", errors="coerce")
+    frame["spot"] = pd.to_numeric(frame["spot"], errors="coerce")
+    frame = frame.dropna(subset=["captured_at", "spot"]).sort_values("captured_at").drop_duplicates("captured_at", keep="last")
+    if frame.empty:
+        return None
+    series = frame.set_index("captured_at")["spot"]
+    return series.reindex(series.index.union(minute_index)).sort_index().interpolate(method="time").ffill().bfill().reindex(minute_index)
+
+
 def load_gex():
     gex = pd.read_csv(DATA / "gex_key_levels.csv")
     gex["captured_at"] = pd.to_datetime(gex["captured_at"])
@@ -170,6 +186,9 @@ def read_trade_history(day):
         base / "regular_0930_1615_contract_ohlcv.csv.gz",
         base / "morning_0930_1200_contract_ohlcv.csv",
         base / "morning_0930_1200_contract_ohlcv.csv.gz",
+        # Historical backfill originally used this misleading filename for the full-day file.
+        base / "morning_contract_ohlcv.csv",
+        base / "morning_contract_ohlcv.csv.gz",
         base / "intraday_contract_ohlcv.csv",
         base / "intraday_contract_ohlcv.csv.gz",
     ]
@@ -185,7 +204,7 @@ def read_trade_history(day):
     if not frames:
         return pd.DataFrame()
     frame = pd.concat(frames, ignore_index=True).drop_duplicates()
-    frame["captured_at"] = pd.to_datetime(frame["captured_at"])
+    frame["captured_at"] = pd.to_datetime(frame["captured_at"], format="mixed", errors="coerce")
     frame = frame[(frame["ticker"] == "SPY") & (frame["expiration"].astype(str) == day)].copy()
     for col in ["strike", "open", "high", "low", "close", "volume", "underlying_close"]:
         frame[col] = pd.to_numeric(frame[col], errors="coerce")
@@ -391,14 +410,20 @@ def build_day(day):
     real_chain = read_chain(DAY)
     order_flow = load_order_flow(DAY)
     has_trade_history = not trade_history.empty
-    # Synchronize the displayed SPY path to the same underlying minute bars that
-    # generated the real option OHLCV. Using an independently interpolated chain
-    # spot beside real contract bars can create impossible option/underlying P&L.
-    if has_trade_history:
+    # Prefer the dedicated full-session spot captures. Contract-history files may be
+    # intentionally limited to a morning window and must never be forward-filled into
+    # a fake frozen afternoon. Fall back to contract underlying only when no dedicated path exists.
+    dedicated_spy = load_dedicated_spot(DAY, "SPY", minute_index)
+    dedicated_spx = load_dedicated_spot(DAY, "SPX", minute_index)
+    if dedicated_spy is not None:
+        market["SPY"].loc[:, "spot"] = dedicated_spy.to_numpy()
+    elif has_trade_history:
         synced = trade_history.groupby("captured_at")["underlying_close"].median().sort_index()
-        synced = synced.reindex(synced.index.union(minute_index)).sort_index().interpolate(method="time").ffill().bfill().reindex(minute_index)
+        synced = synced.reindex(synced.index.union(minute_index)).sort_index().interpolate(method="time").reindex(minute_index)
         valid = synced.notna().to_numpy()
         market["SPY"].loc[valid, "spot"] = synced.loc[valid].to_numpy()
+    if dedicated_spx is not None:
+        market["SPX"].loc[:, "spot"] = dedicated_spx.to_numpy()
     has_real_quotes = not real_chain.empty
     first_real = trade_history["captured_at"].min() if has_trade_history else (real_chain["captured_at"].min() if has_real_quotes else None)
     calibration_day, anchor = calibration_anchor(DAY, real_chain)
@@ -450,7 +475,18 @@ def build_day(day):
             chain_rows = synth_rows(anchor, ts, spot, quote_source)
         iv_values = [q["iv"] for q in chain_rows if q.get("iv") is not None]
         snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_TIME_INTERPOLATION", "fepSource": fep_source, "orderFlow": order_flow.get(ts.floor("min")), "chain": chain_rows})
-    return {"date": DAY, "label": f"{DAY} | Unified native SPY/SPX | 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC")}, "snapshots": snapshots}
+    # A real replay must never silently carry one underlying price through a large part of the day.
+    longest_flat = 1
+    current_flat = 1
+    for prev, cur in zip(snapshots, snapshots[1:]):
+        if abs(float(cur["spySpot"]) - float(prev["spySpot"])) < 1e-9:
+            current_flat += 1
+            longest_flat = max(longest_flat, current_flat)
+        else:
+            current_flat = 1
+    if has_trade_history and longest_flat > 30:
+        raise RuntimeError(f"{DAY} replay has {longest_flat} consecutive frozen SPY minutes; inspect full-day option/spot inputs")
+    return {"date": DAY, "label": f"{DAY} | Unified native SPY/SPX | 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC"), "longestFlatSpyMinutes": longest_flat, "spotSource": "DEDICATED_INTRADAY_5M" if dedicated_spy is not None else "CONTRACT_OR_MARKET_TIMELINE"}, "snapshots": snapshots}
 
 
 def main():

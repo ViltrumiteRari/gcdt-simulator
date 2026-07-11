@@ -1,4 +1,4 @@
-﻿const finite = value => Number.isFinite(Number(value));
+const finite = value => Number.isFinite(Number(value));
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const sideSign = side => side === 'CALL' ? 1 : side === 'PUT' ? -1 : 0;
 
@@ -128,6 +128,88 @@ export function applyForecastTrust(signalTrust, forecast) {
     };
   }
   return next;
+}
+
+
+export function analyzeDataHealth(history = [], market = {}, chain = null) {
+  const rows = [...history.slice(-40), market].filter(Boolean);
+  const spy = rows.map(r => Number(r.spySpot)).filter(Number.isFinite);
+  const spx = rows.map(r => Number(r.spxSpot)).filter(Number.isFinite);
+  const identicalTail = values => {
+    if (!values.length) return 0;
+    const last = values.at(-1); let n = 0;
+    for (let i = values.length - 1; i >= 0 && Math.abs(values[i] - last) < 1e-9; i--) n++;
+    return n;
+  };
+  const lastMeaningful = (values, epsilon) => {
+    if (values.length < 2) return null;
+    const last = values.at(-1);
+    for (let i = values.length - 2; i >= 0; i--) if (Math.abs(last - values[i]) >= epsilon) return values.length - 1 - i;
+    return values.length - 1;
+  };
+  const spyFlatTicks = identicalTail(spy), spxFlatTicks = identicalTail(spx);
+  const spyMeaningfulAge = lastMeaningful(spy, 0.03), spxMeaningfulAge = lastMeaningful(spx, 0.3);
+  const source = String(market?.quoteSource || market?.marketSource || 'UNKNOWN');
+  const forwardFilled = /FILL|FORWARD|INTERPOLAT/i.test(source);
+  const calls = chain?.calls || market?.optionChain?.calls || [];
+  const puts = chain?.puts || market?.optionChain?.puts || [];
+  const chainRows = calls.length + puts.length;
+  const stale = spyFlatTicks >= 8 || (spyMeaningfulAge != null && spyMeaningfulAge >= 10) || chainRows === 0;
+  const nonInformative = stale || (spyFlatTicks >= 5 && spxFlatTicks >= 5) || (forwardFilled && spyFlatTicks >= 4);
+  return { state: stale ? 'DATA_STALE_OR_NONINFORMATIVE' : nonInformative ? 'DATA_LOW_INFORMATION' : 'DATA_HEALTHY', stale, nonInformative, spyFlatTicks, spxFlatTicks, spyMeaningfulAge, spxMeaningfulAge, source, forwardFilled, chainRows };
+}
+
+export function updateTransmissionState(previous = {}, history = [], market = {}, activeForecast = null) {
+  const rows = [...history.slice(-20), market].filter(Boolean);
+  const current = rows.at(-1) || market;
+  const prior = rows.at(-5) || rows.at(0) || current;
+  const spxMove = Number(current.spxSpot) - Number(prior.spxSpot);
+  const spyMove = Number(current.spySpot) - Number(prior.spySpot);
+  const itsGap = Number(current.itsSPX) - Number(current.itsSPY);
+  const side = activeForecast?.side;
+  const sign = sideSign(side);
+  const expectedLead = sign ? sign * spxMove : Math.abs(spxMove);
+  const actualResponse = sign ? sign * spyMove : Math.abs(spyMove);
+  let state = 'TRANSMISSION_PENDING';
+  if (Math.abs(spxMove) < 0.3 && Math.abs(itsGap) < 0.25) state = 'RELATIONSHIP_UNRELIABLE';
+  else if (expectedLead > 0.3 && actualResponse > 0.08) state = 'TRANSMISSION_CONFIRMED';
+  else if (expectedLead > 0.3 && actualResponse <= 0) state = 'TRANSMISSION_FAILED';
+  else if (expectedLead > 0.3 && actualResponse < 0.08) state = 'TRANSMISSION_DELAYED';
+  const failedTicks = state === 'TRANSMISSION_FAILED' || state === 'TRANSMISSION_DELAYED' ? (previous.failedTicks || 0) + 1 : 0;
+  if (failedTicks >= 5) state = 'TRANSMISSION_FAILED';
+  return { state, failedTicks, spxMove, spyMove, itsGap, updatedAt: current.t || null };
+}
+
+export function applyMetacognitiveGates(intent, context = {}) {
+  const next = { ...intent, blockers: [...(intent?.blockers || [])], diagnostics: { ...(intent?.diagnostics || {}) } };
+  const dataHealth = context.dataHealth || {};
+  const transmission = context.transmission || {};
+  const activeForecast = context.activeForecast;
+  const drawdownActive = !!context.drawdownActive;
+  const trustPenalty = Math.max(0, ...(context.signalKeys || []).map(k => Math.max(0, -(context.signalTrust?.[k]?.score || 0)) * 4));
+  next.modelConfidence = clamp(Math.round((Number(next.confidence) || 0) - trustPenalty), 0, 95);
+  next.ruleCompleteness = Number(next.setupQuality) || 0;
+  next.contractQuality = Number(next.diagnostics?.contractQuality) || 0;
+  next.confidence = next.modelConfidence;
+  next.diagnostics = { ...next.diagnostics, dataHealth, transmission, trustPenalty, activeForecastStatus: activeForecast?.status || null };
+  if (dataHealth.stale || dataHealth.state === 'DATA_STALE_OR_NONINFORMATIVE') next.blockers.unshift('DATA_STALE_OR_NONINFORMATIVE');
+  if (transmission.state === 'TRANSMISSION_FAILED') next.blockers.push('SIGNAL_TO_PRICE_TRANSMISSION_FAILED');
+  if (activeForecast?.status === 'ACTIVE' && activeForecast.side && next.direction && activeForecast.side !== next.direction) next.blockers.push('UNRESOLVED_OPPOSITE_FORECAST');
+  if (drawdownActive) {
+    next.blockers.push('DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE');
+    next.executionReadiness = Math.min(Number(next.executionReadiness) || 0, 69);
+  }
+  if (next.blockers.some(x => /DATA_STALE|TRANSMISSION_FAILED|UNRESOLVED_OPPOSITE|DRAWDOWN_REVIEW/.test(x))) {
+    if (String(next.action || '').startsWith('BUY_')) next.action = next.direction ? `PREPARE_${next.direction}` : 'WAIT';
+    next.executionReadiness = Math.min(Number(next.executionReadiness) || 0, 69);
+  }
+  return next;
+}
+
+export function shouldEmitCognition(previous = null, current = {}) {
+  if (!previous) return true;
+  const material = ['decision','edge_state','confidence_trend','coherence_check','current_thesis','expected_next_path','transmission_state','data_state'];
+  return material.some(k => String(previous?.[k] ?? '') !== String(current?.[k] ?? '')) || Math.abs(Number(previous?.trade_confidence || 0) - Number(current?.trade_confidence || 0)) >= 8;
 }
 
 export function shouldActivateDrawdownReview(balance, startingBalance, review) {

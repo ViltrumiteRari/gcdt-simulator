@@ -6,7 +6,7 @@ import {
   evaluateReentryDiscipline,
   reliabilityRates,
 } from '../src/strategyCore.js';
-import { createMetacognitionState, computeGexImpulse, createForecast, scoreForecast, applyForecastTrust, shouldActivateDrawdownReview, classifyTradeFailure, buildTradeDiagnostics } from '../src/metacognition.js';
+import { createMetacognitionState, computeGexImpulse, createForecast, scoreForecast, applyForecastTrust, shouldActivateDrawdownReview, classifyTradeFailure, buildTradeDiagnostics, analyzeDataHealth, updateTransmissionState, applyMetacognitiveGates } from '../src/metacognition.js';
 
 const wallMarket = { netGex: 400, spySpot: 500, gammaFlip: 500.4, callWall: 505, putWall: 495 };
 const spike = classifyGexVelocity([
@@ -117,11 +117,57 @@ assert.equal(classifyTradeFailure({ pnl: -20, progress: -0.5, reason: 'TIME', ho
 const diagnostics = buildTradeDiagnostics([{ side: 'CALL', pnl: -20, progress: -0.5, reason: 'TIME', holdTicks: 5, tick: 3, exitSpot: 500 }], [{ tick: 4, spySpot: 499.8 }, { tick: 5, spySpot: 499.6 }]);
 assert.equal(diagnostics[0].failureClass, 'WRONG_DIRECTION');
 assert.equal(diagnostics[0].exitProtectedCapital, true);
+
+const frozenHistory = Array.from({ length: 10 }, (_, i) => ({ t: `12:${String(i).padStart(2,'0')}`, spySpot: 750.01, spxSpot: 7530 + i * 0.1 }));
+const frozenHealth = analyzeDataHealth(frozenHistory, { t: '12:10', spySpot: 750.01, spxSpot: 7531, quoteSource: 'REAL_QUOTE_WITH_HISTORY_FILL' }, { calls:[{}], puts:[{}] });
+assert.equal(frozenHealth.state, 'DATA_STALE_OR_NONINFORMATIVE');
+const movingHealth = analyzeDataHealth([{spySpot:750,spxSpot:7530},{spySpot:750.1,spxSpot:7531},{spySpot:750.2,spxSpot:7532}], {spySpot:750.35,spxSpot:7533,quoteSource:'REAL_QUOTE'}, {calls:[{}],puts:[{}]});
+assert.equal(movingHealth.state, 'DATA_HEALTHY');
+const tx = updateTransmissionState({failedTicks:4}, [
+  {spySpot:750,spxSpot:7530,itsSPX:10,itsSPY:9.4},
+  {spySpot:750,spxSpot:7531,itsSPX:10.2,itsSPY:9.4},
+  {spySpot:749.98,spxSpot:7532,itsSPX:10.4,itsSPY:9.4},
+  {spySpot:749.97,spxSpot:7533,itsSPX:10.6,itsSPY:9.4},
+], {spySpot:749.96,spxSpot:7534,itsSPX:10.8,itsSPY:9.4}, {side:'CALL'});
+assert.equal(tx.state, 'TRANSMISSION_FAILED');
+const gated = applyMetacognitiveGates({action:'BUY_CALL',direction:'CALL',setupQuality:100,executionReadiness:96,confidence:88,blockers:[],diagnostics:{contractQuality:100}}, {dataHealth:frozenHealth,transmission:tx,drawdownActive:false,signalTrust:{GEX:{score:-2}},signalKeys:['GEX']});
+assert.equal(gated.action, 'PREPARE_CALL');
+assert.ok(gated.blockers.includes('DATA_STALE_OR_NONINFORMATIVE'));
+assert.ok(gated.blockers.includes('SIGNAL_TO_PRICE_TRANSMISSION_FAILED'));
+assert.equal(gated.ruleCompleteness, 100);
+assert.ok(gated.modelConfidence < 88);
+const drawdownGated = applyMetacognitiveGates({action:'BUY_PUT',direction:'PUT',setupQuality:90,executionReadiness:95,confidence:75,blockers:[],diagnostics:{}}, {dataHealth:movingHealth,transmission:{state:'TRANSMISSION_CONFIRMED'},drawdownActive:true});
+assert.equal(drawdownGated.action, 'PREPARE_PUT');
+assert.ok(drawdownGated.blockers.includes('DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE'));
+assert.doesNotMatch(app, /EXECUTION PRESUMPTION/);
+assert.match(app, /eligibility proposal, not an order/);
+assert.match(app, /METACOGNITIVE_GATE/);
+assert.match(app, /DATA_STATE/);
+assert.match(app, /TRANSMISSION_STATE/);
+assert.match(app, /spyInvalidation/);
+assert.match(app, /spxConfirmation/);
+
 assert.match(app, /SESSION_CLOSING_REFLECTION/);
 assert.match(app, /DRAWDOWN_REVIEW_ACTIVE/);
 assert.match(app, /ACCOUNTABLE FORECAST RULE/);
 assert.match(app, /computeGexImpulse/);
 assert.match(app, /buildTradeDiagnostics/);
+
+assert.match(app, /setTimeout\(\(\)=>saveSessionRef\.current\?\.\(\),0\)/);
+assert.match(app, /SESSION_CLOSING_REFLECTION/);
+assert.match(app, /PRIVATE_SESSION_REFLECTION/);
+assert.match(app, /NEXT_SESSION_HANDOFF/);
+assert.match(app, /saveSessionRef\.current=saveSession/);
+assert.match(app, /if\(finalizingR\.current\|\|saved\)return/);
+const builder = fs.readFileSync(new URL('../tools/build_real_replay_v2.py', import.meta.url), 'utf8');
+assert.match(builder, /load_dedicated_spot/);
+assert.match(builder, /spot_intraday_5m\.csv/);
+assert.match(builder, /longest_flat > 30/);
+const { REAL_REPLAY_CATALOG: replayCatalog } = await import('../src/realReplayData.js');
+const july9 = replayCatalog['2026-07-09'];
+assert.equal(july9.coverage.spotSource, 'DEDICATED_INTRADAY_5M');
+assert.ok(july9.coverage.longestFlatSpyMinutes <= 30);
+assert.ok(new Set(july9.snapshots.filter(x => x.time >= '12:00').map(x => x.spySpot)).size > 20);
 
 console.log('FirstSignal strategy acceptance tests passed');
 

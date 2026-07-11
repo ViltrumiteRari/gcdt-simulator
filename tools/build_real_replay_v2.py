@@ -48,6 +48,40 @@ def implied_vol_delta(spot, strike, t_years, price, kind):
     return iv, delta
 
 
+
+
+def causal_project_series(series, target_index, slope_cap=None, max_age_minutes=None):
+    """Project onto target timestamps using observations available at or before each target only."""
+    src = pd.to_numeric(series, errors="coerce").dropna().sort_index()
+    if src.empty:
+        return pd.Series(index=target_index, dtype=float), pd.Series(index=target_index, dtype=float)
+    src = src[~src.index.duplicated(keep="last")]
+    times = src.index.view("int64")
+    values = src.to_numpy(float)
+    out, ages = [], []
+    for ts in target_index:
+        pos = int(np.searchsorted(times, ts.value, side="right") - 1)
+        if pos < 0:
+            out.append(np.nan); ages.append(np.nan); continue
+        age = (ts.value - times[pos]) / 60_000_000_000
+        if max_age_minutes is not None and age > max_age_minutes:
+            out.append(np.nan); ages.append(age); continue
+        value = values[pos]
+        if pos >= 1 and age > 0:
+            dt = max((times[pos] - times[pos-1]) / 60_000_000_000, 1e-9)
+            slope = (values[pos] - values[pos-1]) / dt
+            if slope_cap is not None:
+                slope = float(np.clip(slope, -slope_cap, slope_cap))
+            value = value + slope * age * math.exp(-age / 3.0)
+        out.append(float(value)); ages.append(float(age))
+    return pd.Series(out, index=target_index), pd.Series(ages, index=target_index)
+
+
+def causal_ffill_frame(frame, columns, target_index):
+    base = frame[columns].copy().sort_index()
+    merged = base.reindex(base.index.union(target_index)).sort_index().ffill()
+    return merged.reindex(target_index)
+
 def load_market():
     market = pd.read_csv(DATA / "market_timeline.csv")
     market["captured_at"] = pd.to_datetime(market["captured_at"], format="mixed")
@@ -70,7 +104,8 @@ def load_market():
         if len(anchors) >= 2:
             anchor_series = anchors.set_index("captured_at")["anchor_spot"]
             full_index = frame["captured_at"]
-            expected = anchor_series.reindex(anchor_series.index.union(full_index)).sort_index().interpolate(method="time").reindex(full_index).to_numpy()
+            expected, _ = causal_project_series(anchor_series, pd.DatetimeIndex(full_index), slope_cap=5.0 if ticker == "SPX" else 0.5)
+            expected = expected.to_numpy()
             stale = spot_num.notna() & np.isfinite(expected) & ((spot_num.to_numpy() - expected).astype(float).__abs__() > 1.50)
             frame.loc[stale, "spot"] = np.nan
         frame = frame.set_index("captured_at")
@@ -80,7 +115,7 @@ def load_market():
                 frame[col] = np.nan
         frame[numeric] = frame[numeric].apply(pd.to_numeric, errors="coerce")
         frame = frame.reindex(frame.index.union(minute_index)).sort_index()
-        frame[numeric] = frame[numeric].interpolate(method="time").ffill().bfill()
+        frame[numeric] = causal_ffill_frame(frame, numeric, minute_index)
         out[ticker] = frame.loc[minute_index].reset_index(names="captured_at")
 
     # Repair stale captured spot values with the independent option-chain underlying path.
@@ -99,10 +134,10 @@ def load_market():
             series = fx.dropna(subset=["spot"]).groupby("captured_at")["spot"].median().sort_index()
             if series.empty:
                 continue
-            series = series.reindex(series.index.union(minute_index)).sort_index().interpolate(method="time").ffill().bfill().reindex(minute_index)
+            series, _ = causal_project_series(series, minute_index, slope_cap=5.0 if ticker == "SPX" else 0.5, max_age_minutes=10)
             start = fx["captured_at"].min().floor("min")
-            mask = out[ticker]["captured_at"] >= start
-            out[ticker].loc[mask, "spot"] = series.loc[mask.to_numpy()].to_numpy()
+            mask = (out[ticker]["captured_at"] >= start).to_numpy() & series.notna().to_numpy()
+            out[ticker].loc[mask, "spot"] = series.loc[mask].to_numpy()
     # If native SPX collection starts late, restore the earlier five-minute historical path
     # from the legacy catalog and interpolate it to one-minute resolution.
     first_spx = first_native_spot.get("SPX")
@@ -114,23 +149,12 @@ def load_market():
         if legacy:
             legacy_index = pd.to_datetime([f"{DAY} {row['time']}:00" for row in legacy])
             legacy_spx = pd.Series([float(row["spot"]) for row in legacy], index=legacy_index)
-            legacy_spx = legacy_spx.reindex(legacy_spx.index.union(minute_index)).sort_index().interpolate(method="time").reindex(minute_index)
+            legacy_spx, _ = causal_project_series(legacy_spx, minute_index, slope_cap=5.0, max_age_minutes=15)
             anchor_idx = int(np.searchsorted(minute_index.values, np.datetime64(first_spx), side="left"))
             anchor_idx = min(max(anchor_idx, 0), len(minute_index) - 1)
-            native_anchor = float(out["SPX"].iloc[anchor_idx]["spot"])
-            legacy_anchor = float(legacy_spx.iloc[anchor_idx])
             pre_mask = out["SPX"]["captured_at"] < first_spx
-            out["SPX"].loc[pre_mask, "spot"] = legacy_spx.loc[pre_mask.to_numpy()].to_numpy() + (native_anchor - legacy_anchor)
-    # When SPY collection starts late, reconstruct it from the now-complete SPX path at
-    # the natural ~10:1 scale, anchored to the first real SPY minute for continuity.
-    first_spy = first_native_spot.get("SPY")
-    if first_spy is not None and first_spy > minute_index[0]:
-        anchor_idx = int(np.searchsorted(minute_index.values, np.datetime64(first_spy), side="left"))
-        anchor_idx = min(max(anchor_idx, 0), len(minute_index) - 1)
-        anchor_spy = float(out["SPY"].iloc[anchor_idx]["spot"])
-        anchor_spx = float(out["SPX"].iloc[anchor_idx]["spot"])
-        pre_mask = out["SPY"]["captured_at"] < first_spy
-        out["SPY"].loc[pre_mask, "spot"] = anchor_spy + (out["SPX"].loc[pre_mask, "spot"] - anchor_spx) / 10.0
+            out["SPX"].loc[pre_mask, "spot"] = legacy_spx.loc[pre_mask.to_numpy()].to_numpy()
+    # Never reconstruct pre-observation SPY values from a future anchor.
     return minute_index, out
 
 
@@ -147,7 +171,8 @@ def load_dedicated_spot(day, ticker, minute_index):
     if frame.empty:
         return None
     series = frame.set_index("captured_at")["spot"]
-    return series.reindex(series.index.union(minute_index)).sort_index().interpolate(method="time").ffill().bfill().reindex(minute_index)
+    projected, _ = causal_project_series(series, minute_index, slope_cap=5.0 if ticker == "SPX" else 0.5, max_age_minutes=20)
+    return projected
 
 
 def load_gex():
@@ -270,60 +295,33 @@ def rows_from_trade_history(current, ts, spot, quote_source="REAL_TRADE_OHLCV"):
     return rows
 
 
-def path_fill_rows(history, ts, spot, bridge_limit=60, forward_limit=15):
+def path_fill_rows(history, ts, spot, forward_limit=15):
+    """Causal option reconstruction using only contract observations at or before ts."""
     expiry = datetime.fromisoformat(f"{DAY}T16:15:00")
     target_t = max((expiry - ts.to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
     rows = []
     nearby = history[(history["strike"] - spot).abs() <= 10]
     for (strike, side), group in nearby.groupby(["strike", "side"]):
-        group = group.sort_values("captured_at")
-        prev = group[group["captured_at"] < ts].tail(2)
-        nxt = group[group["captured_at"] > ts].head(1)
-        if prev.empty and nxt.empty:
+        prev = group[group["captured_at"] <= ts].sort_values("captured_at").tail(2)
+        if prev.empty:
+            continue
+        p = prev.iloc[-1]
+        age = (ts - p["captured_at"]).total_seconds() / 60
+        if age > forward_limit:
             continue
         kind = "call" if str(side).upper() == "CALL" else "put"
-        source = None
-        iv = None
-        if not prev.empty and not nxt.empty:
-            p = prev.iloc[-1]
-            n = nxt.iloc[0]
-            gap = (n["captured_at"] - p["captured_at"]).total_seconds() / 60
-            if gap <= bridge_limit:
-                pt = max((expiry - p["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
-                nt = max((expiry - n["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
-                piv, _ = implied_vol_delta(float(p["underlying_close"]), float(strike), pt, float(p["close"]), kind)
-                niv, _ = implied_vol_delta(float(n["underlying_close"]), float(strike), nt, float(n["close"]), kind)
-                w = (ts - p["captured_at"]).total_seconds() / max((n["captured_at"] - p["captured_at"]).total_seconds(), 1)
-                iv = math.exp((1 - w) * math.log(max(piv, 0.01)) + w * math.log(max(niv, 0.01)))
-                source = "SYNTHETIC_PATH_BRIDGED"
-        if iv is None and not prev.empty:
-            p = prev.iloc[-1]
-            age = (ts - p["captured_at"]).total_seconds() / 60
-            if age <= forward_limit:
-                pt = max((expiry - p["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
-                piv, _ = implied_vol_delta(float(p["underlying_close"]), float(strike), pt, float(p["close"]), kind)
-                slope = 0.0
-                if len(prev) == 2:
-                    p0 = prev.iloc[0]
-                    p0t = max((expiry - p0["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
-                    p0iv, _ = implied_vol_delta(float(p0["underlying_close"]), float(strike), p0t, float(p0["close"]), kind)
-                    mins = max((p["captured_at"] - p0["captured_at"]).total_seconds() / 60, 1)
-                    slope = (math.log(max(piv, 0.01)) - math.log(max(p0iv, 0.01))) / mins
-                iv = math.exp(math.log(max(piv, 0.01)) + slope * age * math.exp(-age / 5))
-                source = "SYNTHETIC_PATH_FORWARD"
-        if iv is None and prev.empty and not nxt.empty:
-            n = nxt.iloc[0]
-            age = (n["captured_at"] - ts).total_seconds() / 60
-            if age <= forward_limit:
-                nt = max((expiry - n["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
-                iv, _ = implied_vol_delta(float(n["underlying_close"]), float(strike), nt, float(n["close"]), kind)
-                source = "SYNTHETIC_PATH_BACKWARD"
-        if iv is None:
-            continue
+        pt = max((expiry - p["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+        piv, _ = implied_vol_delta(float(p["underlying_close"]), float(strike), pt, float(p["close"]), kind)
+        slope = 0.0
+        if len(prev) == 2:
+            p0 = prev.iloc[0]
+            p0t = max((expiry - p0["captured_at"].to_pydatetime()).total_seconds(), 1) / (365 * 24 * 3600)
+            p0iv, _ = implied_vol_delta(float(p0["underlying_close"]), float(strike), p0t, float(p0["close"]), kind)
+            mins = max((p["captured_at"] - p0["captured_at"]).total_seconds() / 60, 1)
+            slope = float(np.clip((math.log(max(piv, 0.01)) - math.log(max(p0iv, 0.01))) / mins, -0.08, 0.08))
+        iv = math.exp(math.log(max(piv, 0.01)) + slope * age * math.exp(-age / 5))
         price, delta = bs_price_delta(spot, float(strike), target_t, iv, kind)
-        side_code = "C" if kind == "call" else "P"
-        contract = f"SPY{pd.Timestamp(DAY).strftime('%y%m%d')}{side_code}{int(round(float(strike) * 1000)):08d}"
-        rows.append({"contract": contract, "strike": float(strike), "side": kind.upper(), "bid": round(price, 4), "ask": round(price, 4), "mid": round(price, 4), "iv": round(iv, 5), "delta": round(delta, 5), "quoteSource": source})
+        rows.append({"contract": str(p.get("contract", f"{DAY}:{side}:{strike}")), "strike": float(strike), "side": str(side).upper(), "bid": max(0.01, round(price - 0.01, 2)), "ask": max(0.02, round(price + 0.01, 2)), "mid": round(price, 2), "iv": float(iv), "delta": float(delta), "volume": int(float(p.get("volume", 0) or 0)), "openInterest": int(float(p.get("open_interest", 0) or 0)), "quoteSource": "SYNTHETIC_PATH_CAUSAL_FORWARD", "sourceTimestamp": p["captured_at"].isoformat(), "sourceAgeMinutes": float(age)})
     return rows
 
 
@@ -419,7 +417,7 @@ def build_day(day):
         market["SPY"].loc[:, "spot"] = dedicated_spy.to_numpy()
     elif has_trade_history:
         synced = trade_history.groupby("captured_at")["underlying_close"].median().sort_index()
-        synced = synced.reindex(synced.index.union(minute_index)).sort_index().interpolate(method="time").reindex(minute_index)
+        synced, _ = causal_project_series(synced, minute_index, slope_cap=0.5, max_age_minutes=5)
         valid = synced.notna().to_numpy()
         market["SPY"].loc[valid, "spot"] = synced.loc[valid].to_numpy()
     if dedicated_spx is not None:
@@ -474,7 +472,7 @@ def build_day(day):
             quote_source = "SYNTHETIC_CALIBRATED" if has_real_quotes else "SYNTHETIC_CROSS_DAY_CALIBRATED"
             chain_rows = synth_rows(anchor, ts, spot, quote_source)
         iv_values = [q["iv"] for q in chain_rows if q.get("iv") is not None]
-        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_TIME_INTERPOLATION", "fepSource": fep_source, "orderFlow": order_flow.get(ts.floor("min")), "chain": chain_rows})
+        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_CAUSAL_PROJECTION", "fepSource": fep_source, "orderFlow": order_flow.get(ts.floor("min")), "chain": chain_rows})
     # A real replay must never silently carry one underlying price through a large part of the day.
     longest_flat = 1
     current_flat = 1
@@ -486,7 +484,7 @@ def build_day(day):
             current_flat = 1
     if has_trade_history and longest_flat > 30:
         raise RuntimeError(f"{DAY} replay has {longest_flat} consecutive frozen SPY minutes; inspect full-day option/spot inputs")
-    return {"date": DAY, "label": f"{DAY} | Unified native SPY/SPX | 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC"), "longestFlatSpyMinutes": longest_flat, "spotSource": "DEDICATED_INTRADAY_5M" if dedicated_spy is not None else "CONTRACT_OR_MARKET_TIMELINE"}, "snapshots": snapshots}
+    return {"date": DAY, "label": f"{DAY} | Unified native SPY/SPX | 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC"), "longestFlatSpyMinutes": longest_flat, "spotSource": "DEDICATED_INTRADAY_5M_CAUSAL" if dedicated_spy is not None else "CONTRACT_OR_MARKET_TIMELINE_CAUSAL", "lookaheadSafe": True}, "snapshots": snapshots}
 
 
 def main():

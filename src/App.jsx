@@ -85,13 +85,12 @@ function applyScriptedDecouple(arche,tick,spyCallDom,spxCallDom){
 }
 
 function interpolateSPX(snapshots,currentMin){
-  const mins=snapshots.map(s=>timeToMin(s.time));
-  if(currentMin<=mins[0])return{...snapshots[0],synth:false};
-  if(currentMin>=mins[mins.length-1])return{...snapshots[mins.length-1],synth:false};
-  let i=0; while(i<mins.length-1&&mins[i+1]<=currentMin)i++;
-  const t=(currentMin-mins[i])/(mins[i+1]-mins[i]);
-  const a=snapshots[i],b=snapshots[i+1],ease=t*t*(3-2*t);
-  return{spot:lerp(a.spot,b.spot,ease)+(Math.random()-0.5)*0.8,gex:lerp(a.gex,b.gex,ease)+(Math.random()-0.5)*Math.abs(a.gex)*0.015,callDom:lerp(a.callDom,b.callDom,ease),maxGamma:ease<0.5?a.maxGamma:b.maxGamma,synth:Math.abs(currentMin-mins[i])>2&&Math.abs(currentMin-mins[i+1])>2};
+  const mins=snapshots.map(s=>timeToMin(s.time));
+  let i=0; while(i<mins.length-1&&mins[i+1]<=currentMin)i++;
+  const a=snapshots[i],p=snapshots[Math.max(0,i-1)],age=Math.max(0,currentMin-mins[i]);
+  const dt=Math.max(1,mins[i]-mins[Math.max(0,i-1)]),decay=Math.exp(-age/3);
+  const spotSlope=clamp((a.spot-p.spot)/dt,-5,5),gexSlope=clamp((a.gex-p.gex)/dt,-Math.abs(a.gex)*0.1,Math.abs(a.gex)*0.1),domSlope=clamp((a.callDom-p.callDom)/dt,-0.05,0.05);
+  return{spot:a.spot+spotSlope*age*decay,gex:a.gex+gexSlope*age*decay,callDom:clamp(a.callDom+domSlope*age*decay,0.01,0.99),maxGamma:a.maxGamma,synth:age>0,sourceTimestamp:a.time,sourceAgeMinutes:age,causal:true};
 }
 
 function accelWindow(m,hist,dir){
@@ -2116,7 +2115,7 @@ export default function App(){
             }
           }
       };
-      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nCANONICAL EXECUTION STATE — AUTHORITATIVE:
+      callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,(sessionMode==="replay"?"BLIND HISTORICAL REPLAY. Calendar date, eventual outcome, day type, and remaining path are withheld.":sessionSummary)+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nCANONICAL EXECUTION STATE — AUTHORITATIVE:
 action ${intent.action}; direction ${intent.direction||"NONE"}; setup ${intent.setupQuality}%; readiness ${intent.executionReadiness}% / threshold ${intent.threshold??"—"}%; contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"}; hard blockers ${hardExecutionBlockers(intent).join(", ")||"NONE"}; all blockers ${(intent.blockers||[]).join(", ")||"NONE"}.
 A BUY-ready canonical action is eligible, not mandatory. Decline it when data health, forecast accountability, transmission, episode novelty, or drawdown review makes the causal case weak. For a repeated-category retry, BUY only if new_evidence states a material change in structure, FEP relationship, SPX GEX/wall/OI landscape, lead-lag, or a genuinely new leg, and prior_trade_effect explains why the previous attempt does not control this one. Otherwise WAIT. Manage exits by the entry thesis contract: expected timing is an evaluation window, never an automatic exit; stack causal invalidations, wall/OI exhaustion or relocation, FEP acceptance failure, and structural/local reversal. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,setLiveThought,controller.signal,entryCritical,{dataHealth:dataHealthR.current,transmission:transmissionR.current,activeForecast:metacognitionR.current.forecasts.find(x=>x.id===metacognitionR.current.activeForecastId)||null,drawdownActive:!!metacognitionR.current.drawdownReview?.active,signalTrust:metacognitionR.current.signalTrust})
         .then(dec=>applyDecision(dec,"AI"))
@@ -2202,7 +2201,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
-    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const freshAiMemory={...createAiSessionMemory(label),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
+    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const aiBlindLabel=mode==="replay"?"BLIND_REPLAY_SESSION":label;const freshAiMemory={...createAiSessionMemory(aiBlindLabel),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];cognitionQueueR.current=[];cognitionRunningR.current=false;cognitionSeqR.current=0;

@@ -165,12 +165,23 @@ assert.match(app, /NEXT_SESSION_HANDOFF/);
 assert.match(app, /saveSessionRef\.current=saveSession/);
 assert.match(app, /if\(finalizingR\.current\|\|saved\)return/);
 const builder = fs.readFileSync(new URL('../tools/build_real_replay_v2.py', import.meta.url), 'utf8');
+
+assert.doesNotMatch(builder, /\.bfill\(/);
+assert.doesNotMatch(builder, /interpolate\(method=["']time["']\)/);
+assert.doesNotMatch(builder, /group\[group\["captured_at"\] > ts\]/);
+assert.match(builder, /causal_project_series/);
+assert.match(builder, /SYNTHETIC_PATH_CAUSAL_FORWARD/);
+assert.match(app, /BLIND_REPLAY_SESSION/);
+assert.match(app, /eventual outcome, day type, and remaining path are withheld/);
+assert.doesNotMatch(app.match(/function interpolateSPX[\s\S]*?\n}/)?.[0]||'', /snapshots\[i\+1\]|const b=/);
+
 assert.match(builder, /load_dedicated_spot/);
 assert.match(builder, /spot_intraday_5m\.csv/);
 assert.match(builder, /longest_flat > 30/);
 const { REAL_REPLAY_CATALOG: replayCatalog } = await import('../src/realReplayData.js');
 const july9 = replayCatalog['2026-07-09'];
-assert.equal(july9.coverage.spotSource, 'DEDICATED_INTRADAY_5M');
+assert.equal(july9.coverage.spotSource, 'DEDICATED_INTRADAY_5M_CAUSAL');
+assert.equal(july9.coverage.lookaheadSafe, true);
 assert.ok(july9.coverage.longestFlatSpyMinutes <= 30);
 assert.ok(new Set(july9.snapshots.filter(x => x.time >= '12:00').map(x => x.spySpot)).size > 20);
 

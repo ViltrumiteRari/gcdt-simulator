@@ -17,7 +17,8 @@
     "preview": "vite preview",
     "build:replays": "py -3.14 tools/build_replay_catalog.py",
     "start:local": "scripts\\\\start-local.cmd",
-    "test:v26": "node tests/strategyV26.test.mjs"
+    "test": "node tests/strategyCore.test.mjs"
   },
   "type": "module"
 }
+

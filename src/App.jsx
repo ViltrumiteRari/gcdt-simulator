@@ -3,7 +3,7 @@ import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
 import { REAL_REPLAY_CATALOG as BASE_REAL_REPLAY_CATALOG } from "./realReplayData";
 import { JULY10_REPLAY } from "./realReplayDataJul10";
 import { replayQualityFor } from "./replayQuality";
-import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyV26";
+import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyCore";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
 import { geminiLiveTrader } from "./geminiLiveTrader";
 
@@ -33,38 +33,8 @@ const AI_REQUEST_TIMEOUT_MS=45000,AI_MAX_ENTRY_AGE_TICKS=10,AI_MAX_WAIT_AGE_TICK
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
 const ACCEL_SCALE_MAX=12,ACCEL_EXTREME_HIGH=8.8,ACCEL_EXTREME_LOW=2,ACCEL_BUILD_MIN=4.2,ACCEL_BUILD_MAX=8.7,ACCEL_RETEST_MAX=6.8;
 
-const SPX_JUL1 = {
-  date: "2026-07-01", label: "SPX Jul 1 2026", dayType: "SQUEEZE",
-  snapshots: [
-    { time: "09:29", spot: 7499.36, gex: 38224500000,    callDom: 0.76, maxGamma: 7500 },
-    { time: "09:39", spot: 7457.33, gex: -7588600000,   callDom: 0.43, maxGamma: 7500 },
-    { time: "09:50", spot: 7463.87, gex: 5827800000,    callDom: 0.54, maxGamma: 7500 },
-    { time: "09:56", spot: 7474.64, gex: 31361600000,   callDom: 0.67, maxGamma: 7500 },
-    { time: "10:08", spot: 7489.83, gex: 83599700000,   callDom: 0.81, maxGamma: 7500 },
-    { time: "10:26", spot: 7496.99, gex: 127356300000,  callDom: 0.84, maxGamma: 7500 },
-    { time: "11:26", spot: 7516.41, gex: 276062800000,  callDom: 0.91, maxGamma: 7520 },
-    { time: "13:05", spot: 7500.25, gex: 128183500000,  callDom: 0.69, maxGamma: 7520 },
-    { time: "14:16", spot: 7495.22, gex: -9161400000,   callDom: 0.49, maxGamma: 7490 },
-    { time: "14:26", spot: 7500.99, gex: 137023000000,  callDom: 0.63, maxGamma: 7510 },
-    { time: "14:47", spot: 7496.06, gex: -20370000000,  callDom: 0.48, maxGamma: 7490 },
-    { time: "15:11", spot: 7501.42, gex: 215438100000,  callDom: 0.66, maxGamma: 7510 },
-    { time: "15:27", spot: 7496.94, gex: -18665100000,  callDom: 0.49, maxGamma: 7505 },
-    { time: "15:44", spot: 7493.14, gex: -287846200000, callDom: 0.34, maxGamma: 7495 },
-    { time: "15:59", spot: 7487.62, gex: -1011022100000,callDom: 0.02, maxGamma: 7485 },
-  ],
-};
-
-// v12.1: MECHANICAL RULE-LAYER FIXES
-// Scope: lead-lag exit convergence, accel filtering, chop gate, and honest review metrics only.
-// Dual-stream engine, archetypes, pricing, UI layout, journal structure, and AI prompt remain unchanged.
-//
-// v12: DUAL-STREAM SPX/SPY INDEPENDENCE FIX
-// v6-v11 computed SPY-ITS as a lagged/noisy derivative of SPX-ITS. That made
-// true SPY-only vs Composite divergence structurally impossible. v12 keeps the
-// old doctrine and UI but fixes the load-bearing data layer: SPY and SPX now
-// evolve as separate correlated tracks. SPX can lead, SPY can reject, and real
-// divergence windows can persist instead of always converging back to a copy.
-//
+// Synthetic seed-mode priors derived from early real-session logs. These are model inputs,
+// not version markers or claims that the current architecture is unchanged from those builds.
 // Real day-archetypes pulled from RAW TRADING DATA session logs (Jun 24-30, Jul 1 2026).
 // n=6 real days — small sample, equal-weighted. Not statistically robust yet;
 // use as a real-data prior until more dual-pulled SPY/SPX sessions are logged.
@@ -1799,9 +1769,9 @@ export default function App(){
   useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-200));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
 
   useEffect(()=>{
-    const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
+    const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,archetypeId:archetypeIdR.current});}}
     window.addEventListener("beforeunload",handler);return()=>window.removeEventListener("beforeunload",handler);
-  },[done,sessionLabel,sessionMode]);
+  },[done,sessionLabel,sessionMode,selectedReplayDate]);
 
   const drainCognition=useCallback(()=>{
     if(cognitionRunningR.current||thinkR.current||activeDecisionR.current||!cognitionQueueR.current.length)return;
@@ -1922,7 +1892,7 @@ export default function App(){
     setItsSPXHist(prev=>[...prev.slice(-150),m.itsSPX]);
     setItsSPYHist(prev=>[...prev.slice(-150),m.itsSPY]);
     thesisHistR.current=[...thesisHistR.current.slice(-150),{t:c.t,call:nt.scores.call,put:nt.scores.put,wait:nt.scores.wait}];setThesisHist([...thesisHistR.current]);
-    // v9: accumulate whole-session stats every tradeable tick (not just last 4-6 candles)
+    // Maintain compact session-wide price/FEP statistics for the execution prompt. Rich structural context is tracked separately by contextLayers and continuous cognition.
     if(!m.isPremarket){
       if(sessionOpenR.current==null)sessionOpenR.current=m.spySpot;
       sessionHighR.current=Math.max(sessionHighR.current,m.spySpot);
@@ -2017,9 +1987,7 @@ export default function App(){
       requestCtx.timeoutId=timeoutId;
       aiFreezeR.current=false;
       activeDecisionR.current=requestCtx;
-      // v10: ground "how long has this been flat" in a real computed number instead of letting
-      // the AI guess a duration it can't actually verify (it only ever sees ~8 candles). Count
-      // consecutive recent ticks within 15c of current spot, from actual candle history.
+      // Compute flat-duration from full retained candle history. The execution prompt still shows a short recent window, while continuous cognition receives ordered tick batches and persistent memory.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
       const sessionSummary=(sessionOpenR.current!=null?`Session so far: opened $${sessionOpenR.current.toFixed(2)}, high $${sessionHighR.current.toFixed(2)}, low $${sessionLowR.current.toFixed(2)}, ${aboveFepTotalR.current} ticks above FEP / ${belowFepTotalR.current} below FEP out of ${aboveFepTotalR.current+belowFepTotalR.current} tradeable ticks.`:"Session just opened.")+` Price has held within 15c of current for ${flatTicks} consecutive ticks (~${flatTicks*4}min) — use this number, don't estimate your own duration.`;
       const applyDecision=(dec,source="AI")=>{
@@ -2194,11 +2162,12 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
   },[addJournal]);
 
   const startSession=useCallback((mode)=>{
-    const replayData=REAL_REPLAY_CATALOG[selectedReplayDate]||REPLAY_CATALOG[selectedReplayDate]||SPX_JUL1;
+    const replayData=REAL_REPLAY_CATALOG[selectedReplayDate]||REPLAY_CATALOG[selectedReplayDate];
+    if(mode==="replay"&&!replayData)return;
     engR.current=mode==="replay"?createReplayEngine(replayData):createSeedEngine();
     const sess=engR.current.getSession();
     archetypeIdR.current=mode==="seed"?sess.archetype:null;
-    const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED v26 · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
+    const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
     setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const freshAiMemory={...createAiSessionMemory(label),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
@@ -2218,7 +2187,9 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     journalR.current=sv.journal||[];setJournal([...journalR.current]);aiSessionMemoryR.current=sv.aiSessionMemory||storageGet("ai_session_memory",createAiSessionMemory(sv.sessionLabel||"RESUMED"));setAiSessionMemory({...aiSessionMemoryR.current});candR.current=sv.candles||[];setCandles([...candR.current]);
     tlR.current=sv.timeline||[];setTimeline([...tlR.current]);setSessionLabel(sv.sessionLabel||"RESUMED");setSessionMode(sv.sessionMode||"seed");
     archetypeIdR.current=sv.archetypeId||null;
-    engR.current=sv.sessionMode==="replay"?createReplayEngine(SPX_JUL1):createSeedEngine(sv.archetypeId);
+    const replayData=sv.replayDate?(REAL_REPLAY_CATALOG[sv.replayDate]||REPLAY_CATALOG[sv.replayDate]):null;
+    if(sv.sessionMode==="replay"&&!replayData){storageSet("interrupted",null);setResumeAvailable(false);return;}
+    engR.current=sv.sessionMode==="replay"?createReplayEngine(replayData):createSeedEngine(sv.archetypeId);
     for(let i=0;i<Math.min(sv.tick||0,400);i++)engR.current.tick();
     tickR.current=sv.tick||0;setDone(false);setRunning(true);setScreen("trading");storageSet("interrupted",null);setResumeAvailable(false);
   },[]);

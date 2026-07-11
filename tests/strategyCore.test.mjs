@@ -5,7 +5,7 @@ import {
   classifyCallDom,
   evaluateReentryDiscipline,
   reliabilityRates,
-} from '../src/strategyV26.js';
+} from '../src/strategyCore.js';
 
 const wallMarket = { netGex: 400, spySpot: 500, gammaFlip: 500.4, callWall: 505, putWall: 495 };
 const spike = classifyGexVelocity([
@@ -61,6 +61,9 @@ assert.match(app, /belowFepShare/);
 assert.match(app, /negativeGexShare/);
 assert.match(app, /fresh bearish continuation/);
 assert.match(app, /REAL_REPLAY_CATALOG\[selectedReplayDate\]/);
+assert.doesNotMatch(app, /SPX_JUL1/);
+assert.match(app, /replayDate:selectedReplayDate/);
+assert.match(app, /createReplayEngine\(replayData\)/);
 assert.match(app, /bullishCounterLeg/);
 assert.match(app, /canonicalDirectionReady/);
 assert.match(app, /const gaps=marketFactors\.filter/);
@@ -78,4 +81,5 @@ assert.match(app, /REENTRY_CATEGORY_BLOCK|discipline\.code/);
 assert.match(app, /reliabilityR\.current\.parseFailures\+\+/);
 assert.match(app, /reliabilityR\.current\.fallbackExecutions\+\+/);
 
-console.log('GCDT v26 strategy acceptance tests passed');
+console.log('FirstSignal strategy acceptance tests passed');
+

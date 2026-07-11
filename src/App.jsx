@@ -1886,7 +1886,7 @@ export default function App(){
     const tradeCutoffPassed=(m.h*60+m.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M);
     if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"15:45",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);addJournal("15:45","DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 16:15 ET.");}
     if(m.h>SESSION_END_H||(m.h===SESSION_END_H&&m.m>=SESSION_END_M)){
-      setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);return;
+      setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current})}).catch(()=>{});return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
     const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,netGexSpx:m.netGexSpx,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
@@ -2251,7 +2251,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     const eng=engR.current;let m=eng.peek();
     while(!((m.h>SESSION_END_H)||(m.h===SESSION_END_H&&m.m>=SESSION_END_M))){m=eng.tick();tickR.current++;const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m),octx=optionCtx(m,candR.current,optionMemoryR.current);if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};}}
     if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
-    setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);
+    setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current})}).catch(()=>{});
     setTimeout(()=>saveSessionRef.current?.(),0);
   },[]);
 

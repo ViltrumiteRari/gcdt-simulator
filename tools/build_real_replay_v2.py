@@ -391,6 +391,14 @@ def build_day(day):
     real_chain = read_chain(DAY)
     order_flow = load_order_flow(DAY)
     has_trade_history = not trade_history.empty
+    # Synchronize the displayed SPY path to the same underlying minute bars that
+    # generated the real option OHLCV. Using an independently interpolated chain
+    # spot beside real contract bars can create impossible option/underlying P&L.
+    if has_trade_history:
+        synced = trade_history.groupby("captured_at")["underlying_close"].median().sort_index()
+        synced = synced.reindex(synced.index.union(minute_index)).sort_index().interpolate(method="time").ffill().bfill().reindex(minute_index)
+        valid = synced.notna().to_numpy()
+        market["SPY"].loc[valid, "spot"] = synced.loc[valid].to_numpy()
     has_real_quotes = not real_chain.empty
     first_real = trade_history["captured_at"].min() if has_trade_history else (real_chain["captured_at"].min() if has_real_quotes else None)
     calibration_day, anchor = calibration_anchor(DAY, real_chain)

@@ -1,41 +1,50 @@
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
 const slope=(a,key)=>a.length>=2?(a.at(-1)[key]-a[0][key])/Math.max(1,a.length-1):0;
+const gapOf=x=>(x.itsSPX??0)-(x.itsSPY??0);
+const directionFromSlopes=(spxSlope,spySlope)=>{
+  const joint=(spxSlope+spySlope)/2;
+  if(joint>.025)return "CALL";
+  if(joint<-.025)return "PUT";
+  const leader=Math.abs(spxSlope)>=Math.abs(spySlope)?spxSlope:spySlope;
+  return leader>.035?"CALL":leader<-.035?"PUT":"NONE";
+};
 
 export function createContextMemory(){
-  return {structuralState:"WAIT",structuralConfidence:0,structuralAge:0,stability:0,heat:0,lastLocal:"WAIT",disagreementTicks:0,transitionCount:0};
+  return {structuralState:"ITS_TRANSITION",structuralConfidence:0,structuralAge:0,stability:0,heat:0,lastLocal:"ITS_CONVERGED",disagreementTicks:0,transitionCount:0};
 }
 
-function localState(m,h){
-  const l6=h.slice(-6),l12=h.slice(-12),fg=m.spySpot-m.fep,ps=slope(l6,"spySpot"),as=slope(l6,"accel");
-  const range=l12.length?Math.max(...l12.map(x=>x.spySpot))-Math.min(...l12.map(x=>x.spySpot)):0;
-  const g0=l6[0]?.netGexSpx??m.netGexSpx??m.netGex,groc=((m.netGexSpx??m.netGex)-g0)/Math.max(1e9,Math.abs(g0||1e9));
-  const pin=(m.netGexSpx??m.netGex)>0&&(m.gexInfluence||0)>.28&&range<1.5;
-  const up=ps>.10&&fg>.18&&as>-.15,down=ps<-.10&&fg<-.18&&as>-.15;
-  let state="WAIT",direction="NONE",confidence=25;
-  if(pin&&Math.abs(fg)>.35){state="PIN_STRETCH";direction=fg>0?"PUT":"CALL";confidence=clamp(45+Math.abs(fg)*22+(m.gexInfluence||0)*20,0,96);}
-  else if(up){state="EXPANSION_UP";direction="CALL";confidence=clamp(48+ps*28+Math.max(0,groc)*12,0,96);}
-  else if(down){state="BREAKDOWN_DOWN";direction="PUT";confidence=clamp(48+Math.abs(ps)*28+Math.max(0,-groc)*12,0,96);}
-  else if(pin){state="PIN_CENTER";confidence=55;}
-  return {state,direction,confidence,priceSlope:ps,accelSlope:as,fepGap:fg,range12:range,gexRoc:groc};
+function localItsState(m,h){
+  const l6=h.slice(-6),l12=h.slice(-12),gap=gapOf(m),startGap=l6.length?gapOf(l6[0]):gap;
+  const gapSlope=l6.length>=2?(gap-startGap)/Math.max(1,l6.length-1):0;
+  const spxSlope=slope(l6,"itsSPX"),spySlope=slope(l6,"itsSPY");
+  const direction=directionFromSlopes(spxSlope,spySlope),leader=gap>.08?"SPX":gap<-.08?"SPY":"NONE";
+  const priorAbs=Math.abs(startGap),nowAbs=Math.abs(gap),signFlip=Math.sign(gap)!==Math.sign(startGap)&&priorAbs>.18&&nowAbs>.18;
+  let state="ITS_DEVELOPING",confidence=35;
+  if(signFlip){state="ITS_LEAD_REVERSAL";confidence=clamp(58+nowAbs*24,0,96);}
+  else if(nowAbs>=.55){state="ITS_LOCAL_STRETCH";confidence=clamp(48+nowAbs*28+Math.abs(gapSlope)*80,0,96);}
+  else if(priorAbs-nowAbs>=.18){state="ITS_CATCHUP";confidence=clamp(50+(priorAbs-nowAbs)*70,0,94);}
+  else if(nowAbs<.18){state="ITS_CONVERGED";confidence=clamp(58+(0.18-nowAbs)*100,0,92);}
+  const range=l12.length?Math.max(...l12.map(gapOf))-Math.min(...l12.map(gapOf)):0;
+  return {state,direction,leader,confidence,gap,gapSlope,spxSlope,spySlope,range12:range};
 }
+
 export function computeItsHierarchy(m,h,prior=createContextMemory()){
-  const local=localState(m,h),l30=h.slice(-30),price30=slope(l30,"spySpot")*Math.max(1,l30.length-1),fep30=slope(l30,"fep")*Math.max(1,l30.length-1);
-  const above=l30.filter(x=>x.spySpot>x.fep).length,below=l30.filter(x=>x.spySpot<x.fep).length,accept=Math.max(above,below)/Math.max(1,l30.length);
-  const meanGex=avg(l30.map(x=>x.netGexSpx??x.netGex??0)),meanGI=avg(l30.map(x=>x.gexInf||0));
-  let candidate="WAIT",direction="NONE",raw=25;
-  if(meanGex>0&&meanGI>.28&&Math.abs(price30)<2.2){candidate="PINNING";raw=45+meanGI*35+(accept<.72?8:0);}
-  if(price30>1.0&&accept>.62){candidate="EXPANSION";direction="CALL";raw=52+Math.min(30,price30*8)+Math.max(0,fep30)*5;}
-  if(price30<-1.0&&accept>.62){candidate="BREAKDOWN";direction="PUT";raw=52+Math.min(30,Math.abs(price30)*8)+Math.max(0,-fep30)*5;}
+  const local=localItsState(m,h),l30=h.slice(-30),gaps=l30.map(gapOf),meanGap=avg(gaps);
+  const spxSlope=slope(l30,"itsSPX"),spySlope=slope(l30,"itsSPY"),direction=directionFromSlopes(spxSlope,spySlope);
+  const sign=Math.sign(meanGap),persistence=gaps.length?gaps.filter(x=>Math.sign(x)===sign&&Math.abs(x)>.15).length/gaps.length:0;
+  const gapTrend=gaps.length>=2?(gaps.at(-1)-gaps[0])/Math.max(1,gaps.length-1):0;
+  let candidate="ITS_TRANSITION",raw=35,leader=meanGap>.08?"SPX":meanGap<-.08?"SPY":"NONE";
+  if(Math.abs(meanGap)>=.42&&persistence>=.62){candidate="ITS_STRUCTURAL_DIVERGENCE";raw=50+Math.abs(meanGap)*28+persistence*18;}
+  else if(Math.abs(meanGap)<.20&&persistence<.55){candidate="ITS_STRUCTURAL_CONVERGENCE";raw=52+(0.20-Math.abs(meanGap))*80;}
   const same=candidate===prior.structuralState,age=same?(prior.structuralAge||0)+1:1;
   const confidence=clamp((same?(prior.structuralConfidence||raw)*.72:raw*.55)+raw*(same?.28:.45),0,97);
-  const localFamily=local.state.startsWith("PIN")?"PINNING":local.state==="EXPANSION_UP"?"EXPANSION":local.state==="BREAKDOWN_DOWN"?"BREAKDOWN":"WAIT";
-  const disagree=candidate!=="WAIT"&&localFamily!=="WAIT"&&candidate!==localFamily;
-  const disagreementTicks=disagree?(prior.disagreementTicks||0)+1:Math.max(0,(prior.disagreementTicks||0)-1);
-  const heat=clamp(disagreementTicks*12+(!same?22:0)+(local.confidence>70&&disagree?18:0),0,100);
+  const directionalConflict=direction!=="NONE"&&local.direction!=="NONE"&&direction!==local.direction;
+  const disagreementTicks=directionalConflict?(prior.disagreementTicks||0)+1:Math.max(0,(prior.disagreementTicks||0)-1);
+  const heat=clamp(disagreementTicks*14+(!same?22:0)+(local.state==="ITS_LEAD_REVERSAL"?22:0),0,100);
   const stability=clamp(age*7+confidence*.55-heat*.55,0,100),transitionRisk=heat>=55?"HIGH":heat>=30?"ELEVATED":"LOW";
-  const lens=candidate==="PINNING"?"FADE_STRETCHES_AFTER_RESPONSE":candidate==="EXPANSION"?"HARVEST_CONTINUATION_AND_RELOAD":candidate==="BREAKDOWN"?"HARVEST_DOWNSIDE_CONTINUATION":"WAIT_FOR_STRUCTURE";
-  return {structural:{state:candidate,direction,confidence,age,stability,heat,transitionRisk,lens,price30,fep30,acceptance:accept},local,alignment:disagree?"CONFLICT":localFamily===candidate?"ALIGNED":"NEUTRAL",memory:{structuralState:candidate,structuralConfidence:confidence,structuralAge:age,stability,heat,lastLocal:local.state,disagreementTicks,transitionCount:(prior.transitionCount||0)+(same?0:1)}};
+  const lens=candidate==="ITS_STRUCTURAL_DIVERGENCE"?"PERSISTENT_LEAD_LAG":candidate==="ITS_STRUCTURAL_CONVERGENCE"?"CONVERGED_CONFIRMATION":"LEAD_LAG_REFORMING";
+  return {structural:{state:candidate,direction,leader,confidence,age,stability,heat,transitionRisk,lens,meanGap,gapTrend,spxSlope,spySlope,persistence},local,alignment:directionalConflict?"CONFLICT":direction!=="NONE"&&direction===local.direction?"ALIGNED":"NEUTRAL",memory:{structuralState:candidate,structuralConfidence:confidence,structuralAge:age,stability,heat,lastLocal:local.state,disagreementTicks,transitionCount:(prior.transitionCount||0)+(same?0:1)}};
 }
 
 export function computeFlowLens(flow){
@@ -53,21 +62,24 @@ export function computeFlowLens(flow){
 export function contextPrompt(ctx,flow){
   if(!ctx)return "";
   const s=ctx.structural,l=ctx.local,f=flow||{available:false};
-  const flowText=f.available?`${f.label} aggression ${f.aggression.toFixed(0)} directional-purity ${f.directionalPurity.toFixed(0)} hedge-probability ${f.hedgeProbability.toFixed(0)} direction ${f.direction}`:"unavailable";
-  return `ITS HIERARCHY:\nSTRUCTURAL ${s.state} ${s.direction} conf ${s.confidence.toFixed(0)} persistence ${s.age}m stability ${s.stability.toFixed(0)} heat ${s.heat.toFixed(0)} transition ${s.transitionRisk} lens ${s.lens}\nLOCAL ${l.state} ${l.direction} conf ${l.confidence.toFixed(0)} fepGap ${l.fepGap.toFixed(2)} slope ${l.priceSlope.toFixed(2)} alignment ${ctx.alignment}\nFLOW LENS: ${flowText}\nHierarchy rule: structural ITS selects the playbook; local ITS selects timing; flow only changes conviction/urgency and never overrides contradictory price/regime structure.`;
+  const flowText=f.available?`${f.label} aggression ${f.aggression.toFixed(0)} directional-purity ${f.directionalPurity.toFixed(0)} hedge-probability ${f.hedgeProbability.toFixed(0)} direction ${f.direction}`:"unavailable at this timestamp";
+  return `ITS DIVERGENCE HIERARCHY:\nSTRUCTURAL ${s.state} leader ${s.leader} direction ${s.direction} conf ${s.confidence.toFixed(0)} persistence ${s.age}m stability ${s.stability.toFixed(0)} meanGap ${s.meanGap.toFixed(2)} transition ${s.transitionRisk}\nLOCAL ${l.state} leader ${l.leader} direction ${l.direction} conf ${l.confidence.toFixed(0)} gap ${l.gap.toFixed(2)} gapSlope ${l.gapSlope.toFixed(3)} alignment ${ctx.alignment}\nFLOW LENS: ${flowText}\nHierarchy rule: Structural ITS describes persistent SPX/SPY lead-lag. Local ITS describes the current stretch, catch-up, convergence, or reversal. Neither is a pinning regime classifier.`;
 }
+
 export function harmonizeThesis(thesis,ctx,flow){
   if(!thesis||!ctx)return thesis;
   let {call,put,wait}=thesis.scores,s=ctx.structural,l=ctx.local;
   const aligned=ctx.alignment==="ALIGNED",conflict=ctx.alignment==="CONFLICT";
-  if(s.state==="PINNING"&&l.state==="PIN_STRETCH"){if(l.direction==="CALL")call+=10;else put+=10;wait-=6;}
-  if(s.state==="EXPANSION"&&s.direction==="CALL"){call+=aligned?14:7;put-=8;wait-=5;}
-  if(s.state==="BREAKDOWN"&&s.direction==="PUT"){put+=aligned?14:7;call-=8;wait-=5;}
-  if(conflict){wait+=8;call-=3;put-=3;}
-  if(s.transitionRisk==="HIGH"){wait+=6;call-=2;put-=2;}
+  if(s.state==="ITS_STRUCTURAL_DIVERGENCE"&&s.direction==="CALL"){call+=aligned?12:6;put-=6;}
+  if(s.state==="ITS_STRUCTURAL_DIVERGENCE"&&s.direction==="PUT"){put+=aligned?12:6;call-=6;}
+  if(l.state==="ITS_LOCAL_STRETCH"&&l.direction==="CALL")call+=6;
+  if(l.state==="ITS_LOCAL_STRETCH"&&l.direction==="PUT")put+=6;
+  if(l.state==="ITS_CATCHUP")wait+=3;
+  if(l.state==="ITS_LEAD_REVERSAL"||conflict){wait+=8;call-=3;put-=3;}
+  if(s.transitionRisk==="HIGH"){wait+=5;call-=2;put-=2;}
   if(flow?.available&&flow.direction!=="NONE"&&flow.directionalPurity>=55){const boost=Math.round(flow.aggression/12);if(flow.direction==="CALL")call+=boost;else put+=boost;}
   const total=Math.max(3,call+put+wait),scores={call:Math.round(call/total*100),put:Math.round(put/total*100),wait:Math.round(wait/total*100)};
-  const winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0],edgeScore=Object.values(scores).sort((a,b)=>b-a)[0]-Object.values(scores).sort((a,b)=>b-a)[1];
+  const sorted=Object.values(scores).sort((a,b)=>b-a),winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0],edgeScore=sorted[0]-sorted[1];
   const entryBias=scores.call>=42&&scores.call>scores.put+6&&scores.call>scores.wait?"CALL":scores.put>=42&&scores.put>scores.call+6&&scores.put>scores.wait?"PUT":"WAIT";
   return {...thesis,scores,winner,edgeScore,entryBias,state:entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":thesis.state,contextHierarchy:ctx,flowLens:flow};
 }

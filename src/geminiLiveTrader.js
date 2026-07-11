@@ -35,6 +35,19 @@ const decisionSchema = {
   required: ['thought_append','architecture_reflection','flow_hypothesis','self_audit','missing_angle','coherence_check','decision','reasoning','mindset','journal_entry','edge_state','confidence_trend','trade_confidence','invalidation_spot','target_spot','max_loss_pct','memory_used','current_thesis','expected_next_path','new_evidence','prior_trade_effect','reevaluate_after_ticks','veto_reason','veto_evidence'],
 };
 
+const observationSchema = {
+  type: 'object',
+  properties: {
+    thought_append: { type: 'string' },
+    thesis_delta: { type: 'string' },
+    current_thesis: { type: 'string' },
+    expected_next_path: { type: 'string' },
+    noteworthy: { type: 'boolean' },
+    urgency: { type: 'string', enum: ['NONE','WATCH','ENTRY_SOON','RISK'] },
+  },
+  required: ['thought_append','thesis_delta','current_thesis','expected_next_path','noteworthy','urgency'],
+};
+
 class GeminiLiveTrader {
   constructor() {
     this.session = null;
@@ -87,12 +100,16 @@ class GeminiLiveTrader {
           tools: [{
             functionDeclarations: [{
               name: 'submit_trade_decision',
-              description: 'Submit the complete FirstSignal trade decision for the current tick. Always call this exactly once per market assessment and do not speak the decision aloud.',
+              description: 'Submit the complete FirstSignal trade decision for an explicit execution assessment. Call exactly once and do not speak the decision aloud.',
               parameters: decisionSchema,
+            },{
+              name: 'record_tick_reflection',
+              description: 'Record a compact private reflection for a CONTINUOUS_TICK_BATCH. Do not make or execute a trade decision through this function.',
+              parameters: observationSchema,
             }],
           }],
           systemInstruction: {
-            parts: [{ text: "You are FirstSignal Sim's continuous live execution intelligence. Read each supplied tick context, reason across the whole session, and call submit_trade_decision exactly once with the complete decision object. Never answer with spoken prose. Never omit required fields." }],
+            parts: [{ text: "You are FirstSignal Sim's continuous live execution intelligence. For messages beginning CONTINUOUS_TICK_BATCH, absorb every ordered tick, read the supplied private journal, and call record_tick_reflection exactly once. For explicit execution assessments, call submit_trade_decision exactly once. Never answer with spoken prose. Never omit required fields." }],
           },
         },
       });
@@ -106,7 +123,8 @@ class GeminiLiveTrader {
   handleMessage(message) {
     if (!this.pending) return;
     const calls = message?.toolCall?.functionCalls || [];
-    const call = calls.find(x => x.name === 'submit_trade_decision');
+    const expected = this.pending.kind === 'observation' ? 'record_tick_reflection' : 'submit_trade_decision';
+    const call = calls.find(x => x.name === expected);
     if (!call) return;
     const result = call.args || {};
     clearTimeout(this.pending.timer);
@@ -142,7 +160,8 @@ ${market}`;
   }
 
   async request(prompt, onThought, signal, options = {}) {
-    if (this.pending) throw new Error('GEMINI_LIVE_BUSY');
+    if (this.pending?.kind === 'observation') this.close('decision-preempted-observation');
+    else if (this.pending) throw new Error('GEMINI_LIVE_BUSY');
     const session = await this.ensureSession();
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     return await new Promise((resolve, reject) => {
@@ -165,7 +184,7 @@ ${market}`;
         reject(new DOMException('Aborted', 'AbortError'));
       };
       signal?.addEventListener('abort', abort, { once: true });
-      this.pending = { resolve: value => { signal?.removeEventListener('abort', abort); resolve(value); }, reject: err => { signal?.removeEventListener('abort', abort); reject(err); }, timer, onThought };
+      this.pending = { kind: 'decision', resolve: value => { signal?.removeEventListener('abort', abort); resolve(value); }, reject: err => { signal?.removeEventListener('abort', abort); reject(err); }, timer, onThought };
       try {
         const livePrompt = options.urgent ? prompt : this.compactPrompt(prompt);
         if (onThought) onThought(options.urgent ? 'Gemini Live is evaluating an urgent entry window...' : 'Gemini Live is evaluating the current market state...');
@@ -178,6 +197,31 @@ ${market}`;
       }
     });
   }
+
+  async requestObservation(prompt) {
+    if (this.pending) throw new Error('GEMINI_LIVE_BUSY');
+    const session = await this.ensureSession();
+    return await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending = null;
+        try { this.session?.close(); } catch {}
+        this.session = null;
+        this.connectedAt = 0;
+        this.bootstrapped = false;
+        reject(new Error('GEMINI_LIVE_OBSERVATION_TIMEOUT'));
+      }, 6500);
+      this.pending = { kind: 'observation', resolve, reject, timer, onThought: null };
+      try {
+        session.sendRealtimeInput({ text: prompt });
+        this.bootstrapped = true;
+      } catch (err) {
+        clearTimeout(timer);
+        this.pending = null;
+        reject(err);
+      }
+    });
+  }
+
 }
 
 export const geminiLiveTrader = new GeminiLiveTrader();

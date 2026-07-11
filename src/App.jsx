@@ -248,12 +248,14 @@ function nativeChain(snapshot){
   return{spot:snapshot.spySpot,iv:(snapshot.iv||0.20)*100,mL:minutesLeft,rows,calls,puts,surface:{callState:"OBSERVED",putState:"OBSERVED"},quoteSource:snapshot.quoteSource||"NONE"};
 }
 function createNativeReplayEngine(replayData){
-  const snapshots=replayData.snapshots;let idx=-1,last=null;
+  const snapshots=replayData.snapshots;let idx=-1,last=null,lastItsSPX=5.5,lastItsSPY=4.5;
+  const replayIts=(callDom,gex,prev)=>{const gexFactor=gex>0?Math.min(1,gex/2e11):Math.max(-0.3,gex/5e10),target=1+callDom*11+gexFactor*2;return clamp(prev*0.72+target*0.28,1,14);};
   function mapSnap(x){
     const[h,m]=x.time.split(":").map(Number),prev=last||x,move=x.spySpot-prev.spySpot;
     const fep=x.gammaFlip;
     const accelerator=clamp(2.5+Math.abs(move)*18,0,ACCEL_SCALE_MAX);
-    const itsSPX=itsFromGex(x.callDomSpx,x.netGexSpx,5.5),itsSPY=itsFromGex(x.callDom,x.netGex,4.5);
+    const itsSPX=replayIts(x.callDomSpx,x.netGexSpx,lastItsSPX),itsSPY=replayIts(x.callDom,x.netGex,lastItsSPY);
+    lastItsSPX=itsSPX;lastItsSPY=itsSPY;
     const out={spySpot:x.spySpot,spxSpot:x.spxSpot,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:!String(x.quoteSource||"").startsWith("REAL"),quoteSource:x.quoteSource,orderFlow:x.orderFlow||null,optionChain:nativeChain(x),dataBasis:"native-replay"};
     last=x;return out;
   }
@@ -765,31 +767,39 @@ Last exit: ${last?`${last.side} at SPY ${last.exitSpot.toFixed(2)} because ${las
 Treat repeated entries from the same episode as one mature thesis. A winner does not automatically reset the episode.`;
 }
 function evaluateReentry(memory,side,m,hist,episodeKey){
-  const recent=(memory?.attempts||[]).filter(x=>x.side===side).slice(-6);
-  const episode=memory?.episodes?.[episodeKey];
-  if(!recent.length&&!episode)return{allowed:true,newEvidence:["first attempt in this session episode"],episodeKey};
-  const last=recent.at(-1),dir=side==="CALL"?1:-1;
-  const ticksSince=last?.tick!=null&&m.tick!=null?m.tick-last.tick:999;
-  const sinceExit=last?dir*(m.spySpot-last.exitSpot):0;
-  const h=hist.slice(-10);
-  const move4=h.length>=5?dir*(m.spySpot-h.at(-5).spySpot):0;
-  const move8=h.length>=9?dir*(m.spySpot-h.at(-9).spySpot):0;
-  const newExtreme=last?(side==="CALL"
-    ?m.spySpot>Math.max(last.entrySpot,last.exitSpot)+(last.pnl>0?0.55:0.35)
-    :m.spySpot<Math.min(last.entrySpot,last.exitSpot)-(last.pnl>0?0.55:0.35)):true;
-  const freshLeg=move4>=0.65&&move8>=0.75;
-  const accelReset=(m.accelerator||0)>=6.2;
-  const resetDistance=Math.abs(sinceExit)>=0.55;
-  const episodeEntries=episode?.entries||0;
-  const cooldownNeeded=0;
-  const evidence=[];
-  if(newExtreme)evidence.push("new extreme beyond prior episode");
-  if(freshLeg)evidence.push("fresh multi-tick leg");
-  if(accelReset&&resetDistance)evidence.push("accelerator and price reset");
-  const matureEpisode=episodeEntries>=2;
-  const allowed=evidence.length>0&&(!matureEpisode||evidence.length>=2);
-  return{allowed,newEvidence:evidence,ticksSince,cooldownNeeded,episodeEntries,matureEpisode,episodeKey};
+  const recent=(memory?.attempts||[]).filter(x=>x.side===side).slice(-6);
+  const episode=memory?.episodes?.[episodeKey];
+  if(!recent.length&&!episode)return{allowed:true,newEvidence:["first attempt in this session episode"],episodeKey};
+  const last=recent.at(-1),dir=side==="CALL"?1:-1;
+  const ticksSince=last?.tick!=null&&m.tick!=null?m.tick-last.tick:999;
+  const sinceExit=last?dir*(m.spySpot-last.exitSpot):0;
+  const h=hist.slice(-10),priorWindow=hist.slice(-31,-1);
+  const move4=h.length>=5?dir*(m.spySpot-h.at(-5).spySpot):0;
+  const move8=h.length>=9?dir*(m.spySpot-h.at(-9).spySpot):0;
+  const newExtreme=last?(side==="CALL"?m.spySpot>Math.max(last.entrySpot,last.exitSpot)+(last.pnl>0?0.55:0.35):m.spySpot<Math.min(last.entrySpot,last.exitSpot)-(last.pnl>0?0.55:0.35)):true;
+  const priorLocalExtreme=priorWindow.length?(side==="CALL"?Math.max(...priorWindow.map(x=>x.spySpot)):Math.min(...priorWindow.map(x=>x.spySpot))):null;
+  const oneTickMoves=priorWindow.slice(1).map((x,i)=>Math.abs(x.spySpot-priorWindow[i].spySpot)).sort((a,b)=>a-b);
+  const medianTickMove=oneTickMoves.length?oneTickMoves[Math.floor(oneTickMoves.length/2)]:0.05;
+  const frontierThreshold=clamp(medianTickMove*1.5,0.08,0.30);
+  const attemptThreshold=clamp(medianTickMove*2.0,0.12,0.40);
+  const freshFrontier=priorLocalExtreme!=null&&(side==="CALL"?m.spySpot>=priorLocalExtreme+frontierThreshold:m.spySpot<=priorLocalExtreme-frontierThreshold);
+  const priorAttemptExtreme=last?(side==="CALL"?Math.max(last.entrySpot,last.exitSpot,last.maxFavorableSpot??-Infinity):Math.min(last.entrySpot,last.exitSpot,last.maxFavorableSpot??Infinity)):null;
+  const clearedPriorAttempt=priorAttemptExtreme!=null&&(side==="CALL"?m.spySpot>=priorAttemptExtreme+attemptThreshold:m.spySpot<=priorAttemptExtreme-attemptThreshold);
+  const freshLeg=move4>=0.65&&move8>=0.75;
+  const accelReset=(m.accelerator||0)>=6.2;
+  const resetDistance=Math.abs(sinceExit)>=0.55;
+  const episodeEntries=episode?.entries||0;
+  const evidence=[];
+  if(newExtreme)evidence.push("new extreme beyond prior episode");
+  if(freshFrontier)evidence.push("fresh local/session frontier");
+  if(clearedPriorAttempt)evidence.push("cleared prior attempt extreme");
+  if(freshLeg)evidence.push("fresh multi-tick leg");
+  if(accelReset&&resetDistance)evidence.push("accelerator and price reset");
+  const matureEpisode=episodeEntries>=2;
+  const allowed=evidence.length>0&&(!matureEpisode||evidence.length>=2);
+  return{allowed,newEvidence:evidence,ticksSince,cooldownNeeded:0,episodeEntries,matureEpisode,episodeKey,freshFrontier,clearedPriorAttempt,frontierThreshold,attemptThreshold};
 }
+
 function optionPnlAttribution(pos,m,mL,ctx){
   const prevPrice=pos.current,prevSpot=pos.lastSpot??pos.entrySpot,prevIv=pos.lastIv??m.iv;
   const spotMove=m.spySpot-prevSpot,ivMove=m.iv-prevIv;
@@ -1028,6 +1038,16 @@ function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const reflection=(dec.architecture_reflection||prior.architecture?.reflection||"UNSET").trim();
   const architecture={...(prior.architecture||{}),buildId:BUILD_ID,upgradePending:false,reflection};
   return{...prior,architecture,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved:lastFlowHypothesis(dec,unresolved),lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-40)};
+}
+
+function appendAiObservationMemory(mem,obs,mkt,time){
+  const prior=mem||createAiSessionMemory();
+  const thought=String(obs?.thought_append||obs?.thesis_delta||"").trim();
+  if(!thought)return prior;
+  const entry=`[${time}]
+${thought}
+Cognition: ${obs.urgency||"NONE"}${obs.expected_next_path?` | Watching: ${obs.expected_next_path}`:""}`;
+  return{...prior,updatedAt:time,lastSpot:mkt.spySpot,lastTime:time,summary:obs.thesis_delta||thought,dominantThesis:obs.current_thesis||prior.dominantThesis,expectedPath:obs.expected_next_path||prior.expectedPath,entries:[...(prior.entries||[]),entry].slice(-40)};
 }
 
 function normalizeTraderDecision(obj){
@@ -1736,6 +1756,7 @@ export default function App(){
   const journalR=useRef([]),aiSessionMemoryR=useRef(createAiSessionMemory()),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
   const contextMemoryR=useRef(createContextMemory());
   const thoughtSessionIdR=useRef(`gcdt-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
+  const cognitionQueueR=useRef([]),cognitionRunningR=useRef(false),cognitionSeqR=useRef(0);
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
@@ -1766,6 +1787,30 @@ export default function App(){
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,tick:tickR.current,archetypeId:archetypeIdR.current});}}
     window.addEventListener("beforeunload",handler);return()=>window.removeEventListener("beforeunload",handler);
   },[done,sessionLabel,sessionMode]);
+
+  const drainCognition=useCallback(()=>{
+    if(cognitionRunningR.current||thinkR.current||activeDecisionR.current||!cognitionQueueR.current.length)return;
+    const batch=cognitionQueueR.current.splice(0,cognitionQueueR.current.length);
+    const latest=batch.at(-1);
+    if(!latest)return;
+    cognitionRunningR.current=true;
+    const memory=aiMemoryText(aiSessionMemoryR.current).slice(-6500);
+    const lines=batch.map(x=>`${x.t} SPY ${x.spy.toFixed(2)} SPX ${x.spx.toFixed(0)} ITS ${x.itsSPX.toFixed(2)}/${x.itsSPY.toFixed(2)} gap ${x.gap>=0?"+":""}${x.gap.toFixed(2)} FEPgap ${x.fepGap>=0?"+":""}${x.fepGap.toFixed(2)} GEX ${fmt.gex(x.spxGex)} walls ${x.putWall.toFixed(1)}/${x.callWall.toFixed(1)} intent ${x.intent} ${x.readiness}% local ${x.local} structural ${x.structural}${x.position?` position ${x.position}`:""}`).join("\n");
+    const prompt=`CONTINUOUS_TICK_BATCH ${++cognitionSeqR.current}\nRead every ordered market tick below and the private journal. This is background cognition only, not execution. Call record_tick_reflection once. Keep thought_append empty unless a material inference, expectation update, contradiction, frontier, wall/OI change, ITS lead-lag development, or thesis-risk change is worth preserving. Never issue a trade through this channel.\n\nPRIVATE JOURNAL:\n${memory}\n\nTICKS:\n${lines}`;
+    geminiLiveTrader.requestObservation(prompt).then(obs=>{
+      const thought=String(obs?.thought_append||obs?.thesis_delta||"").trim();
+      if(!thought)return;
+      aiSessionMemoryR.current=appendAiObservationMemory(aiSessionMemoryR.current,obs,latest.market,latest.t);
+      storageSet("ai_session_memory",aiSessionMemoryR.current);
+      setAiSessionMemory({...aiSessionMemoryR.current});
+      setThoughtSync("SAVING");
+      persistThought({session_id:thoughtSessionIdR.current,market_time:latest.t,kind:"tick_reflection",content:thought,decision:"OBSERVE",spot:latest.spy,metadata:{thesis:obs.current_thesis||"",expected_next_path:obs.expected_next_path||"",urgency:obs.urgency||"NONE",batch_ticks:batch.length}}).then(()=>setThoughtSync("SYNCED")).catch(()=>setThoughtSync("LOCAL"));
+      if(obs.noteworthy)addJournal(latest.t,`AI_TICK_REFLECTION ${obs.urgency||"NONE"}: ${thought}`);
+    }).catch(()=>{}).finally(()=>{
+      cognitionRunningR.current=false;
+      if(cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)setTimeout(()=>drainCognition(),0);
+    });
+  },[addJournal]);
 
   const doTick=useCallback(eng=>{
     const nowWall=Date.now();
@@ -1878,6 +1923,8 @@ export default function App(){
     const det=computeDeterministicPlan(m,candR.current,np,nt);
     const priorIntent=tradeIntentR.current;
     const intent=buildTradeIntent(m,candR.current,nextBrain,nt,det,chain,posR.current,nc,tradeMemoryR.current);tradeIntentR.current=intent;setTradeIntentData(intent);
+    cognitionQueueR.current=[...cognitionQueueR.current,{t:c.t,spy:m.spySpot,spx:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,gap:m.itsSPX-m.itsSPY,fepGap:m.spySpot-m.fep,spxGex:m.netGexSpx,callWall:m.callWall,putWall:m.putWall,intent:intent.action,readiness:intent.executionReadiness??intent.readiness??0,local:contextHierarchy.local.state,structural:contextHierarchy.structural.state,position:posR.current?`${posR.current.strike}${posR.current.isCall?"C":"P"} ${fmt.pct((posR.current.current/posR.current.entry-1)*100)}`:"",market:{...m,tick:tickR.current}}].slice(-12);
+    if(!cognitionRunningR.current&&!thinkR.current&&!activeDecisionR.current)drainCognition();
     if(intent?.diagnostics?.reentry?.discipline?.code)addJournal(c.t,`${intent.diagnostics.reentry.discipline.code} repeated:${intent.diagnostics.reentry.discipline.repeatedCategory} override:${intent.diagnostics.reentry.discipline.override}.`);
     const leadLag=computeLeadLag(m,candR.current);
     const sm=sessionModelR.current;
@@ -2084,7 +2131,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
         })
         .finally(()=>{clearTimeout(requestCtx.timeoutId);if(activeDecisionR.current?.id===requestCtx.id)activeDecisionR.current=null;if(requestCtx.freezeSim)aiFreezeR.current=false;thinkR.current=false;setThinking(false);setLiveThought("");});
     }
-  },[aiFreq,addM,addJournal,rules.approved]);
+  },[aiFreq,addM,addJournal,rules.approved,drainCognition]);
 
   useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>{if(!aiFreezeR.current)doTick(engR.current);},Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
 
@@ -2142,7 +2189,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;const freshAiMemory={...createAiSessionMemory(label),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
-    lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];
+    lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];cognitionQueueR.current=[];cognitionRunningR.current=false;cognitionSeqR.current=0;
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
     prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};contextMemoryR.current=createContextMemory();
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);setLiveThought("");

@@ -50,7 +50,6 @@ export function choosePrimarySignal({ gex, callDom, fepDistance, accelScore = 0,
   const candidates = [
     { category: SIGNAL_CATEGORIES.GEX_VELOCITY, score: Math.abs(gex?.score || 0) },
     { category: SIGNAL_CATEGORIES.CALLDOM_DIVERGENCE, score: Math.abs(callDom?.score || 0) },
-    { category: SIGNAL_CATEGORIES.FEP_DISTANCE, score: Math.abs(fepDistance || 0) },
     { category: SIGNAL_CATEGORIES.ACCEL, score: Math.abs(accelScore || 0) },
     { category: SIGNAL_CATEGORIES.LEAD_LAG, score: Math.min(10, Math.abs(leadLagScore || 0)) },
   ];
@@ -60,7 +59,7 @@ export function choosePrimarySignal({ gex, callDom, fepDistance, accelScore = 0,
 export function evaluateReentryDiscipline(memory, side, primaryCategory, gexState, currentTick = null) {
   const prior = (memory?.attempts || []).filter(x => x.side === side).slice(-3);
   const last = prior.at(-1) || null;
-  const repeatedCategory = !!last && last.primaryCategory === primaryCategory;
+  const repeatedCategory = !!last && primaryCategory !== SIGNAL_CATEGORIES.FEP_DISTANCE && last.primaryCategory === primaryCategory;
   return {
     allowed: true,
     code: repeatedCategory ? 'REENTRY_REASSESS_REQUIRED' : null,

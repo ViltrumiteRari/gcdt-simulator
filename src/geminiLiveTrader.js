@@ -29,10 +29,14 @@ const decisionSchema = {
     new_evidence: { type: 'string' },
     prior_trade_effect: { type: 'string' },
     reevaluate_after_ticks: { type: 'integer' },
+    forecast_probability: { type: 'number' },
+    forecast_window_ticks: { type: 'integer' },
+    forecast_supporting_behavior: { type: 'string' },
+    forecast_side: { type: 'string', enum: ['CALL','PUT','NONE'] },
     veto_reason: { type: 'string', enum: ['NONE','DIRECTION_FLIPPED','CONTRACT_INVALID','CHASE_RISK','EPISODE_STALE','OPPOSITE_ACCEPTANCE','FINAL_THETA_WINDOW'] },
     veto_evidence: { type: 'string' },
   },
-  required: ['thought_append','architecture_reflection','flow_hypothesis','self_audit','missing_angle','coherence_check','decision','reasoning','mindset','journal_entry','edge_state','confidence_trend','trade_confidence','invalidation_spot','target_spot','max_loss_pct','memory_used','current_thesis','expected_next_path','new_evidence','prior_trade_effect','reevaluate_after_ticks','veto_reason','veto_evidence'],
+  required: ['thought_append','architecture_reflection','flow_hypothesis','self_audit','missing_angle','coherence_check','decision','reasoning','mindset','journal_entry','edge_state','confidence_trend','trade_confidence','invalidation_spot','target_spot','max_loss_pct','memory_used','current_thesis','expected_next_path','new_evidence','prior_trade_effect','reevaluate_after_ticks','forecast_probability','forecast_window_ticks','forecast_supporting_behavior','forecast_side','veto_reason','veto_evidence'],
 };
 
 const observationSchema = {

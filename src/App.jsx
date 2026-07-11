@@ -6,6 +6,7 @@ import { replayQualityFor } from "./replayQuality";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyCore";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
 import { geminiLiveTrader } from "./geminiLiveTrader";
+import { createMetacognitionState, computeGexImpulse, createForecast, scoreForecast, applyForecastTrust, shouldActivateDrawdownReview, buildTradeDiagnostics } from "./metacognition";
 
 const BUILD_ID = "firstsignal-sim-v1-20260710";
 const REAL_REPLAY_CATALOG={...BASE_REAL_REPLAY_CATALOG,"2026-07-10":JULY10_REPLAY};
@@ -344,7 +345,7 @@ function computeEdgeScore(scores){const vals=[scores.call,scores.put,scores.wait
 // entry threshold dropped to a realistic level given the smaller base spread (33/33/34).
 function computeTheses(mkt,hist,prev){
   const div=mkt.itsSPX-mkt.itsSPY,fg=mkt.spySpot-mkt.fep,gi=mkt.gexInfluence||0.3,ac=mkt.accelerator||0,netGex=mkt.netGex||0;
-  const gexVelocity=classifyGexVelocity(hist,mkt),callDomSignal=classifyCallDom(hist,mkt);
+  const gexVelocity=classifyGexVelocity(hist,mkt),gexImpulse=computeGexImpulse(hist,mkt),callDomSignal=classifyCallDom(hist,mkt);
   const l6=hist.slice(-6),l12=hist.slice(-12);
   const priceSlope=l6.length>=2?l6[l6.length-1].spySpot-l6[0].spySpot:0;
   const belowFepCount=l6.filter(c=>c.spySpot<c.fep).length;
@@ -412,7 +413,7 @@ function computeTheses(mkt,hist,prev){
   const scalpDir=priceSlope>=0?"CALL":"PUT";
   const state=entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":scores.wait>=45&&scores.call<65&&scores.put<65?"WAIT_DOMINANT":scores.call>=45&&scores.call>=scores.put?"CALL_BUILDING":scores.put>=45?"PUT_BUILDING":"NO_EDGE";
   const primaryCategory=choosePrimarySignal({gex:gexVelocity,callDom:callDomSignal,fepDistance:Math.abs(fg)*9,accelScore:ac>7?12:0,leadLagScore:itsConfirmed?8:0});
-  return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,gexVelocity,callDomSignal,primaryCategory,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
+  return{scores,momentum:mom,winner,entryBias,state,edgeScore,scalpEdge,scalpDir,gexVelocity,gexImpulse,callDomSignal,primaryCategory,call:{reasons:callReasons.slice(0,6),needs:callNeeds.slice(0,4),invalidations:callInvalid.slice(0,3)},put:{reasons:putReasons.slice(0,6),needs:putNeeds.slice(0,4),invalidations:putInvalid.slice(0,3)},wait:{reasons:waitReasons.slice(0,6)}};
 }
 
 function computeLeadLag(mkt,hist){
@@ -1408,6 +1409,10 @@ REGIME ${top[0]} ${top[1]}%; SPY ${mkt.spySpot.toFixed(2)}; SPX ${mkt.spxSpot.to
 ${optStr}
 RECENT ${rH}
 THESIS ${thesisStr}
+ACCOUNTABLE FORECAST RULE: Separate observation, forecast, evidence update, and thesis revision. Do not rewrite an active forecast merely because the newest tick is inconvenient. State forecast_probability, forecast_window_ticks, and forecast_supporting_behavior. Failed forecasts must reduce confidence in the responsible signals.
+GEX IMPULSE: ${JSON.stringify(th.gexImpulse||{})}
+SIGNAL TRUST: ${JSON.stringify(metacognitionR.current.signalTrust)}
+DRAWDOWN REVIEW: ${drawdownReviewActive?"ACTIVE - fewer trades are appropriate until the operating model is re-articulated":"inactive"}
 If canonical action is BUY with no hard blockers, return that BUY unless one enumerated veto is objectively true. Keep thought_append and architecture_reflection empty; prioritize the decision.`:prompt;
   const payload=await geminiLiveTrader.request(urgentPrompt,onThought,signal,{urgent:urgentEntry});
   const normalized=normalizeTraderDecision(payload);
@@ -1742,6 +1747,7 @@ export default function App(){
   const contextMemoryR=useRef(createContextMemory());
   const thoughtSessionIdR=useRef(`gcdt-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
   const cognitionQueueR=useRef([]),cognitionRunningR=useRef(false),cognitionSeqR=useRef(0);
+  const metacognitionR=useRef(createMetacognitionState());
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
@@ -1911,6 +1917,9 @@ export default function App(){
     cognitionQueueR.current=[...cognitionQueueR.current,{t:c.t,spy:m.spySpot,spx:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,gap:m.itsSPX-m.itsSPY,fepGap:m.spySpot-m.fep,spxFepGap:contextHierarchy.rubberBand.spx.fepDistance,fepDisagreement:contextHierarchy.rubberBand.cross.fepDistanceDisagreement,spxItsBase:contextHierarchy.rubberBand.spx.structuralBaseline,spyItsBase:contextHierarchy.rubberBand.spy.structuralBaseline,spxItsLocal:contextHierarchy.rubberBand.spx.localDeviation,spyItsLocal:contextHierarchy.rubberBand.spy.localDeviation,rubberInterpretation:contextHierarchy.rubberBand.interpretation.resolution,spxGex:m.netGexSpx,callWall:m.callWall,putWall:m.putWall,intent:intent.action,readiness:intent.executionReadiness??intent.readiness??0,local:contextHierarchy.local.state,structural:contextHierarchy.structural.state,position:posR.current?`${posR.current.strike}${posR.current.isCall?"C":"P"} ${fmt.pct((posR.current.current/posR.current.entry-1)*100)}`:"",market:{...m,tick:tickR.current}}].slice(-12);
     if(!cognitionRunningR.current&&!thinkR.current&&!activeDecisionR.current)drainCognition();
     if(intent?.diagnostics?.reentry?.discipline?.code)addJournal(c.t,`${intent.diagnostics.reentry.discipline.code} repeated:${intent.diagnostics.reentry.discipline.repeatedCategory} override:${intent.diagnostics.reentry.discipline.override}.`);
+    const activeForecast=metacognitionR.current.forecasts.find(x=>x.id===metacognitionR.current.activeForecastId);
+    if(activeForecast){const scored=scoreForecast(activeForecast,m,tickR.current);metacognitionR.current.forecasts=metacognitionR.current.forecasts.map(x=>x.id===scored.id?scored:x);if(scored.status!=="ACTIVE"){metacognitionR.current.signalTrust=applyForecastTrust(metacognitionR.current.signalTrust,scored);metacognitionR.current.activeForecastId=null;addJournal(c.t,`FORECAST_${scored.status} ${scored.side} probability:${scored.probability}% progress:${Number(scored.progress||0).toFixed(2)} signals:${(scored.signalKeys||[]).join("+")||"UNSPECIFIED"}.`);}}
+    if(shouldActivateDrawdownReview(balR.current,STARTING_BALANCE,metacognitionR.current.drawdownReview)){metacognitionR.current.drawdownReview={active:true,activatedAt:c.t,completedAt:null,reflection:""};setDrawdownReviewActive(true);addJournal(c.t,"DRAWDOWN_REVIEW_ACTIVE: equity crossed 60% of starting capital. Reassess repeated beliefs, predictive versus retrospective evidence, signal transmission, timing, vehicle decay, exits, and falsification conditions before trusting the current operating model.");}
     const leadLag=computeLeadLag(m,candR.current);
     const sm=sessionModelR.current;
     if(leadLag.state!==sm.lastLeadState){if(leadLag.opportunity)sm.leadOpp++;if(leadLag.state==='SPY_CATCHING_UP')sm.leadCatch++;if(leadLag.state==='SPY_REJECTING_SPX')sm.leadReject++;sm.lastLeadState=leadLag.state;}
@@ -2019,6 +2028,9 @@ export default function App(){
           storageSet("ai_session_memory",aiSessionMemoryR.current);
           if(dec.architecture_reflection){storageSet("ai_architecture_memory",{buildId:BUILD_ID,reflection:dec.architecture_reflection,updatedAt:liveTs});}
           setAiSessionMemory({...aiSessionMemoryR.current});
+          const priorForecast=metacognitionR.current.forecasts.find(x=>x.id===metacognitionR.current.activeForecastId);
+          const forecast=createForecast(dec,currentMarket,tickR.current,[thesisR.current?.primaryCategory,thesisR.current?.gexVelocity?.state,thesisR.current?.gexImpulse?.transmission,thesisR.current?.contextHierarchy?.structural?.state],priorForecast);
+          if(forecast&&forecast!==priorForecast){metacognitionR.current.forecasts=[...metacognitionR.current.forecasts,forecast].slice(-100);metacognitionR.current.activeForecastId=forecast.id;addJournal(liveTs,`FORECAST_CREATED ${forecast.side} probability:${forecast.probability}% window:${forecast.windowTicks}t target:${forecast.targetSpot??"OPEN"} invalidation:${forecast.invalidationSpot??"OPEN"} signals:${forecast.signalKeys.join("+")||"UNSPECIFIED"}.`);}
           setLiveThought("");
           const durableThought=(dec.thought_append||dec.self_audit||dec.missing_angle||dec.reasoning||"").trim();
           if(source==="AI"&&durableThought){setThoughtSync("SAVING");persistThought({session_id:thoughtSessionIdR.current,market_time:liveTs,kind:"thought",content:durableThought,decision:dec.decision,spot:currentMarket.spySpot,metadata:{thesis:dec.current_thesis||"",expected_next_path:dec.expected_next_path||"",new_evidence:dec.new_evidence||""}}).then(()=>setThoughtSync("SYNCED")).catch(()=>setThoughtSync("LOCAL"));}
@@ -2175,7 +2187,7 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];cognitionQueueR.current=[];cognitionRunningR.current=false;cognitionSeqR.current=0;
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
-    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};contextMemoryR.current=createContextMemory();
+    prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};contextMemoryR.current=createContextMemory();metacognitionR.current=createMetacognitionState();setDrawdownReviewActive(false);
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);setLiveThought("");
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[selectedReplayDate]);
@@ -2206,10 +2218,19 @@ If action is BUY and hard blockers are NONE, execute unless an allowed veto_reas
     const r=((balR.current-STARTING_BALANCE)/STARTING_BALANCE)*100,cl=logR.current.filter(l=>l.pnl!==undefined),ws=cl.filter(l=>(l.pnl||0)>=0);
     const signalTotal=sessionModelR.current.accelFollow+sessionModelR.current.accelFail,signalCleanliness=signalTotal?sessionModelR.current.accelFollow/signalTotal:0,tradeFollowThrough=cl.length?cl.filter(t=>(t.pnl||0)>0).length/cl.length:0;
     const reliability=reliabilityRates(reliabilityR.current);
-    const sess={id:Date.now(),aiSessionMemory:aiSessionMemoryR.current,signalCleanliness,tradeFollowThrough,...reliability,fallbackUsed:reliability.fallbackExecutionRate>0,gexVelocityState:thesisR.current?.gexVelocity?.state||"OSCILLATING",marketBrain:marketBrainR.current,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
+    const tradeDiagnostics=buildTradeDiagnostics(tradeMemoryR.current.attempts,sessionTickData.current);
+    const sess={id:Date.now(),metacognition:metacognitionR.current,tradeDiagnostics,aiSessionMemory:aiSessionMemoryR.current,signalCleanliness,tradeFollowThrough,...reliability,fallbackUsed:reliability.fallbackExecutionRate>0,gexVelocityState:thesisR.current?.gexVelocity?.state||"OSCILLATING",marketBrain:marketBrainR.current,name:`SIM · ${sessionLabel} · ${r>=0?"+":""}${r.toFixed(0)}%`,date:new Date().toLocaleDateString(),balance:balR.current,returnPct:r,trades:logR.current,mindset:mindR.current,journal:journalR.current,timeline:tlR.current,winRate:cl.length>0?`${ws.length}/${cl.length}`:"—",label:sessionLabel,tickData:sessionTickData.current};
     const upd=[sess,...sessions];setSessions(upd);storageSet("sessions",upd);setSaved(true);
     setThinking(true);
-    try{const props=await generatePatchProposals(logR.current,mindR.current,journalR.current,{balance:balR.current,returnPct:r,trades:cl.length,wins:ws.length,label:sessionLabel});if(props.length>0){setPatchProposals(props);setPatchIdx(0);setScreen("patch");}}catch(e){console.log("patch gen failed",e);}
+    try{
+      const closingPrompt=`SESSION_CLOSING_REFLECTION\nThe market session is over. No further trade action is possible. You are in a historical simulation, but evaluate every decision with live-capital discipline. Review what you believed, what happened, forecast successes and failures, repeated causal mistakes, entries, exits, contract decay, signal-to-price transmission, uncertainty, and what the next session should remember without overgeneralizing. Return JSON with private_reflection and next_session_handoff.\nFORECASTS:${JSON.stringify(metacognitionR.current.forecasts)}\nTRADES:${JSON.stringify(tradeDiagnostics)}\nJOURNAL:${JSON.stringify(journalR.current.slice(-80))}`;
+      let closing={private_reflection:"Session close reflection unavailable.",next_session_handoff:"Carry forward uncertainty; do not convert one session into a universal rule."};
+      try{const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:closingPrompt})});const data=await resp.json();const raw=data?.text||data?.response||data;closing=typeof raw==="string"?JSON.parse(raw.replace(/```json|```/g,"").trim()):raw;}catch(e){console.log("closing reflection failed",e);}
+      metacognitionR.current.endSession=closing;metacognitionR.current.drawdownReview={...metacognitionR.current.drawdownReview,active:false,completedAt:new Date().toISOString(),reflection:closing.private_reflection||""};setDrawdownReviewActive(false);
+      const finalized={...sess,metacognition:JSON.parse(JSON.stringify(metacognitionR.current)),privateReflection:closing.private_reflection||"",nextSessionHandoff:closing.next_session_handoff||""};
+      const finalizedSessions=[finalized,...sessions];setSessions(finalizedSessions);storageSet("sessions",finalizedSessions);
+      const props=await generatePatchProposals(logR.current,mindR.current,[...journalR.current,{t:"END",entry:closing.private_reflection},{t:"HANDOFF",entry:closing.next_session_handoff}],{balance:balR.current,returnPct:r,trades:cl.length,wins:ws.length,label:sessionLabel,forecasts:metacognitionR.current.forecasts,tradeDiagnostics});if(props.length>0){setPatchProposals(props);setPatchIdx(0);setScreen("patch");}
+    }catch(e){console.log("patch gen failed",e);}
     setThinking(false);
   },[sessions,sessionLabel]);
 

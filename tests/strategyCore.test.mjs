@@ -55,6 +55,11 @@ const reliability = reliabilityRates({ totalRequests: 10, parseFailures: 2, tota
 assert.equal(reliability.parseFailureRate, 0.2);
 assert.equal(reliability.fallbackExecutionRate, 0.25);
 const app = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const appComponentLine = app.split(/\r?\n/).findIndex(line => line.startsWith('export default function App'));
+const appTopLevel = app.split(/\r?\n/).slice(0, appComponentLine).join('\n');
+assert.doesNotMatch(appTopLevel, /\b(?:metacognitionR|dataHealthR|transmissionR)\.current\b/);
+assert.doesNotMatch(appTopLevel, /\bdrawdownReviewActive\b/);
+
 assert.match(app, /move15/);
 assert.match(app, /move30/);
 assert.match(app, /bearishExpansionContext/);

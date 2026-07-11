@@ -1303,7 +1303,7 @@ async function persistThought(row){
 async function loadThoughts(){
   try{const r=await fetch("/api/thoughts?limit=80");if(!r.ok)return[];const d=await r.json();return d.rows||[];}catch{return[];}
 }
-async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,onThought,signal,urgentEntry=false){
+async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,onThought,signal,urgentEntry=false,metaContext={}){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<45,eodPhase=mL<=15?'CLEANUP/RH_LOCK':mL<=30?'DEATH_ZONE':mL<=60?'BRUTAL_THETA':mL<=75?'GAME_CHANGING':'NORMAL',div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
@@ -1399,10 +1399,10 @@ RULES:
 ${rulesStr}
 
 METACOGNITIVE STATE:
-- DATA: ${dataHealthR.current.state||"UNKNOWN"} ${JSON.stringify(dataHealthR.current)}
-- TRANSMISSION: ${transmissionR.current.state||"UNKNOWN"} ${JSON.stringify(transmissionR.current)}
-- ACTIVE FORECAST: ${JSON.stringify(metacognitionR.current.forecasts.find(x=>x.id===metacognitionR.current.activeForecastId)||null)}
-- DRAWDOWN REVIEW: ${metacognitionR.current.drawdownReview?.active?"ACTIVE":"inactive"}
+- DATA: ${metaContext.dataHealth?.state||"UNKNOWN"} ${JSON.stringify(metaContext.dataHealth||{})}
+- TRANSMISSION: ${metaContext.transmission?.state||"UNKNOWN"} ${JSON.stringify(metaContext.transmission||{})}
+- ACTIVE FORECAST: ${JSON.stringify(metaContext.activeForecast||null)}
+- DRAWDOWN REVIEW: ${metaContext.drawdownActive?"ACTIVE":"inactive"}
 If data is stale/noninformative, do not create or renew forecasts and do not enter. If transmission failed, reduce confidence. If nothing material changed, set thought_append and journal_entry empty.
 
 Respond ONLY valid JSON. Put thought_append first so it can stream into the live notepad before the final decision is parsed:
@@ -1417,8 +1417,8 @@ RECENT ${rH}
 THESIS ${thesisStr}
 ACCOUNTABLE FORECAST RULE: Separate observation, forecast, evidence update, and thesis revision. Do not rewrite an active forecast merely because the newest tick is inconvenient. State forecast_probability, forecast_window_ticks, and forecast_supporting_behavior. Failed forecasts must reduce confidence in the responsible signals.
 GEX IMPULSE: ${JSON.stringify(th.gexImpulse||{})}
-SIGNAL TRUST: ${JSON.stringify(metacognitionR.current.signalTrust)}
-DRAWDOWN REVIEW: ${drawdownReviewActive?"ACTIVE - fewer trades are appropriate until the operating model is re-articulated":"inactive"}
+SIGNAL TRUST: ${JSON.stringify(metaContext.signalTrust||{})}
+DRAWDOWN REVIEW: ${metaContext.drawdownActive?"ACTIVE - fewer trades are appropriate until the operating model is re-articulated":"inactive"}
 If canonical action is BUY with no hard blockers, return that BUY unless one enumerated veto is objectively true. Keep thought_append and architecture_reflection empty; prioritize the decision.`:prompt;
   const payload=await geminiLiveTrader.request(urgentPrompt,onThought,signal,{urgent:urgentEntry});
   const normalized=normalizeTraderDecision(payload);
@@ -2118,7 +2118,7 @@ export default function App(){
       };
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nCANONICAL EXECUTION STATE — AUTHORITATIVE:
 action ${intent.action}; direction ${intent.direction||"NONE"}; setup ${intent.setupQuality}%; readiness ${intent.executionReadiness}% / threshold ${intent.threshold??"—"}%; contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"}; hard blockers ${hardExecutionBlockers(intent).join(", ")||"NONE"}; all blockers ${(intent.blockers||[]).join(", ")||"NONE"}.
-A BUY-ready canonical action is eligible, not mandatory. Decline it when data health, forecast accountability, transmission, episode novelty, or drawdown review makes the causal case weak. For a repeated-category retry, BUY only if new_evidence states a material change in structure, FEP relationship, SPX GEX/wall/OI landscape, lead-lag, or a genuinely new leg, and prior_trade_effect explains why the previous attempt does not control this one. Otherwise WAIT. Manage exits by the entry thesis contract: expected timing is an evaluation window, never an automatic exit; stack causal invalidations, wall/OI exhaustion or relocation, FEP acceptance failure, and structural/local reversal. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,setLiveThought,controller.signal,entryCritical)
+A BUY-ready canonical action is eligible, not mandatory. Decline it when data health, forecast accountability, transmission, episode novelty, or drawdown review makes the causal case weak. For a repeated-category retry, BUY only if new_evidence states a material change in structure, FEP relationship, SPX GEX/wall/OI landscape, lead-lag, or a genuinely new leg, and prior_trade_effect explains why the previous attempt does not control this one. Otherwise WAIT. Manage exits by the entry thesis contract: expected timing is an evaluation window, never an automatic exit; stack causal invalidations, wall/OI exhaustion or relocation, FEP acceptance failure, and structural/local reversal. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,setLiveThought,controller.signal,entryCritical,{dataHealth:dataHealthR.current,transmission:transmissionR.current,activeForecast:metacognitionR.current.forecasts.find(x=>x.id===metacognitionR.current.activeForecastId)||null,drawdownActive:!!metacognitionR.current.drawdownReview?.active,signalTrust:metacognitionR.current.signalTrust})
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time((latestMarketR.current||m).h,(latestMarketR.current||m).m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);

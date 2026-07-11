@@ -1,4 +1,4 @@
-const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+﻿const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
 const slope=(a,key)=>a.length>=2?(a.at(-1)[key]-a[0][key])/Math.max(1,a.length-1):0;
 const gapOf=x=>(x.itsSPX??0)-(x.itsSPY??0);
@@ -100,7 +100,7 @@ Cross relationships: ITS gap ${r.cross.itsGap>=0?"+":""}${r.cross.itsGap.toFixed
 STRUCTURAL ${s.state} leader ${s.leader} direction ${s.direction} conf ${s.confidence.toFixed(0)} persistence ${s.age}m stability ${s.stability.toFixed(0)} meanGap ${s.meanGap.toFixed(2)} transition ${s.transitionRisk}
 LOCAL ${l.state} leader ${l.leader} direction ${l.direction} conf ${l.confidence.toFixed(0)} gap ${l.gap.toFixed(2)} gapSlope ${l.gapSlope.toFixed(3)} alignment ${ctx.alignment}${rubber}
 FLOW LENS: ${flowText}
-Interpretation rule: preserve absolute SPX ITS, absolute SPY ITS, their own structural baselines, local deviations, and raw FEP distances. ITS divergence and FEP-distance disagreement are relationships only. Around 6 is balanced; movement toward roughly 9 or 2 is tension requiring context, not an automatic reversal signal. Persistent extremes may indicate structural relocation or a skewed effective FEP rather than a temporary stretch.`;
+Interpretation rule: preserve absolute SPX ITS, absolute SPY ITS, their own structural baselines, local deviations, and raw FEP distances. ITS divergence and FEP-distance disagreement are relationships only. Around 6 is balanced; movement toward roughly 9 or 3 is tension requiring context, not an automatic reversal signal. Persistent extremes may indicate structural relocation or a skewed effective FEP rather than a temporary stretch.`;
 }
 
 export function harmonizeThesis(thesis,ctx,flow){
@@ -122,3 +122,4 @@ export function harmonizeThesis(thesis,ctx,flow){
   const entryBias=scores.call>=42&&scores.call>scores.put+6&&scores.call>scores.wait?"CALL":scores.put>=42&&scores.put>scores.call+6&&scores.put>scores.wait?"PUT":"WAIT";
   return {...thesis,scores,winner,edgeScore,entryBias,state:entryBias==="CALL"?"ENTRY_READY_CALL":entryBias==="PUT"?"ENTRY_READY_PUT":thesis.state,contextHierarchy:ctx,flowLens:flow};
 }
+

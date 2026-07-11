@@ -12,11 +12,13 @@ const REAL_REPLAY_CATALOG={...BASE_REAL_REPLAY_CATALOG,"2026-07-10":JULY10_REPLA
 const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_CATALOG),...REPLAY_DATES])].sort().reverse();
 const ARCHITECTURE_MANIFEST=`FIRSTSIGNAL ARCHITECTURE SELF-MODEL
 Purpose: identify and exploit temporary SPY 0DTE environments where repeated asymmetric wins become structurally plausible.
-Authority order: observed market/options data -> feature lenses -> Structural ITS playbook -> Local ITS timing -> unified CALL/PUT/WAIT thesis -> canonical executable intent -> AI execution and management.
-Structural ITS chooses PINNING, EXPANSION, BREAKDOWN, or WAIT and carries confidence, age, stability, transition heat, and regime-change risk.
-Local ITS reads the current stretch, response, acceptance, acceleration, and GEX rate of change inside that structural world.
-Options flow now includes sweep, multi-exchange, block, bid/ask-side premium, repeated activity, and comprisingTrades price-level evidence. Flow is rich evidence of urgency and possible intent, but broker routing, hedges, rolls, and packages remain competing explanations.
-The AI is the convergence layer: inspect interactions, form hypotheses, execute canonical opportunities, manage positions, and write durable reflections when new evidence changes how the architecture should be understood.`;
+Authority order: observed market/options data -> separate SPX/SPY positioning and price-location observations -> relationship lenses -> market-structure/regime interpretation -> unified CALL/PUT/WAIT thesis -> canonical executable intent -> AI execution and management.
+ITS is a bounded tension/positioning proxy centered near 6 when call/put dominance is balanced and price is near its FEP. Readings moving toward roughly 9 or 2 indicate increasing tension, but are not automatic reversal or continuation signals. Persistence at an extreme may mean structural relocation or a skewed effective FEP.
+Never collapse the following into one master number: absolute SPX ITS, absolute SPY ITS, each instrument's structural ITS baseline, each local deviation from baseline, raw SPX and SPY FEP distances in their own denominations, SPX/SPY ITS divergence, and normalized FEP-distance disagreement.
+Structural ITS describes persistent SPX/SPY positioning and lead-lag relationships over the broader window. Local ITS describes current stretch, catch-up, convergence, or lead reversal. Neither independently chooses PINNING, EXPANSION, BREAKDOWN, or WAIT.
+Pinning, expansion, breakdown, discovery, and transition are market-structure interpretations produced from ITS relationships together with price acceptance, FEP/flip behavior, SPX GEX, walls/OI, acceleration, flow, and historical/local territory.
+Options flow includes sweep, multi-exchange, block, bid/ask-side premium, repeated activity, and comprisingTrades price-level evidence. Flow is evidence of urgency and possible intent, while broker routing, hedges, rolls, and packages remain competing explanations.
+The AI is the convergence layer: preserve component-level nuance, inspect interactions, form hypotheses, execute canonical opportunities, manage positions, and write durable reflections when new evidence changes how the architecture should be understood.`;
 const STARTING_BALANCE = 1000;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
@@ -143,10 +145,19 @@ function accelWindow(m,hist,dir){
   return{ok:false,reason:"ACCEL_FILTER_BLOCK",raw,window:"none",state:"NEUTRAL"};
 }
 
-function itsFromGex(callDom,gex,prevIts){
-  const gexFactor=gex>0?Math.min(1,gex/2e11):Math.max(-0.3,gex/5e10);
-  const target=1+callDom*11+gexFactor*2;
-  return clamp(prevIts*0.75+target*0.25+(Math.random()-0.5)*0.4,1,14);
+function itsProxy(callDom,gex,prevIts,fepDistance=0,fepScale=1.5){
+  const dominance=clamp((callDom-0.5)/0.5,-1,1);
+  const gexScale=Math.abs(gex)>1e11?3e11:3e10;
+  const gexStrength=clamp(Math.abs(gex)/gexScale,0,1);
+  const location=clamp(Math.tanh(fepDistance/Math.max(0.35,fepScale)),-1,1);
+  const dominanceContribution=dominance*1.50;
+  const locationContribution=location*(2.60+gexStrength*0.70);
+  const target=clamp(6+dominanceContribution+locationContribution,1,11.5);
+  const value=clamp(prevIts*0.70+target*0.30,1,11.5);
+  return{value,target,neutral:6,dominance,dominanceContribution,location,locationContribution,gexStrength,fepDistance,fepScale};
+}
+function itsFromGex(callDom,gex,prevIts,fepDistance=0,fepScale=1.5){
+  return itsProxy(callDom,gex,prevIts,fepDistance,fepScale).value;
 }
 
 function wRand(choices){const r=Math.random();let cum=0;for(const[v,w]of choices){cum+=w;if(r<cum)return v;}return choices[choices.length-1][0];}
@@ -249,14 +260,18 @@ function nativeChain(snapshot){
 }
 function createNativeReplayEngine(replayData){
   const snapshots=replayData.snapshots;let idx=-1,last=null,lastItsSPX=5.5,lastItsSPY=4.5;
-  const replayIts=(callDom,gex,prev)=>{const gexFactor=gex>0?Math.min(1,gex/2e11):Math.max(-0.3,gex/5e10),target=1+callDom*11+gexFactor*2;return clamp(prev*0.72+target*0.28,1,14);};
   function mapSnap(x){
     const[h,m]=x.time.split(":").map(Number),prev=last||x,move=x.spySpot-prev.spySpot;
     const fep=x.gammaFlip;
     const accelerator=clamp(2.5+Math.abs(move)*18,0,ACCEL_SCALE_MAX);
-    const itsSPX=replayIts(x.callDomSpx,x.netGexSpx,lastItsSPX),itsSPY=replayIts(x.callDom,x.netGex,lastItsSPY);
+    const ratio=x.spxSpot/Math.max(1,x.spySpot),spxFep=fep*ratio;
+    const spyScale=Math.max(0.75,Math.abs(x.callWall-x.putWall)/2);
+    const spxScale=Math.max(7.5,spyScale*ratio);
+    const spxProxy=itsProxy(x.callDomSpx,x.netGexSpx,lastItsSPX,x.spxSpot-spxFep,spxScale);
+    const spyProxy=itsProxy(x.callDom,x.netGex,lastItsSPY,x.spySpot-fep,spyScale);
+    const itsSPX=spxProxy.value,itsSPY=spyProxy.value;
     lastItsSPX=itsSPX;lastItsSPY=itsSPY;
-    const out={spySpot:x.spySpot,spxSpot:x.spxSpot,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:!String(x.quoteSource||"").startsWith("REAL"),quoteSource:x.quoteSource,orderFlow:x.orderFlow||null,optionChain:nativeChain(x),dataBasis:"native-replay"};
+    const out={spySpot:x.spySpot,spxSpot:x.spxSpot,spxFep,gammaFlip:x.gammaFlip,callWall:x.callWall,putWall:x.putWall,fep,itsComponentsSPX:spxProxy,itsComponentsSPY:spyProxy,accelerator,rawAccelerator:accelerator,netGex:x.netGex,netGexSpx:x.netGexSpx,itsSPX,itsSPY,callDom:x.callDom,callDomSpyEst:x.callDom,callDomSpx:x.callDomSpx,ndf:move,dealerPct:clamp(x.callDom*100,5,95),iv:(x.iv||0.20)*100,pcr:clamp((1-x.callDom)+0.5,0.4,2.8),gexInfluence:clamp(Math.abs(x.netGex)/(Math.abs(x.netGex)+1e10),0.05,0.95),tick:idx+1,h,m,isPremarket:false,isTradeable:h<TRADE_CUTOFF_H||(h===TRADE_CUTOFF_H&&m<TRADE_CUTOFF_M),synthData:!String(x.quoteSource||"").startsWith("REAL"),quoteSource:x.quoteSource,orderFlow:x.orderFlow||null,optionChain:nativeChain(x),dataBasis:"native-replay"};
     last=x;return out;
   }
   function tick(){idx=Math.min(idx+1,snapshots.length-1);return mapSnap(snapshots[idx]);}
@@ -1795,7 +1810,7 @@ export default function App(){
     if(!latest)return;
     cognitionRunningR.current=true;
     const memory=aiMemoryText(aiSessionMemoryR.current).slice(-6500);
-    const lines=batch.map(x=>`${x.t} SPY ${x.spy.toFixed(2)} SPX ${x.spx.toFixed(0)} ITS ${x.itsSPX.toFixed(2)}/${x.itsSPY.toFixed(2)} gap ${x.gap>=0?"+":""}${x.gap.toFixed(2)} FEPgap ${x.fepGap>=0?"+":""}${x.fepGap.toFixed(2)} GEX ${fmt.gex(x.spxGex)} walls ${x.putWall.toFixed(1)}/${x.callWall.toFixed(1)} intent ${x.intent} ${x.readiness}% local ${x.local} structural ${x.structural}${x.position?` position ${x.position}`:""}`).join("\n");
+    const lines=batch.map(x=>`${x.t} SPY ${x.spy.toFixed(2)} SPX ${x.spx.toFixed(0)} | SPX ITS ${x.itsSPX.toFixed(2)} base ${x.spxItsBase.toFixed(2)} local ${x.spxItsLocal>=0?"+":""}${x.spxItsLocal.toFixed(2)} | SPY ITS ${x.itsSPY.toFixed(2)} base ${x.spyItsBase.toFixed(2)} local ${x.spyItsLocal>=0?"+":""}${x.spyItsLocal.toFixed(2)} | ITS gap ${x.gap>=0?"+":""}${x.gap.toFixed(2)} | FEP distance SPX ${x.spxFepGap>=0?"+":""}${x.spxFepGap.toFixed(1)} / SPY ${x.fepGap>=0?"+":""}${x.fepGap.toFixed(2)} | FEP disagreement ${x.fepDisagreement>=0?"+":""}${x.fepDisagreement.toFixed(2)} | ${x.rubberInterpretation} | GEX ${fmt.gex(x.spxGex)} walls ${x.putWall.toFixed(1)}/${x.callWall.toFixed(1)} intent ${x.intent} ${x.readiness}% local ${x.local} structural ${x.structural}${x.position?` position ${x.position}`:""}`).join("\n");
     const prompt=`CONTINUOUS_TICK_BATCH ${++cognitionSeqR.current}\nRead every ordered market tick below and the private journal. This is background cognition only, not execution. Call record_tick_reflection once. Keep thought_append empty unless a material inference, expectation update, contradiction, frontier, wall/OI change, ITS lead-lag development, or thesis-risk change is worth preserving. Never issue a trade through this channel.\n\nPRIVATE JOURNAL:\n${memory}\n\nTICKS:\n${lines}`;
     geminiLiveTrader.requestObservation(prompt).then(obs=>{
       const thought=String(obs?.thought_append||obs?.thesis_delta||"").trim();
@@ -1923,7 +1938,7 @@ export default function App(){
     const det=computeDeterministicPlan(m,candR.current,np,nt);
     const priorIntent=tradeIntentR.current;
     const intent=buildTradeIntent(m,candR.current,nextBrain,nt,det,chain,posR.current,nc,tradeMemoryR.current);tradeIntentR.current=intent;setTradeIntentData(intent);
-    cognitionQueueR.current=[...cognitionQueueR.current,{t:c.t,spy:m.spySpot,spx:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,gap:m.itsSPX-m.itsSPY,fepGap:m.spySpot-m.fep,spxGex:m.netGexSpx,callWall:m.callWall,putWall:m.putWall,intent:intent.action,readiness:intent.executionReadiness??intent.readiness??0,local:contextHierarchy.local.state,structural:contextHierarchy.structural.state,position:posR.current?`${posR.current.strike}${posR.current.isCall?"C":"P"} ${fmt.pct((posR.current.current/posR.current.entry-1)*100)}`:"",market:{...m,tick:tickR.current}}].slice(-12);
+    cognitionQueueR.current=[...cognitionQueueR.current,{t:c.t,spy:m.spySpot,spx:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,gap:m.itsSPX-m.itsSPY,fepGap:m.spySpot-m.fep,spxFepGap:contextHierarchy.rubberBand.spx.fepDistance,fepDisagreement:contextHierarchy.rubberBand.cross.fepDistanceDisagreement,spxItsBase:contextHierarchy.rubberBand.spx.structuralBaseline,spyItsBase:contextHierarchy.rubberBand.spy.structuralBaseline,spxItsLocal:contextHierarchy.rubberBand.spx.localDeviation,spyItsLocal:contextHierarchy.rubberBand.spy.localDeviation,rubberInterpretation:contextHierarchy.rubberBand.interpretation.resolution,spxGex:m.netGexSpx,callWall:m.callWall,putWall:m.putWall,intent:intent.action,readiness:intent.executionReadiness??intent.readiness??0,local:contextHierarchy.local.state,structural:contextHierarchy.structural.state,position:posR.current?`${posR.current.strike}${posR.current.isCall?"C":"P"} ${fmt.pct((posR.current.current/posR.current.entry-1)*100)}`:"",market:{...m,tick:tickR.current}}].slice(-12);
     if(!cognitionRunningR.current&&!thinkR.current&&!activeDecisionR.current)drainCognition();
     if(intent?.diagnostics?.reentry?.discipline?.code)addJournal(c.t,`${intent.diagnostics.reentry.discipline.code} repeated:${intent.diagnostics.reentry.discipline.repeatedCategory} override:${intent.diagnostics.reentry.discipline.override}.`);
     const leadLag=computeLeadLag(m,candR.current);
@@ -2364,7 +2379,7 @@ if(screen==="home")return(
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:running?T.accent:done?T.muted:T.yellow,boxShadow:running?`0 0 6px ${T.accent}`:"none"}}/>
-            <span style={{fontSize:9,fontWeight:700,color:T.accent}}>GCDT · FS OS v3 · {BUILD_ID}</span>
+            <span style={{fontSize:9,fontWeight:700,color:T.accent}}>FIRSTSIGNAL SIM v1 · {BUILD_ID}</span>
             {isPremarket&&<span style={{fontSize:7,color:T.yellow,border:`1px solid ${T.yellow}40`,padding:"1px 4px",borderRadius:2}}>PRE</span>}
             {mkt?.synthData&&<span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}40`,padding:"1px 4px",borderRadius:2}}>CHAIN SYNTH</span>}
             {thinking&&<span style={{fontSize:9,color:T.yellow}}>◈</span>}
@@ -2376,7 +2391,7 @@ if(screen==="home")return(
         </div>
         <div style={{fontSize:8,color:T.muted,marginBottom:2}}>{sessionLabel}{sessionMode==="seed"&&mkt?.fidelity&&<span style={{color:mkt.fidelity==="dense-series"?T.accent:T.yellow}}> · {mkt.fidelity==="dense-series"?"dense (Jul 1 series)":"sparse (field-log range)"}</span>}</div>
         <div style={{fontSize:7,color:T.purple,marginBottom:2,opacity:0.85}}>{sessionMode==="seed"?`Dual-stream archetype mode | SPX fidelity: ${mkt?.spxFidelity||"estimated"}`:`${selectedReplayDate} native SPY/SPX | 1-minute replay | chain ${mkt?.quoteSource||"NONE"}`}</div>
-        {thesisData?.contextHierarchy&&<div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:3}}><span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}55`,padding:"1px 4px",borderRadius:3}}>STRUCT {thesisData.contextHierarchy.structural?.state||"WAIT"} {Math.round(thesisData.contextHierarchy.structural?.confidence||0)}% | held {thesisData.contextHierarchy.structural?.age||0}m | stable {Math.round(thesisData.contextHierarchy.structural?.stability||0)}%</span><span style={{fontSize:7,color:T.accent,border:`1px solid ${T.accent}55`,padding:"1px 4px",borderRadius:3}}>LOCAL {thesisData.contextHierarchy.local?.state||"OBSERVE"} | {thesisData.contextHierarchy.local?.direction||"NONE"} | heat {Math.round(thesisData.contextHierarchy.structural?.transitionHeat||0)}%</span></div>}
+        {thesisData?.contextHierarchy&&<><div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:3}}><span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}55`,padding:"1px 4px",borderRadius:3}}>STRUCT {thesisData.contextHierarchy.structural?.state||"WAIT"} {Math.round(thesisData.contextHierarchy.structural?.confidence||0)}% | held {thesisData.contextHierarchy.structural?.age||0}m | stable {Math.round(thesisData.contextHierarchy.structural?.stability||0)}%</span><span style={{fontSize:7,color:T.accent,border:`1px solid ${T.accent}55`,padding:"1px 4px",borderRadius:3}}>LOCAL {thesisData.contextHierarchy.local?.state||"OBSERVE"} | {thesisData.contextHierarchy.local?.direction||"NONE"} | heat {Math.round(thesisData.contextHierarchy.structural?.heat||0)}%</span></div>{thesisData.contextHierarchy.rubberBand&&<div style={{fontSize:7,color:T.muted,marginBottom:3,lineHeight:1.45}}>SPX ITS {thesisData.contextHierarchy.rubberBand.spx.absolute.toFixed(2)} / base {thesisData.contextHierarchy.rubberBand.spx.structuralBaseline.toFixed(2)} / local {thesisData.contextHierarchy.rubberBand.spx.localDeviation>=0?"+":""}{thesisData.contextHierarchy.rubberBand.spx.localDeviation.toFixed(2)} | SPY ITS {thesisData.contextHierarchy.rubberBand.spy.absolute.toFixed(2)} / base {thesisData.contextHierarchy.rubberBand.spy.structuralBaseline.toFixed(2)} / local {thesisData.contextHierarchy.rubberBand.spy.localDeviation>=0?"+":""}{thesisData.contextHierarchy.rubberBand.spy.localDeviation.toFixed(2)} | FEP Δ SPX {thesisData.contextHierarchy.rubberBand.spx.fepDistance>=0?"+":""}{thesisData.contextHierarchy.rubberBand.spx.fepDistance.toFixed(1)} / SPY {thesisData.contextHierarchy.rubberBand.spy.fepDistance>=0?"+":""}{thesisData.contextHierarchy.rubberBand.spy.fepDistance.toFixed(2)} | {thesisData.contextHierarchy.rubberBand.interpretation.resolution}</div>}</>}
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {mkt&&<span style={{fontSize:10,color:isPremarket?T.yellow:T.muted,fontWeight:700}}>{fmt.time(mkt.h,mkt.m)} ET</span>}
           {mLeft<90&&!isPremarket&&<span style={{fontSize:8,color:T.red}}>THETA</span>}

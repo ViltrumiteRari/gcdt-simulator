@@ -10,6 +10,33 @@ const directionFromSlopes=(spxSlope,spySlope)=>{
   return leader>.035?"CALL":leader<-.035?"PUT":"NONE";
 };
 
+function median(a){if(!a.length)return 0;const x=[...a].sort((a,b)=>a-b),i=Math.floor(x.length/2);return x.length%2?x[i]:(x[i-1]+x[i])/2;}
+function rubberBandMap(m,h){
+  const l30=h.slice(-30),l8=h.slice(-8);
+  const spyBase=avg(l30.map(x=>x.itsSPY??m.itsSPY)),spxBase=avg(l30.map(x=>x.itsSPX??m.itsSPX));
+  const spyLocal=m.itsSPY-spyBase,spxLocal=m.itsSPX-spxBase;
+  const ratio=(m.spxSpot&&m.spySpot)?m.spxSpot/m.spySpot:10;
+  const spyFep=m.fep,spxFep=Number.isFinite(m.spxFep)?m.spxFep:spyFep*ratio;
+  const spyFepDistance=m.spySpot-spyFep,spxFepDistance=m.spxSpot-spxFep;
+  const spxDistanceSpyUnits=spxFepDistance/Math.max(1,ratio);
+  const fepDistanceDisagreement=spyFepDistance-spxDistanceSpyUnits;
+  const spySlope=slope(l8,'itsSPY'),spxSlope=slope(l8,'itsSPX');
+  const bothCentered=Math.abs(m.itsSPY-6)<=0.9&&Math.abs(m.itsSPX-6)<=0.9;
+  const bothAwaySameWay=Math.sign(spyFepDistance)===Math.sign(spxFepDistance)&&Math.abs(spyFepDistance)>=0.65&&Math.abs(spxDistanceSpyUnits)>=0.65;
+  const effectiveFepShiftCandidate=bothCentered&&bothAwaySameWay;
+  const localStretch=Math.max(Math.abs(spyLocal),Math.abs(spxLocal));
+  const structuralRelocation=Math.abs(spyBase-6)>=1.15&&Math.abs(spxBase-6)>=1.15&&Math.sign(spyBase-6)===Math.sign(spxBase-6);
+  const leader=Math.abs(spxLocal)>Math.abs(spyLocal)?'SPX':Math.abs(spyLocal)>Math.abs(spxLocal)?'SPY':'NONE';
+  const follower=leader==='SPX'?'SPY':leader==='SPY'?'SPX':'NONE';
+  const resolution=effectiveFepShiftCandidate?'EFFECTIVE_CENTER_SHIFT_CANDIDATE':structuralRelocation?'STRUCTURAL_TERRITORY_RELOCATION':localStretch>=1.0?'LOCAL_STRETCH':Math.abs(fepDistanceDisagreement)>=0.45?'FEP_DISTANCE_DISAGREEMENT':'BALANCED_OR_UNRESOLVED';
+  return{
+    spy:{absolute:m.itsSPY,structuralBaseline:spyBase,localDeviation:spyLocal,fep:spyFep,fepDistance:spyFepDistance,slope:spySlope},
+    spx:{absolute:m.itsSPX,structuralBaseline:spxBase,localDeviation:spxLocal,fep:spxFep,fepDistance:spxFepDistance,fepDistanceSpyUnits:spxDistanceSpyUnits,slope:spxSlope,fepSource:Number.isFinite(m.spxFep)?'NATIVE':'SPY_FEP_RATIO_SCALED'},
+    cross:{itsGap:m.itsSPX-m.itsSPY,fepDistanceDisagreement,leader,follower},
+    interpretation:{effectiveFepShiftCandidate,structuralRelocation,localStretch,resolution}
+  };
+}
+
 export function createContextMemory(){
   return {structuralState:"ITS_TRANSITION",structuralConfidence:0,structuralAge:0,stability:0,heat:0,lastLocal:"ITS_CONVERGED",disagreementTicks:0,transitionCount:0};
 }
@@ -44,7 +71,8 @@ export function computeItsHierarchy(m,h,prior=createContextMemory()){
   const heat=clamp(disagreementTicks*14+(!same?22:0)+(local.state==="ITS_LEAD_REVERSAL"?22:0),0,100);
   const stability=clamp(age*7+confidence*.55-heat*.55,0,100),transitionRisk=heat>=55?"HIGH":heat>=30?"ELEVATED":"LOW";
   const lens=candidate==="ITS_STRUCTURAL_DIVERGENCE"?"PERSISTENT_LEAD_LAG":candidate==="ITS_STRUCTURAL_CONVERGENCE"?"CONVERGED_CONFIRMATION":"LEAD_LAG_REFORMING";
-  return {structural:{state:candidate,direction,leader,confidence,age,stability,heat,transitionRisk,lens,meanGap,gapTrend,spxSlope,spySlope,persistence},local,alignment:directionalConflict?"CONFLICT":direction!=="NONE"&&direction===local.direction?"ALIGNED":"NEUTRAL",memory:{structuralState:candidate,structuralConfidence:confidence,structuralAge:age,stability,heat,lastLocal:local.state,disagreementTicks,transitionCount:(prior.transitionCount||0)+(same?0:1)}};
+  const rubberBand=rubberBandMap(m,h);
+  return {structural:{state:candidate,direction,leader,confidence,age,stability,heat,transitionRisk,lens,meanGap,gapTrend,spxSlope,spySlope,persistence},local,rubberBand,alignment:directionalConflict?"CONFLICT":direction!=="NONE"&&direction===local.direction?"ALIGNED":"NEUTRAL",memory:{structuralState:candidate,structuralConfidence:confidence,structuralAge:age,stability,heat,lastLocal:local.state,disagreementTicks,transitionCount:(prior.transitionCount||0)+(same?0:1)}};
 }
 
 export function computeFlowLens(flow){
@@ -61,23 +89,34 @@ export function computeFlowLens(flow){
 
 export function contextPrompt(ctx,flow){
   if(!ctx)return "";
-  const s=ctx.structural,l=ctx.local,f=flow||{available:false};
+  const s=ctx.structural,l=ctx.local,r=ctx.rubberBand,f=flow||{available:false};
   const flowText=f.available?`${f.label} aggression ${f.aggression.toFixed(0)} directional-purity ${f.directionalPurity.toFixed(0)} hedge-probability ${f.hedgeProbability.toFixed(0)} direction ${f.direction}`:"unavailable at this timestamp";
-  return `ITS DIVERGENCE HIERARCHY:\nSTRUCTURAL ${s.state} leader ${s.leader} direction ${s.direction} conf ${s.confidence.toFixed(0)} persistence ${s.age}m stability ${s.stability.toFixed(0)} meanGap ${s.meanGap.toFixed(2)} transition ${s.transitionRisk}\nLOCAL ${l.state} leader ${l.leader} direction ${l.direction} conf ${l.confidence.toFixed(0)} gap ${l.gap.toFixed(2)} gapSlope ${l.gapSlope.toFixed(3)} alignment ${ctx.alignment}\nFLOW LENS: ${flowText}\nHierarchy rule: Structural ITS describes persistent SPX/SPY lead-lag. Local ITS describes the current stretch, catch-up, convergence, or reversal. Neither is a pinning regime classifier.`;
+  const rubber=r?`
+RUBBER-BAND MAP (components remain separate; no master score):
+SPY ITS ${r.spy.absolute.toFixed(2)} | structural baseline ${r.spy.structuralBaseline.toFixed(2)} | local deviation ${r.spy.localDeviation>=0?"+":""}${r.spy.localDeviation.toFixed(2)} | SPY-FEP distance ${r.spy.fepDistance>=0?"+":""}${r.spy.fepDistance.toFixed(2)}
+SPX ITS ${r.spx.absolute.toFixed(2)} | structural baseline ${r.spx.structuralBaseline.toFixed(2)} | local deviation ${r.spx.localDeviation>=0?"+":""}${r.spx.localDeviation.toFixed(2)} | SPX-FEP distance ${r.spx.fepDistance>=0?"+":""}${r.spx.fepDistance.toFixed(1)} SPX pts (${r.spx.fepDistanceSpyUnits>=0?"+":""}${r.spx.fepDistanceSpyUnits.toFixed(2)} SPY-equivalent; ${r.spx.fepSource})
+Cross relationships: ITS gap ${r.cross.itsGap>=0?"+":""}${r.cross.itsGap.toFixed(2)} | FEP-distance disagreement ${r.cross.fepDistanceDisagreement>=0?"+":""}${r.cross.fepDistanceDisagreement.toFixed(2)} SPY pts | leader ${r.cross.leader} | interpretation ${r.interpretation.resolution}`:"";
+  return `ITS / TENSION HIERARCHY:
+STRUCTURAL ${s.state} leader ${s.leader} direction ${s.direction} conf ${s.confidence.toFixed(0)} persistence ${s.age}m stability ${s.stability.toFixed(0)} meanGap ${s.meanGap.toFixed(2)} transition ${s.transitionRisk}
+LOCAL ${l.state} leader ${l.leader} direction ${l.direction} conf ${l.confidence.toFixed(0)} gap ${l.gap.toFixed(2)} gapSlope ${l.gapSlope.toFixed(3)} alignment ${ctx.alignment}${rubber}
+FLOW LENS: ${flowText}
+Interpretation rule: preserve absolute SPX ITS, absolute SPY ITS, their own structural baselines, local deviations, and raw FEP distances. ITS divergence and FEP-distance disagreement are relationships only. Around 6 is balanced; movement toward roughly 9 or 2 is tension requiring context, not an automatic reversal signal. Persistent extremes may indicate structural relocation or a skewed effective FEP rather than a temporary stretch.`;
 }
 
 export function harmonizeThesis(thesis,ctx,flow){
   if(!thesis||!ctx)return thesis;
   let {call,put,wait}=thesis.scores,s=ctx.structural,l=ctx.local;
   const aligned=ctx.alignment==="ALIGNED",conflict=ctx.alignment==="CONFLICT";
-  if(s.state==="ITS_STRUCTURAL_DIVERGENCE"&&s.direction==="CALL"){call+=aligned?12:6;put-=6;}
-  if(s.state==="ITS_STRUCTURAL_DIVERGENCE"&&s.direction==="PUT"){put+=aligned?12:6;call-=6;}
-  if(l.state==="ITS_LOCAL_STRETCH"&&l.direction==="CALL")call+=6;
-  if(l.state==="ITS_LOCAL_STRETCH"&&l.direction==="PUT")put+=6;
-  if(l.state==="ITS_CATCHUP")wait+=3;
-  if(l.state==="ITS_LEAD_REVERSAL"||conflict){wait+=8;call-=3;put-=3;}
-  if(s.transitionRisk==="HIGH"){wait+=5;call-=2;put-=2;}
-  if(flow?.available&&flow.direction!=="NONE"&&flow.directionalPurity>=55){const boost=Math.round(flow.aggression/12);if(flow.direction==="CALL")call+=boost;else put+=boost;}
+  // ITS already participates in the base thesis. This pass is deliberately light
+  // so the relationship map adds context without becoming a second dominant vote.
+  if(s.state==="ITS_STRUCTURAL_DIVERGENCE"&&s.direction==="CALL")call+=aligned?3:1;
+  if(s.state==="ITS_STRUCTURAL_DIVERGENCE"&&s.direction==="PUT")put+=aligned?3:1;
+  if(l.state==="ITS_LOCAL_STRETCH"&&l.direction==="CALL")call+=2;
+  if(l.state==="ITS_LOCAL_STRETCH"&&l.direction==="PUT")put+=2;
+  if(l.state==="ITS_CATCHUP")wait+=1;
+  if(l.state==="ITS_LEAD_REVERSAL"||conflict)wait+=4;
+  if(s.transitionRisk==="HIGH")wait+=3;
+  if(flow?.available&&flow.direction!=="NONE"&&flow.directionalPurity>=55){const boost=Math.min(5,Math.round(flow.aggression/20));if(flow.direction==="CALL")call+=boost;else put+=boost;}
   const total=Math.max(3,call+put+wait),scores={call:Math.round(call/total*100),put:Math.round(put/total*100),wait:Math.round(wait/total*100)};
   const sorted=Object.values(scores).sort((a,b)=>b-a),winner=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0],edgeScore=sorted[0]-sorted[1];
   const entryBias=scores.call>=42&&scores.call>scores.put+6&&scores.call>scores.wait?"CALL":scores.put>=42&&scores.put>scores.call+6&&scores.put>scores.wait?"PUT":"WAIT";

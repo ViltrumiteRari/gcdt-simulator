@@ -643,18 +643,24 @@ function bestRejectedContract(chain,isCall){
   return ranked[0]||null;
 }
 function selectContract(chain,isCall,mode="swing"){
-  const cfg=mode==="pin"?{idealPrice:0.24,targetDelta:0.16,minDelta:0.055,maxDist:4.5}:mode==="expansion"?{idealPrice:0.20,targetDelta:0.12,minDelta:0.045,maxDist:5.5}:{idealPrice:0.22,targetDelta:0.14,minDelta:0.05,maxDist:5};
-  const affordable=affordableDirectionalContracts(chain,isCall);
-  let tier=affordable.some(o=>o.syntheticAtmFallback)?"SYNTH_ATM_FALLBACK":"QUALITY";
+  const cfg=mode==="pin"?{idealPrice:0.24,targetDelta:0.16,minDelta:0.055,maxDist:4.5}:mode==="expansion"?{idealPrice:0.20,targetDelta:0.12,minDelta:0.045,maxDist:5.5}:{idealPrice:0.22,targetDelta:0.14,minDelta:0.05,maxDist:5};
+  const affordable=affordableDirectionalContracts(chain,isCall);
+  let tier=affordable.some(o=>o.syntheticAtmFallback)?"SYNTH_ATM_FALLBACK":"QUALITY";
   let candidates=affordable.filter(o=>o.distance<=cfg.maxDist&&Math.abs(o.delta)>=cfg.minDelta);
   if(!candidates.length){
     if(tier!=="SYNTH_ATM_FALLBACK")tier="ADAPTIVE";
     candidates=affordable.filter(o=>o.distance<=5.5&&Math.abs(o.delta)>=0.035);
   }
-  candidates=candidates.map(o=>({...o,score:contractRank(o,cfg.idealPrice,cfg.targetDelta)+(tier==="ADAPTIVE"?0.10:0)})).sort((a,b)=>a.score-b.score);
-  const x=candidates[0];
-  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?"CALL":"PUT",tier,contract:x.contract||null,openInterest:x.openInterest||0,volume:x.volume||0,quoteSource:x.quoteSource||chain.quoteSource||"MODELED"}:null;
+  if(!candidates.length){
+    const displayed=isCall?chain.calls:chain.puts;
+    candidates=displayed.filter(o=>Number.isFinite(o.price)&&o.price>=0.05&&o.price<=0.50&&o.distance<=6.5&&(isCall?o.strike>=chain.spot-0.25:o.strike<=chain.spot+0.25));
+    if(candidates.length)tier="AVAILABLE";
+  }
+  candidates=candidates.map(o=>({...o,score:contractRank(o,cfg.idealPrice,cfg.targetDelta)+(tier==="ADAPTIVE"?0.10:tier==="AVAILABLE"?0.18:0)})).sort((a,b)=>a.score-b.score);
+  const x=candidates[0];
+  return x?{strike:x.strike,price:x.price,delta:x.delta,distance:x.distance,side:isCall?"CALL":"PUT",tier,contract:x.contract||null,openInterest:x.openInterest||0,volume:x.volume||0,quoteSource:x.quoteSource||chain.quoteSource||"MODELED"}:null;
 }
+
 function findStrike(spot,iv,mL,isCall,mode="swing",ctx=null){
   return selectContract(buildOptionChain(spot,iv,mL,40,ctx),isCall,mode);
 }
@@ -1174,7 +1180,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
   let reentry={...legacyReentry,allowed:legacyReentry.allowed&&discipline.allowed,discipline};
   const freshBearContinuation=side==="PUT"&&activeBearRegime&&persistence>=2&&(Math.min(move6,move15,move30)<-0.70||sessionMove<-1.00);
   if(freshBearContinuation)reentry={...reentry,allowed:true,newEvidence:[...(reentry.newEvidence||[]),"fresh bearish continuation: falling FEP + negative GEX + sustained downside"]};
-  const contractQuality=!contract?0:contract.tier==="QUALITY"?100:76;
+  const contractQuality=!contract?0:contract.tier==="QUALITY"?100:contract.tier==="AVAILABLE"?68:76;
   let executionReadiness=Math.round(setupQuality*0.80+contractQuality*0.20);
   const gaps=marketFactors.filter(f=>!f.passed).map(f=>f.label);
   const blockers=[];
@@ -1189,7 +1195,7 @@ function buildTradeIntent(m,hist,brain,thesis,det,chain,pos,conf,tradeMemory){
     executionReadiness=Math.min(executionReadiness,72);
   }
   if(!m.isTradeable){blockers.unshift("Market not tradeable");executionReadiness=0;}
-  const threshold=contract?.tier==="ADAPTIVE"?88:80;
+  const threshold=contract?.tier==="ADAPTIVE"?88:contract?.tier==="AVAILABLE"?92:80;
   const canonicalDirectionReady=alignedPrimaryCount>=1||localMove>=0.70||(persistence>=2&&localAgreement);
   const canEnter=m.isTradeable&&side!=="WAIT"&&!!contract&&reentry.allowed&&!chaseRisk&&canonicalDirectionReady&&executionReadiness>=threshold&&(brainConfidence>=42||localMove>=0.70);
   const action=canEnter?(isCall?"BUY_CALL":"BUY_PUT"):(side==="WAIT"?"WAIT":`PREPARE_${side}`);
@@ -1291,7 +1297,7 @@ async function persistThought(row){
 async function loadThoughts(){
   try{const r=await fetch("/api/thoughts?limit=80");if(!r.ok)return[];const d=await r.json();return d.rows||[];}catch{return[];}
 }
-async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,onThought,signal){
+async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,repeatWaitCount,sessionSummary,marketBrain,aiSessionMemory,onThought,signal,urgentEntry=false){
   const tStr=`${mkt.h}:${String(mkt.m).padStart(2,"0")} ET`,mL=(SESSION_END_H*60+SESSION_END_M)-(mkt.h*60+mkt.m);
   const theta=mL<45,eodPhase=mL<=15?'CLEANUP/RH_LOCK':mL<=30?'DEATH_ZONE':mL<=60?'BRUTAL_THETA':mL<=75?'GAME_CHANGING':'NORMAL',div=mkt.itsSPX-mkt.itsSPY,top=Object.entries(probs).sort((a,b)=>b[1]-a[1])[0],gi=mkt.gexInfluence||0.3;
   const th=thesis||{scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}};
@@ -1307,7 +1313,7 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const contextStr=contextPrompt(th.contextHierarchy,th.flowLens);
   const capabilityInventory={market:true,spxSpyIts:true,structuralIts:!!th.contextHierarchy?.structural,localIts:!!th.contextHierarchy?.local,gex:true,fep:true,walls:true,accelerator:true,optionChain:!!mkt.optionChain,orderFlow:!!mkt.orderFlow?.tradeCount,comprisingTradeDepth:(mkt.orderFlow?.maxPriceLevels||0)>1,persistentJournal:!!aiSessionMemory,tradeMemory:true};
   const auditDue=!!aiSessionMemory?.architecture?.upgradePending||(mkt.tick||0)%30===0||th.contextHierarchy?.alignment==="CONFLICT"||(th.flowLens?.available&&th.flowLens.aggression>=70)||(th.flowLens?.available&&th.flowLens.hedgeProbability>=70);
-  const inventoryStr=Object.entries(capabilityInventory).map(([k,v])=>`${k}:${v?"AVAILABLE":"ABSENT"}`).join(" | ");
+  const inventoryStr=Object.entries(capabilityInventory).map(([k,v])=>`${k}:${v?"AVAILABLE_NOW":"NOT_PRESENT_AT_THIS_TIMESTAMP"}`).join(" | ");
   const thesisStr=`CALL ${th.scores.call}% (${th.momentum.call>=0?"+":""}${th.momentum.call}) | PUT ${th.scores.put}% (${th.momentum.put>=0?"+":""}${th.momentum.put}) | WAIT ${th.scores.wait}% (${th.momentum.wait>=0?"+":""}${th.momentum.wait}) | STATE:${th.state} | BIAS:${th.entryBias} | EDGE:${th.edgeScore}${th.scalpEdge?` | SCALP EDGE FIRING (${th.scalpDir})`:""}\nCALL needs: ${(th.call.needs||[]).join(", ")||"none"}\nPUT needs: ${(th.put.needs||[]).join(", ")||"none"}`;
 
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
@@ -1389,7 +1395,16 @@ ${rulesStr}
 
 Respond ONLY valid JSON. Put thought_append first so it can stream into the live notepad before the final decision is parsed:
 {"thought_append":"free-form compact working note, or empty string if nothing worth carrying forward","architecture_reflection":"required only when BOOT UPGRADE HANDSHAKE is present; otherwise empty","flow_hypothesis":"independent current inference from execution evidence, or empty","self_audit":"material sanity-check finding, or empty","missing_angle":"potentially valuable unmodeled angle, or empty","coherence_check":"COHERENT|TENSION|DATA_GAP|STALE_ASSUMPTION","decision":"WAIT|WAITING|BUY_CALL|BUY_PUT|SELL|HOLD","reasoning":"one sentence","mindset":"signal you watch most","journal_entry":"one sentence updating session narrative","edge_state":"NO_EDGE|CONDITIONS_FORMING|ENTRY_READY|IN_TRADE|EXITING","confidence_trend":"BUILDING|STABLE|DECAYING|UNCLEAR","trade_confidence":0,"invalidation_spot":null,"target_spot":null,"max_loss_pct":null,"memory_used":"session or historical memory used","current_thesis":"one phrase","expected_next_path":"what should happen next","new_evidence":"what changed since prior decision","prior_trade_effect":"how previous entries/exits affect this decision","reevaluate_after_ticks":2,"veto_reason":"NONE|DIRECTION_FLIPPED|CONTRACT_INVALID|CHASE_RISK|EPISODE_STALE|OPPOSITE_ACCEPTANCE|FINAL_THETA_WINDOW","veto_evidence":"specific current-state evidence or empty"}`;
-  const payload=await geminiLiveTrader.request(prompt,onThought,signal);
+  const urgentPrompt=urgentEntry?`FIRSTSIGNAL URGENT ENTRY DECISION. Use retained session architecture and rules. Do not perform an architecture audit or write a long reflection. Return submit_trade_decision immediately.
+TIME ${tStr}; ${mL}min left; ${posStr}.
+${sessionSummary||""}
+${contextStr}
+REGIME ${top[0]} ${top[1]}%; SPY ${mkt.spySpot.toFixed(2)}; SPX ${mkt.spxSpot.toFixed(0)}; SPX-ITS ${mkt.itsSPX.toFixed(2)}; SPY-ITS ${mkt.itsSPY.toFixed(2)}; DIV ${div.toFixed(2)}; FEP ${mkt.fep.toFixed(2)}; FLIP ${mkt.gammaFlip.toFixed(2)}; CALL WALL ${mkt.callWall.toFixed(1)}; PUT WALL ${mkt.putWall.toFixed(1)}; ACCEL ${mkt.accelerator.toFixed(2)}; GEX ${gexStr}.
+${optStr}
+RECENT ${rH}
+THESIS ${thesisStr}
+If canonical action is BUY with no hard blockers, return that BUY unless one enumerated veto is objectively true. Keep thought_append and architecture_reflection empty; prioritize the decision.`:prompt;
+  const payload=await geminiLiveTrader.request(urgentPrompt,onThought,signal,{urgent:urgentEntry});
   const normalized=normalizeTraderDecision(payload);
   if(isSemanticAiFailure(normalized)){
     const err=new Error(`AI_SEMANTIC_FAILURE ${normalized.reasoning||normalized.mindset}`);
@@ -1883,17 +1898,34 @@ export default function App(){
     const episodeChanged=(intent.episodeKey||"NONE")!==(priorIntent?.episodeKey||"NONE");
     const readinessCross=entryCritical&&!priorEntryCritical;
     const actionableRefresh=entryCritical&&(tickR.current-lastAiTickR.current)>=6;
-    const openPositionDue=!!posR.current&&(
-      intent.action==="EXIT"||
-      tickR.current-(lastAiTickR.current??-99)>=Math.max(2,posR.current.reevaluateAfterTicks||4)||
-      tickR.current-posR.current.entryTick>=Math.max(2,(posR.current.pathDeadlineTicks||5)-1)
-    );
+    const openPositionDue=!!posR.current&&(
+      intent.action==="EXIT"||
+      (tickR.current-(lastAiTickR.current??-99)>=Math.max(4,posR.current.reevaluateAfterTicks||6)&&(
+        thesisR.current?.contextHierarchy?.alignment==="CONFLICT"||
+        Math.abs(m.spySpot-(posR.current.lastAiReviewSpot??posR.current.entrySpot))>=0.45||
+        (posR.current.thesisContract&&evaluateThesisContract(posR.current,m,chain,marketBrainR.current,thesisR.current,thesisR.current?.contextHierarchy).invalidations.length>=2)
+      ))
+    );
     const meaningfulWaitCheck=!posR.current&&intent.action==="WAIT"&&(directionChanged||episodeChanged)&&(tickR.current-lastAiTickR.current)>=8;
     const shouldAskAI=m.isTradeable&&(readinessCross||actionableRefresh||openPositionDue||meaningfulWaitCheck||(entryCritical&&(directionChanged||episodeChanged)));
     prevAccelR.current=m.accelerator;
     if((tickR.current%6===0||localDir!=="WAIT")&&!posR.current&&!thinkR.current){addM({t:fmt.time(m.h,m.m),mindset:localDir!=="WAIT"?`deterministic ${det.mode}`:"local scan",reasoning:localDir!=="WAIT"?`Local ${localDir} context: ${det.reason}. ${leadLag.text}. Unified intent ${intent.action} ${intent.readiness}%.`:`No local entry. ${det.reason}. ${leadLag.text}.`,decision:localDir!=="WAIT"?`ARM_${localDir}`:"WAIT",score:nc.score,edgeState:localDir!=="WAIT"?"LOCAL_ARMED":"LOCAL_SCAN",confTrend:localDir!=="WAIT"?"BUILDING":"STABLE"});}
     if(localDir!=="WAIT"&&!posR.current&&m.isTradeable&&mL>=45){const isC=localDir==="CALL",contractMode=det.mode==="PIN_RANGE"?"pin":det.mode==="GEX_EXPANSION"?"expansion":"scalp",opt=selectContract(chain,isC,contractMode);addM({t:fmt.time(m.h,m.m),mindset:`deterministic guide ${det.mode}`,reasoning:`Playbook ${localDir}: ${det.reason}. ${leadLag.text}${opt?` | candidate ${opt.strike}${isC?"C":"P"} @$${opt.price.toFixed(2)} Δ${opt.delta.toFixed(2)} ${opt.tier}`:" | no valid contract"}. Unified intent ${intent.action} ${intent.readiness}%; blockers: ${(intent.blockers||[]).slice(0,3).join(", ")||"none"}.`,decision:`GUIDE_${localDir}`,score:nc.score,edgeState:"LOCAL_GUIDE",confTrend:"BUILDING"});}
-    if(shouldAskAI&&!thinkR.current){
+    if(entryCritical&&activeDecisionR.current){
+      const active=activeDecisionR.current;
+      const strongerWindow=!active.entryCritical||active.direction!==(intent.direction||"NONE")||(intent.executionReadiness??0)>=(active.requestReadiness??0)+8||(intent.contract?.strike??null)!==(active.contractStrike??null);
+      if(strongerWindow){
+        active.cancelled=true;
+        active.controller?.abort("ENTRY_WINDOW_PREEMPTED");
+        clearTimeout(active.timeoutId);
+        activeDecisionR.current=null;
+        thinkR.current=false;
+        setThinking(false);
+        setLiveThought("");
+        addJournal(fmt.time(m.h,m.m),`AI_REQUEST_PREEMPTED request:${active.id} by ${intent.action} readiness:${intent.executionReadiness}% contract:${intent.contract?`${intent.contract.strike}@${intent.contract.price}`:"NONE"}.`);
+      }
+    }
+        if(shouldAskAI&&!thinkR.current){
       lastAiTickR.current=tickR.current;
       thinkR.current=true;setThinking(true);
       const stableIdentity=stableIntentIdentity(intent);
@@ -1907,6 +1939,8 @@ export default function App(){
         episodeKey:stableIdentity.episodeKey,
         requestAction:intent.action,
         requestReadiness:intent.executionReadiness??intent.readiness??0,
+        contractSnapshot:intent.contract?{...intent.contract}:null,
+        contractStrike:intent.contract?.strike??null,
         requestSpot:m.spySpot,
         requestMarketTime:fmt.time(m.h,m.m),
         startedPerf:typeof performance!=="undefined"?performance.now():null,
@@ -1963,6 +1997,7 @@ export default function App(){
           if(dec.self_audit)addJournal(ts,`SELF_AUDIT ${dec.coherence_check||"COHERENT"}: ${dec.self_audit}`);
           if(dec.missing_angle)addJournal(ts,`MISSING_ANGLE ${dec.missing_angle}`);
           if(dec.memory_used&&dec.memory_used!=="none")addJournal(ts,`MEMORY_USED ${dec.memory_used}`);
+          if(posR.current&&(dec.decision==="HOLD"||dec.decision==="SELL"))posR.current.lastAiReviewSpot=currentMarket.spySpot;
           if(dec.decision==="SELL"&&posR.current){
             const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;
             balR.current=size*(p.current/p.entry);
@@ -1975,8 +2010,15 @@ export default function App(){
             const isC=dec.decision==="BUY_CALL";
             const executionMarket=latestMarketR.current||m;
             const snapshotIntent=tradeIntentR.current;
-            const intentMatches=snapshotIntent?.contract&&snapshotIntent.direction===(isC?"CALL":"PUT")&&(snapshotIntent.action===dec.decision||snapshotIntent.action===`PREPARE_${isC?"CALL":"PUT"}`);
-            const opt=intentMatches?{...snapshotIntent.contract,tier:snapshotIntent.contract.quality}:null;
+            const responseSide=isC?"CALL":"PUT";
+            const intentMatches=snapshotIntent?.contract&&snapshotIntent.direction===responseSide&&(snapshotIntent.action===dec.decision||snapshotIntent.action===`PREPARE_${responseSide}`);
+            const locked=requestCtx.contractSnapshot;
+            const ageTicks=tickR.current-requestCtx.tick;
+            const adverseMove=(isC?1:-1)*(executionMarket.spySpot-requestCtx.requestSpot);
+            const liveRows=isC?(executionMarket.optionChain?.calls||[]):(executionMarket.optionChain?.puts||[]);
+            const liveLocked=locked?liveRows.find(x=>x.strike===locked.strike):null;
+            const lockedStillValid=!!locked&&requestCtx.direction===responseSide&&ageTicks<=4&&adverseMove>-0.35&&(snapshotIntent.executionReadiness??0)>=(requestCtx.requestReadiness??0)-10;
+            const opt=intentMatches?{...snapshotIntent.contract,tier:snapshotIntent.contract.quality}:lockedStillValid?{...locked,price:liveLocked?.price??locked.price,delta:liveLocked?.delta??locked.delta,openInterest:liveLocked?.openInterest??locked.openInterest,volume:liveLocked?.volume??locked.volume,tier:locked.quality}:null;
             const repeatedRetry=snapshotIntent?.diagnostics?.reentry?.discipline?.code==="REENTRY_REASSESS_REQUIRED";
             const retryEvidence=String(dec.new_evidence||"").trim();
             const retryAssessment=String(dec.prior_trade_effect||"").trim();
@@ -2014,7 +2056,7 @@ export default function App(){
       };
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,sessionSummary+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nCANONICAL EXECUTION STATE — AUTHORITATIVE:
 action ${intent.action}; direction ${intent.direction||"NONE"}; setup ${intent.setupQuality}%; readiness ${intent.executionReadiness}% / threshold ${intent.threshold??"—"}%; contract ${intent.contract?`${intent.contract.strike}${intent.direction==="PUT"?"P":"C"} $${intent.contract.price.toFixed(2)} ${intent.contract.quality}`:"NONE"}; hard blockers ${hardExecutionBlockers(intent).join(", ")||"NONE"}; all blockers ${(intent.blockers||[]).join(", ")||"NONE"}.
-If action is BUY and hard blockers are NONE, execute unless an allowed veto_reason is objectively true right now. For a repeated-category retry, BUY only if new_evidence states a material change in structure, FEP relationship, SPX GEX/wall/OI landscape, lead-lag, or a genuinely new leg, and prior_trade_effect explains why the previous attempt does not control this one. Otherwise WAIT. Manage exits by the entry thesis contract: expected timing is an evaluation window, never an automatic exit; stack causal invalidations, wall/OI exhaustion or relocation, FEP acceptance failure, and structural/local reversal. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,setLiveThought,controller.signal)
+If action is BUY and hard blockers are NONE, execute unless an allowed veto_reason is objectively true right now. For a repeated-category retry, BUY only if new_evidence states a material change in structure, FEP relationship, SPX GEX/wall/OI landscape, lead-lag, or a genuinely new leg, and prior_trade_effect explains why the previous attempt does not control this one. Otherwise WAIT. Manage exits by the entry thesis contract: expected timing is an evaluation window, never an automatic exit; stack causal invalidations, wall/OI exhaustion or relocation, FEP acceptance failure, and structural/local reversal. Do not request extra confirmation for already-passed checks.\n${leadLag.text}`,marketBrainR.current,aiSessionMemoryR.current,setLiveThought,controller.signal,entryCritical)
         .then(dec=>applyDecision(dec,"AI"))
         .catch(e=>{
           const ts=fmt.time((latestMarketR.current||m).h,(latestMarketR.current||m).m),raw=String(e.rawResponse||e.message||"unknown error").slice(0,700);

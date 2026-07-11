@@ -141,11 +141,12 @@ LIVE SESSION CONTINUITY: Architecture, authority hierarchy, execution rules, and
 ${market}`;
   }
 
-  async request(prompt, onThought, signal) {
+  async request(prompt, onThought, signal, options = {}) {
     if (this.pending) throw new Error('GEMINI_LIVE_BUSY');
     const session = await this.ensureSession();
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     return await new Promise((resolve, reject) => {
+      const timeoutMs = options.urgent ? 12000 : REQUEST_TIMEOUT_MS;
       const timer = setTimeout(() => {
         this.pending = null;
         try { this.session?.close(); } catch {}
@@ -153,7 +154,7 @@ ${market}`;
         this.connectedAt = 0;
         this.bootstrapped = false;
         reject(new Error('GEMINI_LIVE_TIMEOUT'));
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       const abort = () => {
         clearTimeout(timer);
         this.pending = null;
@@ -166,8 +167,8 @@ ${market}`;
       signal?.addEventListener('abort', abort, { once: true });
       this.pending = { resolve: value => { signal?.removeEventListener('abort', abort); resolve(value); }, reject: err => { signal?.removeEventListener('abort', abort); reject(err); }, timer, onThought };
       try {
-        const livePrompt = this.compactPrompt(prompt);
-        if (onThought) onThought('Gemini Live is evaluating the current market state...');
+        const livePrompt = options.urgent ? prompt : this.compactPrompt(prompt);
+        if (onThought) onThought(options.urgent ? 'Gemini Live is evaluating an urgent entry window...' : 'Gemini Live is evaluating the current market state...');
         session.sendRealtimeInput({ text: livePrompt });
         this.bootstrapped = true;
       } catch (err) {

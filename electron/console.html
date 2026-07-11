@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="UTF-8"><title>FirstSignal QA Agent</title>
+<style>
+body{margin:0;background:#07090c;color:#dde4f0;font:12px Consolas,monospace}*{box-sizing:border-box}
+header{padding:14px 16px;border-bottom:1px solid #1a2030;background:#0e1117;position:sticky;top:0}
+.row{display:flex;align-items:center;gap:9px}.dot{width:10px;height:10px;border-radius:50%;background:#00d4a8;box-shadow:0 0 9px #00d4a8}
+h1{font-size:15px;margin:0;color:#00d4a8}.status{margin-left:auto;font-size:10px}
+main{padding:14px}.folder{color:#4a5568;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px}
+button{background:#141920;color:#dde4f0;border:1px solid #1a2030;border-radius:4px;padding:7px 9px;font:10px Consolas;cursor:pointer}
+.controls{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.card{background:#0e1117;border:1px solid #1a2030;border-radius:7px;padding:10px;margin-bottom:9px}
+.meta{font-size:9px;color:#4a5568}.title{font-weight:bold;margin:4px 0}.summary{line-height:1.45}.next{margin-top:6px;font-size:10px}
+.empty{color:#4a5568;text-align:center;padding:40px 10px}.green{border-left:3px solid #00d4a8}.yellow{border-left:3px solid #f0c040}.red{border-left:3px solid #ff4060}
+</style></head><body>
+<header><div class="row"><span id="dot" class="dot"></span><h1>FirstSignal QA Agent</h1><span id="status" class="status">STARTING</span></div></header>
+<main><div id="folder" class="folder"></div><div class="controls"><button id="openFolder">Open Folder</button><button id="openNotebook">Open Notebook</button><button id="changeFolder">Change Folder</button></div><div id="reports"></div></main>
+<script src="console.js"></script></body></html>

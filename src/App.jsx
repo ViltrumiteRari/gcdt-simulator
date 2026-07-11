@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { REPLAY_CATALOG, REPLAY_DATES } from "./replayCatalog";
-import { REAL_REPLAY_CATALOG as BASE_REAL_REPLAY_CATALOG } from "./realReplayData";
-import { JULY10_REPLAY } from "./realReplayDataJul10";
+import { REAL_REPLAY_META, loadRealReplay } from "./replayAssets";
 import { replayQualityFor } from "./replayQuality";
 import { classifyGexVelocity, classifyCallDom, choosePrimarySignal, evaluateReentryDiscipline, reliabilityRates } from "./strategyCore";
 import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThesis, contextPrompt } from "./contextLayers";
@@ -9,8 +8,9 @@ import { geminiLiveTrader } from "./geminiLiveTrader";
 import { createMetacognitionState, computeGexImpulse, createForecast, scoreForecast, applyForecastTrust, shouldActivateDrawdownReview, buildTradeDiagnostics, analyzeDataHealth, updateTransmissionState, applyMetacognitiveGates, shouldEmitCognition } from "./metacognition";
 
 const BUILD_ID = "firstsignal-sim-v1-20260710";
-const REAL_REPLAY_CATALOG={...BASE_REAL_REPLAY_CATALOG,"2026-07-10":JULY10_REPLAY};
-const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_CATALOG),...REPLAY_DATES])].sort().reverse();
+const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_META),...REPLAY_DATES])].sort().reverse();
+const replayMetaFor=date=>REAL_REPLAY_META[date]||REPLAY_CATALOG[date]||null;
+const replayDataFor=async date=>REAL_REPLAY_META[date]?loadRealReplay(date):(REPLAY_CATALOG[date]||null);
 const ARCHITECTURE_MANIFEST=`FIRSTSIGNAL ARCHITECTURE SELF-MODEL
 Purpose: identify and exploit temporary SPY 0DTE environments where repeated asymmetric wins become structurally plausible.
 Authority order: observed market/options data -> separate SPX/SPY positioning and price-location observations -> relationship lenses -> market-structure/regime interpretation -> unified CALL/PUT/WAIT thesis -> canonical executable intent -> AI execution and management.
@@ -1718,6 +1718,9 @@ export default function App(){
   const[aiSessionMemory,setAiSessionMemory]=useState(()=>createAiSessionMemory());
   const[liveThought,setLiveThought]=useState("");
   const[thoughtSync,setThoughtSync]=useState("LOCAL");
+  const[qaReports,setQaReports]=useState(()=>storageGet("qa_reports",[]).slice(-20));
+  const[qaStatus,setQaStatus]=useState("WATCHING");
+  const[qaFolder,setQaFolder]=useState("Browser storage only");
   const[candles,setCandles]=useState([]);
   const[itsSPXHist,setItsSPXHist]=useState([]);
   const[itsSPYHist,setItsSPYHist]=useState([]);
@@ -1744,6 +1747,8 @@ export default function App(){
   const[showMindsetAll,setShowMindsetAll]=useState(false);
   const[resumeAvailable,setResumeAvailable]=useState(()=>!!storageGet("interrupted",null));
   const[selectedReplayDate,setSelectedReplayDate]=useState(AVAILABLE_REPLAY_DATES[0]||"2026-07-06");
+  const[replayLoading,setReplayLoading]=useState(false);
+  const[replayLoadError,setReplayLoadError]=useState("");
   const[chopGate,setChopGate]=useState("OFF");
 
   const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
@@ -1755,6 +1760,7 @@ export default function App(){
   const metacognitionR=useRef(createMetacognitionState());
   const dataHealthR=useRef({state:"UNKNOWN"}),transmissionR=useRef({state:"UNKNOWN",failedTicks:0}),lastCognitionStateR=useRef(null);
   const saveSessionRef=useRef(null),finalizingR=useRef(false);
+  const qaLastTickR=useRef(-99),qaBusyR=useRef(false);
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
   const thesisR=useRef({scores:{call:0,put:0,wait:100},momentum:{call:0,put:0,wait:0},winner:"wait",entryBias:"WAIT",state:"WAIT_DOMINANT",edgeScore:0,scalpEdge:false,scalpDir:"CALL",call:{reasons:[],needs:[],invalidations:[]},put:{reasons:[],needs:[],invalidations:[]},wait:{reasons:[]}});
@@ -1780,6 +1786,7 @@ export default function App(){
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
 
   useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-200));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
+  useEffect(()=>{fetch("http://127.0.0.1:8766/status").then(r=>r.json()).then(x=>{setQaFolder(x.settings?.reportFolder||"Agent service connected");setQaStatus(x.status?.state||"WATCHING");if(x.reports?.length)setQaReports(x.reports.slice(-20));}).catch(()=>setQaStatus("OFFLINE: START AGENT CONSOLE"));},[]);
 
   useEffect(()=>{
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,archetypeId:archetypeIdR.current});}}
@@ -1896,6 +1903,16 @@ export default function App(){
     const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
     if(nextBrain.active!==priorBrain.active||Math.abs(nextBrain.bullPressure-priorBrain.bullPressure)>=8||Math.abs(nextBrain.bearPressure-priorBrain.bearPressure)>=8||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
+    if(tickR.current-qaLastTickR.current>=20&&!qaBusyR.current){
+      qaLastTickR.current=tickR.current;qaBusyR.current=true;setQaStatus("ANALYZING");
+      const qaSnapshot={buildId:BUILD_ID,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,time:c.t,running:true,balance:balR.current,position:posR.current?{side:posR.current.isCall?"CALL":"PUT",strike:posR.current.strike,entry:posR.current.entry,current:posR.current.current,entryTick:posR.current.entryTick}:null,market:{spy:m.spySpot,spx:m.spxSpot,gexSpy:m.netGex,gexSpx:m.netGexSpx,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accelerator:m.accelerator,fep:m.fep,quoteSource:m.quoteSource||"MODELED",synthData:!!m.synthData},intent:tradeIntentR.current,dataHealth:dataHealthR.current,transmission:transmissionR.current,reliability:reliabilityRates(reliabilityR.current),recentTrades:logR.current.slice(-4),recentJournal:journalR.current.slice(-8),recentMindset:mindR.current.slice(-5)};
+      fetch("http://127.0.0.1:8766/observe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(qaSnapshot)}).then(async r=>{const x=await r.json();if(!r.ok)throw new Error(x.error||`QA_HTTP_${r.status}`);return x;}).then(clean=>{
+        setQaReports(prev=>[...prev.slice(-19),clean]);
+        storageSet("qa_reports",[...storageGet("qa_reports",[]).slice(-99),clean]);
+        if(clean.level!=="GREEN")addJournal(c.t,`QA_${clean.level} ${clean.category}: ${clean.title} — ${clean.summary}`);
+        setQaStatus(clean.level==="RED"?"APPROVAL REQUIRED":"WATCHING");
+      }).catch(err=>setQaStatus(`OFFLINE: ${String(err?.message||err).slice(0,40)}`)).finally(()=>{qaBusyR.current=false;});
+    }
     const np=computeProbs(m,candR.current),nc=computeConf(m,np);
     const contextHierarchy=computeItsHierarchy(m,candR.current,contextMemoryR.current); contextMemoryR.current=contextHierarchy.memory;
     const flowLens=computeFlowLens(m.orderFlow);
@@ -2192,9 +2209,16 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     return()=>document.removeEventListener("visibilitychange",onVisibility);
   },[addJournal]);
 
-  const startSession=useCallback((mode)=>{
-    const replayData=REAL_REPLAY_CATALOG[selectedReplayDate]||REPLAY_CATALOG[selectedReplayDate];
-    if(mode==="replay"&&!replayData)return;
+  const startSession=useCallback(async(mode)=>{
+    setReplayLoadError("");
+    let replayData=null;
+    if(mode==="replay"){
+      setReplayLoading(true);
+      try{replayData=await replayDataFor(selectedReplayDate);}
+      catch(error){setReplayLoadError(String(error?.message||error));return;}
+      finally{setReplayLoading(false);}
+      if(!replayData){setReplayLoadError(`Replay unavailable: ${selectedReplayDate}`);return;}
+    }
     engR.current=mode==="replay"?createReplayEngine(replayData):createSeedEngine();
     const sess=engR.current.getSession();
     archetypeIdR.current=mode==="seed"?sess.archetype:null;
@@ -2211,14 +2235,20 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[selectedReplayDate]);
 
-  const resumeSession=useCallback(()=>{
+  const resumeSession=useCallback(async()=>{
     const sv=storageGet("interrupted",null);if(!sv)return;
     balR.current=sv.bal;setBal(sv.bal);if(sv.pos){posR.current=sv.pos;setPos(sv.pos);}
     logR.current=sv.log||[];setTradeLog([...logR.current]);mindR.current=sv.mindset||[];setMindsetLog([...mindR.current]);
     journalR.current=sv.journal||[];setJournal([...journalR.current]);aiSessionMemoryR.current=sv.aiSessionMemory||storageGet("ai_session_memory",createAiSessionMemory(sv.sessionLabel||"RESUMED"));setAiSessionMemory({...aiSessionMemoryR.current});candR.current=sv.candles||[];setCandles([...candR.current]);
     tlR.current=sv.timeline||[];setTimeline([...tlR.current]);setSessionLabel(sv.sessionLabel||"RESUMED");setSessionMode(sv.sessionMode||"seed");
     archetypeIdR.current=sv.archetypeId||null;
-    const replayData=sv.replayDate?(REAL_REPLAY_CATALOG[sv.replayDate]||REPLAY_CATALOG[sv.replayDate]):null;
+    let replayData=null;
+    if(sv.sessionMode==="replay"){
+      setReplayLoading(true);setReplayLoadError("");
+      try{replayData=await replayDataFor(sv.replayDate);}
+      catch(error){setReplayLoadError(String(error?.message||error));return;}
+      finally{setReplayLoading(false);}
+    }
     if(sv.sessionMode==="replay"&&!replayData){storageSet("interrupted",null);setResumeAvailable(false);return;}
     engR.current=sv.sessionMode==="replay"?createReplayEngine(replayData):createSeedEngine(sv.archetypeId);
     for(let i=0;i<Math.min(sv.tick||0,400);i++)engR.current.tick();
@@ -2283,7 +2313,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
   const divColor=div>0.5?T.accent:div<-0.5?T.red:T.yellow;
 
   
-  const selectedReplayData=REAL_REPLAY_CATALOG[selectedReplayDate]||REPLAY_CATALOG[selectedReplayDate];
+  const selectedReplayData=replayMetaFor(selectedReplayDate);
   const selectedReplayQuality=replayQualityFor(selectedReplayDate);
   const replayQualityColor=selectedReplayQuality.level==="GREEN"?T.accent:selectedReplayQuality.level==="YELLOW"?T.yellow:T.red;
 if(screen==="home")return(
@@ -2294,17 +2324,18 @@ if(screen==="home")return(
       {resumeAvailable&&<button onClick={resumeSession} style={{width:"100%",maxWidth:280,padding:"11px 0",background:T.yellowDim,color:T.yellow,border:`1px solid ${T.yellow}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer",marginBottom:10}}>RESUME SESSION ↩</button>}
       <div style={{width:"100%",maxWidth:280,marginBottom:16}}>
         <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION · v26 AIR-GAP</div>
-        <select value={selectedReplayDate} onChange={e=>setSelectedReplayDate(e.target.value)} style={{width:"100%",marginBottom:8,padding:"8px 10px",background:T.surface,color:T.text,border:`1px solid ${T.border}`,borderRadius:6,fontFamily:"monospace",fontSize:10}}>
-          {AVAILABLE_REPLAY_DATES.map(d=>{const q=replayQualityFor(d),data=REAL_REPLAY_CATALOG[d]||REPLAY_CATALOG[d];return <option key={d} value={d}>{q.level==="GREEN"?"●":q.level==="YELLOW"?"▲":"■"} {data?.label||d} · {q.label}</option>;})}
+        <select value={selectedReplayDate} disabled={replayLoading} onChange={e=>{setSelectedReplayDate(e.target.value);setReplayLoadError("");}} style={{width:"100%",marginBottom:8,padding:"8px 10px",background:T.surface,color:T.text,border:`1px solid ${T.border}`,borderRadius:6,fontFamily:"monospace",fontSize:10,opacity:replayLoading?0.6:1}}>
+          {AVAILABLE_REPLAY_DATES.map(d=>{const q=replayQualityFor(d),data=replayMetaFor(d);return <option key={d} value={d}>{q.level==="GREEN"?"●":q.level==="YELLOW"?"▲":"■"} {data?.label||d} · {q.label}</option>;})}
         </select>
         <div style={{marginBottom:8,padding:"8px 10px",background:selectedReplayQuality.level==="GREEN"?T.accentDim:selectedReplayQuality.level==="YELLOW"?T.yellowDim:"#ef444418",border:`1px solid ${replayQualityColor}55`,borderRadius:6,color:replayQualityColor,fontSize:8,lineHeight:1.45}}>
           <div style={{fontWeight:700,marginBottom:3}}>{selectedReplayQuality.level} · {selectedReplayQuality.label}</div>
           <div>{selectedReplayQuality.summary}</div>
           {selectedReplayQuality.missingEssential?.length>0&&<div style={{marginTop:4}}>Missing: {selectedReplayQuality.missingEssential.join(" · ")}</div>}
         </div>
+        {replayLoadError&&<div style={{marginBottom:8,padding:"7px 9px",background:T.redDim,color:T.red,border:`1px solid ${T.red}55`,borderRadius:5,fontSize:8}}>REPLAY LOAD FAILED · {replayLoadError}</div>}
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
-          <button onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer"}}>REPLAY<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{selectedReplayData?.label||"Select date"}</div></button>
+          <button disabled={replayLoading} onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:replayLoading?"wait":"pointer",opacity:replayLoading?0.55:1}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
+          <button disabled={replayLoading} onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:replayLoading?"wait":"pointer",opacity:replayLoading?0.65:1}}>{replayLoading?"LOADING…":"REPLAY"}<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{selectedReplayData?.label||"Select date"}</div></button>
         </div>
       </div>
       <div style={{width:"100%",maxWidth:280,display:"flex",gap:8,marginBottom:16}}>
@@ -2393,6 +2424,10 @@ if(screen==="home")return(
 
   return(
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"monospace",color:T.text,display:"flex",flexDirection:"column"}}>
+      <div style={{position:"fixed",top:10,right:10,zIndex:9999,display:"flex",alignItems:"center",gap:7,padding:"6px 10px",background:"#0e1117ee",border:`1px solid ${qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}88`,borderRadius:999,boxShadow:"0 4px 18px #0008",cursor:"default"}} title={`FirstSignal QA Agent · ${qaFolder}`}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:qaStatus.startsWith("OFFLINE")?T.muted:T.accent,boxShadow:qaStatus==="ANALYZING"?`0 0 9px ${T.yellow}`:`0 0 7px ${T.accent}`}}/>
+        <span style={{fontSize:8,fontWeight:700,color:qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}}>QA {qaStatus}</span>
+      </div>
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"6px 14px"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
@@ -2483,6 +2518,24 @@ if(screen==="home")return(
           <pre style={{whiteSpace:"pre-wrap",fontSize:9,lineHeight:1.65,color:T.text,maxHeight:320,overflowY:"auto",margin:"10px 0 8px",fontFamily:"Consolas, monospace"}}>{aiMemoryText(aiSessionMemory)}{liveThought?`\n\n[WRITING NOW]\n${liveThought}▌`:""}</pre>
           <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gcdt-ai-thoughts-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
         </details>}
+
+        <div style={{background:T.surface,borderRadius:8,border:`1px solid ${qaReports.at(-1)?.level==="RED"?T.red:qaReports.at(-1)?.level==="YELLOW"?T.yellow:T.accent}55`,margin:"0 14px 8px",padding:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>SIM QA AGENT</span>
+            <span style={{fontSize:8,color:qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}}>{qaStatus}</span>
+          </div>
+          <div style={{fontSize:7,color:T.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",marginBottom:6}} title={qaFolder}>SAVES TO: {qaFolder}</div>
+          <div style={{display:"flex",gap:6,marginBottom:8}}><button onClick={()=>fetch("http://127.0.0.1:8766/open-folder",{method:"POST"})} style={{fontSize:7,padding:"4px 7px",background:T.surface2,color:T.accent,border:`1px solid ${T.accent}44`,borderRadius:3,cursor:"pointer"}}>OPEN NOTEBOOK FOLDER</button><button onClick={()=>fetch("http://127.0.0.1:8766/choose-folder",{method:"POST"}).then(r=>r.json()).then(s=>s?.reportFolder&&setQaFolder(s.reportFolder))} style={{fontSize:7,padding:"4px 7px",background:T.surface2,color:T.yellow,border:`1px solid ${T.yellow}44`,borderRadius:3,cursor:"pointer"}}>CHANGE FOLDER</button></div>
+          {qaReports.length===0?<div style={{fontSize:8,color:T.muted}}>Independent observer starts after 20 replay ticks. GREEN logs autonomously. YELLOW suggests isolated testing. RED requires approval.</div>:qaReports.slice(-3).reverse().map(r=>{
+            const color=r.level==="RED"?T.red:r.level==="YELLOW"?T.yellow:T.accent;
+            return <div key={r.id} style={{marginBottom:7,padding:"7px 9px",background:T.surface2,borderLeft:`3px solid ${color}`,borderRadius:4}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8}}><span style={{fontSize:9,color,fontWeight:700}}>{r.level} · {r.title}</span><span style={{fontSize:7,color:T.muted}}>{r.t}</span></div>
+              <div style={{fontSize:8,color:T.text,marginTop:3,lineHeight:1.45}}>{r.summary}</div>
+              <div style={{fontSize:7,color:T.muted,marginTop:3}}>{r.category} · confidence {Math.round(r.confidence||0)}% · {r.approval_required?"APPROVAL REQUIRED":"NO APPROVAL"}</div>
+              {r.suggested_action&&<div style={{fontSize:8,color,marginTop:4}}>NEXT: {r.suggested_action}</div>}
+            </div>;
+          })}
+        </div>
 
         <TradeIntentPanel intent={tradeIntentData}/> 
         {mkt&&<OptionChainPanel chain={optionChain} pos={pos}/>}

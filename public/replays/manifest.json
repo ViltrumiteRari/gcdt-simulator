@@ -1,0 +1,47 @@
+{
+  "2026-07-06": {
+    "date": "2026-07-06",
+    "file": "2026-07-06.json",
+    "label": "2026-07-06 | Unified native SPY/SPX | 1-minute replay",
+    "dayType": "REAL DATA REPLAY",
+    "snapshotCount": 406,
+    "firstTime": "09:30",
+    "lastTime": "16:15"
+  },
+  "2026-07-07": {
+    "date": "2026-07-07",
+    "file": "2026-07-07.json",
+    "label": "2026-07-07 | Unified native SPY/SPX | 1-minute replay",
+    "dayType": "REAL DATA REPLAY",
+    "snapshotCount": 406,
+    "firstTime": "09:30",
+    "lastTime": "16:15"
+  },
+  "2026-07-08": {
+    "date": "2026-07-08",
+    "file": "2026-07-08.json",
+    "label": "2026-07-08 | Unified native SPY/SPX | 1-minute replay",
+    "dayType": "REAL DATA REPLAY",
+    "snapshotCount": 406,
+    "firstTime": "09:30",
+    "lastTime": "16:15"
+  },
+  "2026-07-09": {
+    "date": "2026-07-09",
+    "file": "2026-07-09.json",
+    "label": "2026-07-09 | Unified native SPY/SPX | 1-minute replay",
+    "dayType": "REAL DATA REPLAY",
+    "snapshotCount": 406,
+    "firstTime": "09:30",
+    "lastTime": "16:15"
+  },
+  "2026-07-10": {
+    "date": "2026-07-10",
+    "file": "2026-07-10.json",
+    "label": "2026-07-10 | Unified native SPY/SPX | 1-minute replay",
+    "dayType": "REAL DATA REPLAY",
+    "snapshotCount": 406,
+    "firstTime": "09:30",
+    "lastTime": "16:15"
+  }
+}

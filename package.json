@@ -1,5 +1,5 @@
 {
-  "name": "gcdt-simulator",
+  "name": "firstsignal-sim-v1",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -25,5 +25,6 @@
     "start:local": "scripts\\\\start-local.cmd",
     "test": "node tests/strategyCore.test.mjs"
   },
-  "type": "module"
+  "type": "module",
+  "productName": "FirstSignal Sim V1"
 }

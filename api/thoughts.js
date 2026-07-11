@@ -1,3 +1,5 @@
+﻿// FirstSignal Sim V1 thought API.
+// gcdt_thoughts is the legacy physical table name and must remain until a coordinated DB migration.
 export const config = { runtime: 'edge' };
 
 const CORS = {
@@ -78,3 +80,4 @@ export default async function handler(req) {
     return json({ error: error?.message || 'thoughts route failed' }, 500);
   }
 }
+

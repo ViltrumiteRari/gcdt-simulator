@@ -15,14 +15,15 @@ let analyzing = false;
 let lastAnalyzedTick = -99;
 let currentStatus = { state: 'STARTING' };
 let currentSessionId = null;
+let currentSessionMeta = {};
 let quotaBlocked = false;
 let cooldownUntil = 0;
 const recentFingerprints = new Map();
 
 const settingsPath = () => path.join(app.getPath('userData'), 'agent-settings.json');
-const defaultFolder = () => path.join(app.getPath('documents'), 'FirstSignal Agent Reports');
+const defaultFolder = () => path.join(app.getPath('documents'), 'FirstSignal Sim V1 Agent Reports');
 function loadSettings() {
-  try { return JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); }
+  try { const settings=JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); if(settings.reportFolder===path.join(app.getPath('documents'),'FirstSignal Agent Reports')){settings.reportFolder=defaultFolder();saveSettings(settings);} return settings; }
   catch { return { reportFolder: defaultFolder() }; }
 }
 function saveSettings(settings) {
@@ -45,7 +46,7 @@ function trayIcon(state = 'WATCHING') {
 }function refreshTray() {
   if (!tray) return;
   tray.setImage(trayIcon(currentStatus.state));
-  tray.setToolTip(`FirstSignal QA · ${currentStatus.state}`);
+  tray.setToolTip(`FirstSignal Sim V1 QA | ${currentStatus.state}`);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `Status: ${currentStatus.state}`, enabled: false },
     { label: 'Open Agent Console', click: () => { win.show(); win.focus(); } },
@@ -54,7 +55,7 @@ function trayIcon(state = 'WATCHING') {
     { type: 'separator' },
     { label: 'Quit Agent', click: () => app.quit() },
   ]));
-  win?.webContents.send('agent:update', { status: currentStatus, reports, activities, eventCount: events.length, settings: loadSettings() });
+  win?.webContents.send('agent:update', { status: currentStatus, sessionId:currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, settings: loadSettings() });
 }
 function addActivity(kind, message) {
   activities = [...activities.slice(-149), { id: 'ACT-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), at: new Date().toISOString(), kind, message }];
@@ -63,6 +64,7 @@ function addActivity(kind, message) {
 
 function resetSession(sessionId, meta = {}) {
   currentSessionId = sessionId || null;
+  currentSessionMeta = currentSessionId ? { ...meta, sessionId: currentSessionId, startedAt: new Date().toISOString() } : {};
   events = [];
   reports = [];
   activities = [];
@@ -71,8 +73,8 @@ function resetSession(sessionId, meta = {}) {
   quotaBlocked = false;
   cooldownUntil = 0;
   recentFingerprints.clear();
-  currentStatus = currentSessionId ? { state: 'WATCHING', sessionId: currentSessionId, replayDate: meta.replayDate || null } : { state: 'IDLE' };
-  if (currentSessionId) addActivity('SESSION', `Started ${currentSessionId}${meta.replayDate ? ` � ${meta.replayDate}` : ''}`);
+  currentStatus = currentSessionId ? { state: 'WATCHING', sessionId: currentSessionId, replayDate: meta.replayDate || null, buildId: meta.buildId || null, buildSequence: Number(meta.buildSequence)||0, productVersion: meta.productVersion || null } : { state: 'IDLE' };
+  if (currentSessionId) addActivity('SESSION', `Started ${meta.productName||'FirstSignal Sim'} ${meta.productVersion||'V1'} | ${meta.buildId||'unknown build'} | ${meta.replayDate||'session'}`);
   else refreshTray();
 }
 
@@ -87,8 +89,37 @@ function completeSession(meta = {}) {
     replayDate: meta.replayDate || currentStatus.replayDate || null,
     eventCount: events.length,
     reportCount: reports.length,
+    buildId: currentSessionMeta.buildId || null,
+    buildSequence: Number(currentSessionMeta.buildSequence)||0,
+    productVersion: currentSessionMeta.productVersion || null,
   };
   addActivity('SESSION', `Completed ${completedSessionId || 'session'} with ${reports.length} findings across ${events.length} events.`);
+}
+
+function safeName(value) { return String(value || 'session').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'session'; }
+function sessionFolder() {
+  const day = String(currentSessionMeta.startedAt || new Date().toISOString()).slice(0, 10);
+  const folder = path.join(reportFolder(), day, safeName(currentSessionId));
+  fs.mkdirSync(folder, { recursive: true });
+  return folder;
+}
+function versionMemoryPath() { return path.join(reportFolder(), 'version-memory.json'); }
+function loadVersionMemory() { try { return JSON.parse(fs.readFileSync(versionMemoryPath(), 'utf8')); } catch { return { productName:'FirstSignal Sim', productVersion:'V1', builds:{} }; } }
+function saveVersionMemory(memory) { fs.writeFileSync(versionMemoryPath(), JSON.stringify(memory, null, 2)); }
+function versionContext() {
+  const memory=loadVersionMemory(), current=currentSessionMeta.buildId || events.at(-1)?.buildId || 'UNKNOWN', currentSequence=Number(currentSessionMeta.buildSequence||events.at(-1)?.buildSequence||0);
+  const builds=Object.values(memory.builds||{}).sort((a,b)=>(Number(a.buildSequence)||0)-(Number(b.buildSequence)||0)||String(a.lastSeen||'').localeCompare(String(b.lastSeen||'')));
+  const prior=builds.filter(x=>x.buildId!==current).slice(-3), latest=builds.at(-1)||null, latestSequence=Number(latest?.buildSequence)||0;
+  const relation=!latest?'FIRST_KNOWN':current===latest.buildId?'SAME':currentSequence>latestSequence?'NEWER':currentSequence<latestSequence?'OLDER':'DIFFERENT_UNORDERED';
+  return { productName:currentSessionMeta.productName||'FirstSignal Sim', productVersion:currentSessionMeta.productVersion||'V1', currentBuildId:current, currentBuildSequence:currentSequence, relationToLatestKnown:relation, latestKnownBuild:latest?{buildId:latest.buildId,buildSequence:latestSequence,lastSeen:latest.lastSeen}:null, currentBuildKnown:!!memory.builds?.[current], priorBuilds:prior.map(x=>({buildId:x.buildId,buildSequence:Number(x.buildSequence)||0,lastSeen:x.lastSeen,findings:(x.findings||[]).slice(-12)})), sameBuildFindings:(memory.builds?.[current]?.findings||[]).slice(-20) };
+}
+function updateVersionMemory(report) {
+  const memory=loadVersionMemory(), buildId=report.buildId||currentSessionMeta.buildId||'UNKNOWN';
+  const build=memory.builds[buildId]||{buildId,productVersion:report.productVersion||currentSessionMeta.productVersion||'V1',buildSequence:Number(report.buildSequence||currentSessionMeta.buildSequence||0),firstSeen:new Date().toISOString(),findings:[]};
+  build.lastSeen=new Date().toISOString();
+  const key=report.finding_key||`${report.category}|${String(report.title||'').toLowerCase()}`;
+  build.findings=[...(build.findings||[]).filter(x=>x.key!==key),{key,level:report.level,title:report.title,summary:report.summary,versionAssessment:report.version_assessment||'NEW_FINDING',sessionId:report.sessionId,tick:report.tick,at:new Date().toISOString()}].slice(-100);
+  memory.builds[buildId]=build; saveVersionMemory(memory);
 }
 
 function normalizeReport(report) {
@@ -112,7 +143,7 @@ function positionIdentity(position) {
 function compactEvent(event = {}) {
   return {
     tick: event.tick, time: event.time, balance: event.balance,
-    position: event.position ? { side: event.position.side, strike: event.position.strike, entry: event.position.entry, current: event.position.current, entryTick: event.position.entryTick } : null,
+    position: event.position ? { side: event.position.side, strike: event.position.strike, entry: event.position.entry, current: event.position.current, entryTick: event.position.entryTick, entrySpot:event.position.entrySpot, currentSpot:event.position.currentSpot } : null,
     market: event.market,
     intent: event.intent ? { action: event.intent.action, direction: event.intent.direction, readiness: event.intent.readiness, confidence: event.intent.confidence, blockers: (event.intent.blockers || []).slice(0, 3) } : null,
     dataHealth: event.dataHealth?.state || event.dataHealth,
@@ -130,7 +161,8 @@ function inspectContext(windowSize = 20, includePriorReports = true) {
   const first = raw[0] || {}; const last = raw.at(-1) || {};
   return {
     recentEvents: sampled,
-    priorReports: includePriorReports ? reports.slice(-5).map(r => ({ tick:r.tick, level:r.level, category:r.category, title:r.title, summary:r.summary })) : [],
+    priorReports: includePriorReports ? reports.slice(-5).map(r => ({ tick:r.tick, level:r.level, category:r.category, title:r.title, summary:r.summary, buildId:r.buildId, versionAssessment:r.version_assessment })) : [],
+    versionContext: versionContext(),
     delta: {
       ticks: (last.tick ?? 0) - (first.tick ?? 0),
       balance: (last.balance ?? 0) - (first.balance ?? 0),
@@ -151,17 +183,28 @@ async function chooseFolder() {
 }
 
 function saveReport(report) {
-  const folder = reportFolder();
-  const day = new Date().toISOString().slice(0, 10);
-  const jsonl = path.join(folder, `${day}-qa-reports.jsonl`);
-  const notebook = path.join(folder, `${day}-qa-notebook.txt`);
-  fs.appendFileSync(jsonl, `${JSON.stringify(report)}\n`);
-  const evidence = (report.evidence || []).map(x => `  • ${x}`).join('\n');
-  const block = `\n[${report.t || '—'}] ${report.level} · ${report.category}\n${report.title}\n${report.summary}\n${evidence ? `Evidence:\n${evidence}\n` : ''}Next: ${report.suggested_action || 'None'}\nApproval required: ${report.approval_required ? 'YES' : 'NO'}\n${'-'.repeat(72)}\n`;
-  fs.appendFileSync(notebook, block);
-  reports = [...reports.slice(-99), report];
+  const folder = sessionFolder();
+  const jsonl = path.join(folder, 'reports.jsonl');
+  const notebook = path.join(folder, 'notebook.txt');
+  const enriched = { ...report, productName: currentSessionMeta.productName || 'FirstSignal Sim', productVersion: currentSessionMeta.productVersion || 'V1', buildId: report.buildId || currentSessionMeta.buildId || 'UNKNOWN', buildSequence:Number(report.buildSequence||currentSessionMeta.buildSequence||0), sessionId: currentSessionId, replayDate: currentSessionMeta.replayDate || null };
+  fs.appendFileSync(jsonl, JSON.stringify(enriched) + '\n');
+  const evidence = (enriched.evidence || []).map(x => `  • ${x}`).join('\n');
+  const lines = [
+    '', `[${enriched.t || '—'}] ${enriched.level} · ${enriched.category} · ${enriched.buildId}`,
+    enriched.title, enriched.summary,
+    `Version assessment: ${enriched.version_assessment || 'NEW_FINDING'}${enriched.related_build_id ? ` · related ${enriched.related_build_id}` : ''}`,
+    evidence ? `Evidence:\n${evidence}` : '',
+    `Next: ${enriched.suggested_action || 'None'}`,
+    `Approval required: ${enriched.approval_required ? 'YES' : 'NO'}`,
+    '-'.repeat(72), ''
+  ];
+  fs.appendFileSync(notebook, lines.filter((x,i)=>x || i===0 || i===lines.length-1).join('\n'));
+  fs.writeFileSync(path.join(folder, 'session.json'), JSON.stringify({ ...currentSessionMeta, sessionId:currentSessionId, status:currentStatus, eventCount:events.length, reportCount:reports.length+1 }, null, 2));
+  updateVersionMemory(enriched);
+  reports = [...reports.slice(-99), enriched];
   return { folder, notebook, jsonl };
 }
+
 function json(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' });
   res.end(JSON.stringify(body));
@@ -178,17 +221,17 @@ async function readBody(req) {
 function startServer() {
   server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return json(res, 204, {});
-    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, reports, activities, eventCount: events.length, settings: loadSettings() });
+    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, settings: loadSettings() });
     if (req.url === '/session/start' && req.method === 'POST') { const body = await readBody(req); resetSession(body.sessionId, body); return json(res, 200, { ok: true, sessionId: currentSessionId }); }
-    if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!body.sessionId || body.sessionId === currentSessionId) completeSession(body); return json(res, 200, { ok: true, status: currentStatus }); }
+    if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!currentSessionId) resetSession(null); else if (!body.sessionId || body.sessionId === currentSessionId) completeSession(body); return json(res, 200, { ok: true, status: currentStatus }); }
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
-    if (req.url === '/open-notebook' && req.method === 'POST') { const day = new Date().toISOString().slice(0, 10); await shell.openPath(path.join(reportFolder(), `${day}-qa-notebook.txt`)); return json(res, 200, { ok: true }); }
+    if (req.url === '/open-notebook' && req.method === 'POST') { await shell.openPath(path.join(sessionFolder(), 'notebook.txt')); return json(res, 200, { ok: true }); }
     if (req.url === '/choose-folder' && req.method === 'POST') return json(res, 200, await chooseFolder());
     if ((req.url === '/event' || req.url === '/observe') && req.method === 'POST') {
       try {
         const snapshot = await readBody(req);
         if (!snapshot.sessionId) return json(res, 409, { error: 'SESSION_ID_REQUIRED' });
-        if (snapshot.sessionId !== currentSessionId) resetSession(snapshot.sessionId, { replayDate: snapshot.replayDate });
+        if (snapshot.sessionId !== currentSessionId) resetSession(snapshot.sessionId, { replayDate:snapshot.replayDate, productName:snapshot.productName, productVersion:snapshot.productVersion, buildId:snapshot.buildId, label:snapshot.sessionLabel, mode:snapshot.sessionMode });
         const prior = events.at(-1);
         events = [...events.slice(-499), snapshot];
         const critical = snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
@@ -201,7 +244,7 @@ function startServer() {
           currentStatus = { state: 'ANALYZING', tick: snapshot.tick, time: snapshot.time };
           addActivity('WAKE', `Meaningful simulator event at tick ${snapshot.tick}`);
           runQa(snapshot).then(report => {
-            const clean = normalizeReport({ ...report, t: snapshot.time, tick: snapshot.tick, id: `QA-${Date.now()}` });
+            const clean = normalizeReport({ ...report, t: snapshot.time, tick: snapshot.tick, buildId:snapshot.buildId, buildSequence:snapshot.buildSequence, productVersion:snapshot.productVersion, id: `QA-${Date.now()}` });
             if (!isDuplicateReport(clean, snapshot.tick)) saveReport(clean);
             else addActivity('DEDUPE', `Suppressed repeated ${clean.level} finding: ${clean.title}`);
             currentStatus = { state: clean.level === 'RED' ? 'APPROVAL REQUIRED' : 'WATCHING', level: clean.level, title: clean.title, tick: clean.tick, time: clean.t };
@@ -242,15 +285,14 @@ app.whenReady().then(async () => {
   currentStatus = { state: 'WATCHING' };
   tray.on('double-click', () => { win.show(); win.focus(); });
   refreshTray();
-  tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal QA Agent', content: 'WATCHING · Double-click the tray icon to open the agent console.' });
+  tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal Sim V1 QA Agent', content: 'WATCHING | FirstSignal Sim V1 observer is ready.' });
 });
 app.on('before-quit', () => { app.isQuitting = true; server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
-ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, reports, activities, eventCount: events.length, settings: loadSettings() }));
+ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, settings: loadSettings() }));
 ipcMain.handle('agent:choose-folder', () => chooseFolder());
 ipcMain.handle('agent:open-folder', () => shell.openPath(reportFolder()));
 ipcMain.handle('agent:open-notebook', () => {
-  const day = new Date().toISOString().slice(0, 10);
-  return shell.openPath(path.join(reportFolder(), `${day}-qa-notebook.txt`));
+  return shell.openPath(path.join(sessionFolder(), 'notebook.txt'));
 });

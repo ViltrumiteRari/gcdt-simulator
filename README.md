@@ -1,6 +1,6 @@
-# GCDT Simulator v26
+# FirstSignal Sim V1
 
-Canonical repository for the full GCDT application.
+Canonical repository for FirstSignal Sim V1. The GitHub/Vercel slug remains legacy-compatible to avoid breaking deployment routing.
 
 ## Architecture
 

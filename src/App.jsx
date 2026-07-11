@@ -7,7 +7,10 @@ import { createContextMemory, computeItsHierarchy, computeFlowLens, harmonizeThe
 import { geminiLiveTrader } from "./geminiLiveTrader";
 import { createMetacognitionState, computeGexImpulse, createForecast, scoreForecast, applyForecastTrust, shouldActivateDrawdownReview, buildTradeDiagnostics, analyzeDataHealth, updateTransmissionState, applyMetacognitiveGates, shouldEmitCognition } from "./metacognition";
 
-const BUILD_ID = "firstsignal-sim-v1-20260710";
+const PRODUCT_NAME = "FirstSignal Sim";
+const PRODUCT_VERSION = "V1";
+const BUILD_ID = "firstsignal-sim-v1.1-20260711";
+const BUILD_SEQUENCE = 2;
 const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_META),...REPLAY_DATES])].sort().reverse();
 const replayMetaFor=date=>REAL_REPLAY_META[date]||REPLAY_CATALOG[date]||null;
 const replayDataFor=async date=>REAL_REPLAY_META[date]?loadRealReplay(date):(REPLAY_CATALOG[date]||null);
@@ -26,7 +29,7 @@ const SESSION_END_H = 16, SESSION_END_M = 15;
 const TRADE_CUTOFF_H = 15, TRADE_CUTOFF_M = 45;
 const OPEN_H = 9, OPEN_M = 30;
 const TRADER_API = "/api/trader";
-const STORAGE_KEY = "gcdt_shared";
+const STORAGE_KEY = "gcdt_shared"; // legacy compatibility key; do not rename without migration
 const LEGACY_STORAGE_KEYS = ["gcdt_v14","gcdt_v13"];
 const SIGNAL_EXIT_MIN_HOLD_TICKS=12;
 const LEAD_LAG_SUSTAIN_TICKS=3;
@@ -64,7 +67,8 @@ function timeToMin(t){const[h,m]=t.split(":").map(Number);return h*60+m;}
 function lerp(a,b,t){return a+(b-a)*t;}
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 
-const fmt={bal:v=>v>=1e6?`$${(v/1e6).toFixed(3)}M`:v>=1000?`$${(v/1e3).toFixed(1)}K`:`$${v.toFixed(0)}`,pct:v=>`${v>=0?"+":""}${v.toFixed(1)}%`,time:(h,m)=>`${h}:${String(m).padStart(2,"0")}`,gex:v=>`${(v/1e9).toFixed(1)}B`};
+const clock12=(h,m)=>{const hh=Number(h)||0,period=hh>=12?"PM":"AM",display=hh%12||12;return `${display}:${String(m).padStart(2,"0")} ${period}`;};
+const fmt={bal:v=>v>=1e6?`$${(v/1e6).toFixed(3)}M`:v>=1000?`$${(v/1e3).toFixed(1)}K`:`$${v.toFixed(0)}`,pct:v=>`${v>=0?"+":""}${v.toFixed(1)}%`,time:clock12,gex:v=>`${(v/1e9).toFixed(1)}B`};
 const T={bg:"#07090c",surface:"#0e1117",surface2:"#141920",border:"#1a2030",accent:"#00d4a8",accentDim:"#00d4a818",red:"#ff4060",redDim:"#ff406018",yellow:"#f0c040",yellowDim:"#f0c04018",purple:"#a78bfa",text:"#dde4f0",muted:"#4a5568",dim:"#1e2530"};
 const SC={discovery:"#00d4a8",pin:"#f0c040",transition:"#a78bfa",macro:"#ff4060"};
 
@@ -1001,7 +1005,7 @@ function createAiSessionMemory(label="UNSET"){
 }
 function aiMemoryText(mem){
   const m=mem||createAiSessionMemory();
-  return `GCDT AI THOUGHTS JOURNAL
+  return `FIRSTSIGNAL SIM V1 AI THOUGHTS JOURNAL
 Session: ${m.sessionLabel}
 Continuity: ${m.summary}
 Architecture: ${m.architecture?.upgradePending?`UPGRADE PENDING from ${m.architecture?.priorBuild||"UNKNOWN"} to ${m.architecture?.buildId}`:`Build ${m.architecture?.buildId||BUILD_ID} understood`}
@@ -1324,7 +1328,7 @@ async function callAI(mkt,pos,bal,hist,probs,conf,thesis,journal,approvedRules,r
   const memoryStr=historicalMemoryPrompt(mkt,marketBrain||createMarketBrain());
   const rulesStr=approvedRules.length>0?`\nAPPROVED RULES:\n${approvedRules.map(r=>`- ${r.rule}`).join("\n")}`:"";
   const repeatStr=repeatWaitCount>=6?`\nNOTE: You have returned WAIT with similar reasoning ${repeatWaitCount} checks in a row. If the underlying signal genuinely hasn't changed, that's a legitimate no-trade day — say so plainly instead of restating the same analysis. If SCALP EDGE is firing, that overrides this pattern; take it.`:"";
-  const prompt=`FIRSTSIGNAL SIM v1 | SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
+  const prompt=`${PRODUCT_NAME} ${PRODUCT_VERSION} | BUILD ${BUILD_ID} | SPY 0DTE. ${tStr} | ${mL}min | THETA:${theta?"YES":"no"} | EOD_PHASE:${eodPhase}${mkt.isPremarket?" | PREMARKET":""}\n\n${brainPrompt(marketBrain||createMarketBrain())}\n\n${memoryStr}
 BAL:$${bal.toFixed(0)} | ${posStr}
 
 SESSION JOURNAL:
@@ -1430,7 +1434,7 @@ If canonical action is BUY with no hard blockers, return that BUY unless one enu
 }
 
 async function generatePatchProposals(tradeLog,mindsetLog,journal,stats){
-  const prompt=`GCDT AI reviewing completed session.\nSTATS: ${JSON.stringify(stats)}\nTRADES: ${tradeLog.length===0?"None taken.":`${tradeLog.map(t=>`${t.t}: ${t.action} ${t.result||""}`).join("\n")}`}\nJOURNAL:\n${journal.map(j=>`[${j.t}] ${j.entry}`).join("\n")}\nLAST 8 DECISIONS:\n${mindsetLog.slice(-8).map(m=>`[${m.t}] ${m.edgeState} ${m.score} — ${m.reasoning}`).join("\n")}\n\nPropose 2-4 specific rule changes. Be precise and actionable.\nRespond ONLY valid JSON:\n{"proposals":[{"id":1,"rule":"specific rule text","reasoning":"why this helps","missed_opportunity":"what was missed"}]}`;
+  const prompt=`FIRSTSIGNAL SIM V1 AI reviewing completed session.\nSTATS: ${JSON.stringify(stats)}\nTRADES: ${tradeLog.length===0?"None taken.":`${tradeLog.map(t=>`${t.t}: ${t.action} ${t.result||""}`).join("\n")}`}\nJOURNAL:\n${journal.map(j=>`[${j.t}] ${j.entry}`).join("\n")}\nLAST 8 DECISIONS:\n${mindsetLog.slice(-8).map(m=>`[${m.t}] ${m.edgeState} ${m.score} — ${m.reasoning}`).join("\n")}\n\nPropose 2-4 specific rule changes. Be precise and actionable.\nRespond ONLY valid JSON:\n{"proposals":[{"id":1,"rule":"specific rule text","reasoning":"why this helps","missed_opportunity":"what was missed"}]}`;
   try{
     const resp=await fetch(TRADER_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
     const data=await resp.json();
@@ -1472,12 +1476,13 @@ function PriceChart({candles,gammaFlip,callWall,putWall,position,isPremarket,cal
   const openIdx=candles.findIndex(c=>c.isOpen);
   const tli=candles.reduce((a,c,i)=>{if(i%20===0||i===candles.length-1)a.push(i);return a;},[]);
   const hc=hov!=null&&hov>=0&&hov<candles.length?candles[hov]:null;
+  const pathFilled=candles.some(c=>String(c.quoteSource||"").includes("PATH_FILL")||String(c.marketSource||"").includes("PROJECTION"));
   return(
     <div>
       <div style={{background:"#141920",borderBottom:"1px solid #1a2030",padding:"4px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{fontSize:9,color:isPremarket?"#f0c040":"#4a5568"}}>{isPremarket?"PREMARKET":"PRICE"}</span>
         <span style={{fontSize:11,fontWeight:700,color:isPremarket?"#f0c040":"#00d4a8",fontFamily:"monospace"}}>{candles.length>0?candles[candles.length-1].t:"--:--"} ET</span>
-        <button onClick={()=>setFitDay(f=>!f)} style={{fontSize:7,color:fitDay?"#00d4a8":"#4a5568",background:"none",border:`1px solid ${fitDay?"#00d4a8":"#1a2030"}`,borderRadius:2,padding:"1px 5px",cursor:"pointer"}}>{fitDay?"FULL DAY":"ZOOM"}</button>
+        <button onClick={()=>setFitDay(f=>!f)} style={{fontSize:7,color:fitDay?"#00d4a8":"#4a5568",background:"none",border:`1px solid ${fitDay?"#00d4a8":"#1a2030"}`,borderRadius:2,padding:"1px 5px",cursor:"pointer"}}>{fitDay?"FULL DAY":"ZOOM"}</button>{pathFilled&&<span title="Replay includes causal path-filled one-minute values between native observations" style={{fontSize:7,color:T.yellow,border:`1px solid ${T.yellow}55`,padding:"1px 4px",borderRadius:2}}>1M PATH-FILLED</span>}
         <span style={{fontSize:9,color:"#4a5568"}}>{hc?`${hc.t} $${hc.spySpot.toFixed(2)}`:"drag"}</span>
       </div>
       <div ref={ref} style={{overflow:"hidden",cursor:drag?"grabbing":"grab",touchAction:"none",userSelect:"none"}} onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up} onTouchStart={down} onTouchMove={move} onTouchEnd={up}>
@@ -1755,7 +1760,7 @@ export default function App(){
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
   const journalR=useRef([]),aiSessionMemoryR=useRef(createAiSessionMemory()),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
   const contextMemoryR=useRef(createContextMemory());
-  const thoughtSessionIdR=useRef(`gcdt-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
+  const thoughtSessionIdR=useRef(`firstsignal-sim-v1-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
   const cognitionQueueR=useRef([]),cognitionRunningR=useRef(false),cognitionSeqR=useRef(0);
   const metacognitionR=useRef(createMetacognitionState());
   const dataHealthR=useRef({state:"UNKNOWN"}),transmissionR=useRef({state:"UNKNOWN",failedTicks:0}),lastCognitionStateR=useRef(null);
@@ -1884,12 +1889,12 @@ export default function App(){
       prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;
     }
     const tradeCutoffPassed=(m.h*60+m.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M);
-    if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"15:45",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);addJournal("15:45","DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 16:15 ET.");}
+    if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(15,45),action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);addJournal(fmt.time(15,45),"DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 4:15 PM ET.");}
     if(m.h>SESSION_END_H||(m.h===SESSION_END_H&&m.m>=SESSION_END_M)){
-      setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current})}).catch(()=>{});return;
+      setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
-    const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,netGexSpx:m.netGexSpx,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false};
+    const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,netGexSpx:m.netGexSpx,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false,quoteSource:m.quoteSource||"UNKNOWN",marketSource:m.marketSource||"UNKNOWN"};
     candR.current=[...candR.current.slice(-450),c];setCandles([...candR.current]);
     pinHistR.current=[...pinHistR.current.slice(-14),m.gexInfluence||0.1];
     const side=m.spySpot>=m.gammaFlip?'ABOVE':'BELOW';
@@ -1903,7 +1908,7 @@ export default function App(){
     const priorBrain=marketBrainR.current,nextBrain=updateMarketBrain(m,candR.current,priorBrain);marketBrainR.current=nextBrain;setMarketBrain(nextBrain);
     if(nextBrain.active!==priorBrain.active||Math.abs(nextBrain.bullPressure-priorBrain.bullPressure)>=8||Math.abs(nextBrain.bearPressure-priorBrain.bearPressure)>=8||(!priorBrain.entryReady&&nextBrain.entryReady))addJournal(c.t,`MARKET_BRAIN ${nextBrain.summary}${nextBrain.entryReady?` | ${nextBrain.entryReason}`:""}`);
     sessionTickData.current.push({tick:tickR.current,t:c.t,spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,div:m.itsSPX-m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,iv:m.iv,gexInf:m.gexInfluence||0.1,netGex:m.netGex,conviction:confR.current.score});
-    const qaSnapshot={sessionId:thoughtSessionIdR.current,buildId:BUILD_ID,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,time:c.t,running:true,balance:balR.current,position:posR.current?{side:posR.current.isCall?"CALL":"PUT",strike:posR.current.strike,entry:posR.current.entry,current:posR.current.current,entryTick:posR.current.entryTick}:null,market:{spy:m.spySpot,spx:m.spxSpot,gexSpy:m.netGex,gexSpx:m.netGexSpx,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accelerator:m.accelerator,fep:m.fep,quoteSource:m.quoteSource||"MODELED",synthData:!!m.synthData},intent:tradeIntentR.current,dataHealth:dataHealthR.current,transmission:transmissionR.current,reliability:reliabilityRates(reliabilityR.current),recentTrades:logR.current.slice(-4),recentJournal:journalR.current.slice(-8),recentMindset:mindR.current.slice(-5)};
+    const qaSnapshot={sessionId:thoughtSessionIdR.current,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,time:c.t,running:true,balance:balR.current,position:posR.current?{side:posR.current.isCall?"CALL":"PUT",strike:posR.current.strike,entry:posR.current.entry,current:posR.current.current,entryTick:posR.current.entryTick,entrySpot:posR.current.entrySpot,currentSpot:m.spySpot}:null,market:{spy:m.spySpot,spx:m.spxSpot,gexSpy:m.netGex,gexSpx:m.netGexSpx,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accelerator:m.accelerator,fep:m.fep,quoteSource:m.quoteSource||"MODELED",marketSource:m.marketSource||"UNKNOWN",synthData:!!m.synthData},intent:tradeIntentR.current,dataHealth:dataHealthR.current,transmission:transmissionR.current,reliability:reliabilityRates(reliabilityR.current),recentTrades:logR.current.slice(-4),recentJournal:journalR.current.slice(-8),recentMindset:mindR.current.slice(-5)};
     fetch("http://127.0.0.1:8766/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(qaSnapshot)}).catch(()=>{});    const np=computeProbs(m,candR.current),nc=computeConf(m,np);
     const contextHierarchy=computeItsHierarchy(m,candR.current,contextMemoryR.current); contextMemoryR.current=contextHierarchy.memory;
     const flowLens=computeFlowLens(m.orderFlow);
@@ -2098,7 +2103,7 @@ export default function App(){
             // with zero record. Now every rejected fire is logged so it's visible, not vanished.
             if(balR.current<=1){addM({t:ts,mindset:"account depleted",reasoning:`Fired ${dec.decision} but account equity is depleted — no more trades this session.`,decision:"WAIT",score:confR.current.score,edgeState:"ACCOUNT_ZERO",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — ACCOUNT_ZERO.`);}
             else if(posR.current){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} but already in a position — decision/state mismatch, ignored.`,decision:"WAIT",score:confR.current.score,edgeState:"MISFIRE",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — POSITION_ALREADY_OPEN.`);}
-            else if((currentMarket.h*60+currentMarket.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M)){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} at/after the 15:45 ET default 0DTE cutoff — blocked while observation continues through 16:15.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — DEFAULT_0DTE_CUTOFF_15_45.`);}
+            else if((currentMarket.h*60+currentMarket.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M)){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} at/after the 3:45 PM ET default 0DTE cutoff — blocked while observation continues through 4:15 PM.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — DEFAULT_0DTE_CUTOFF_15_45.`);}
             else if(mLn<15){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} inside final theta window (${mLn}min left) — blocked by no-entry rule.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — FINAL_THETA_WINDOW ${mLn}min.`);}
             else if(!executionMarket.isTradeable){addM({t:ts,mindset:dec.mindset||"—",reasoning:`Fired ${dec.decision} while premarket/untradeable — blocked.`,decision:"WAIT",score:confR.current.score,edgeState:"ENTRY_BLOCKED",confTrend:"—"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} — MARKET_NOT_TRADEABLE.`);}
             else if(snapshotIntent?.blockers?.some(x=>/DATA_STALE_OR_NONINFORMATIVE|SIGNAL_TO_PRICE_TRANSMISSION_FAILED|UNRESOLVED_OPPOSITE_FORECAST|DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE/.test(x))){addM({t:ts,mindset:"metacognitive veto",reasoning:`Entry blocked by ${snapshotIntent.blockers.filter(x=>/DATA_STALE|TRANSMISSION_FAILED|UNRESOLVED_OPPOSITE|DRAWDOWN_REVIEW/.test(x)).join(", ")}.`,decision:"WAIT",score:confR.current.score,edgeState:"METACOGNITIVE_GATE",confTrend:"DECAYING"});addJournal(ts,`ENTRY_BLOCKED ${dec.decision} ? METACOGNITIVE_GATE ${snapshotIntent.blockers.join(" | ")}.`);}
@@ -2216,7 +2221,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
-    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`gcdt-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;fetch("http://127.0.0.1:8766/session/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,mode,label})}).catch(()=>{});const aiBlindLabel=mode==="replay"?"BLIND_REPLAY_SESSION":label;const freshAiMemory={...createAiSessionMemory(aiBlindLabel),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
+    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`firstsignal-sim-v1-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;fetch("http://127.0.0.1:8766/session/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,mode,label,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});const aiBlindLabel=mode==="replay"?"BLIND_REPLAY_SESSION":label;const freshAiMemory={...createAiSessionMemory(aiBlindLabel),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];cognitionQueueR.current=[];cognitionRunningR.current=false;cognitionSeqR.current=0;
@@ -2250,8 +2255,8 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     if(!engR.current)return;clearInterval(ivR.current);setRunning(false);
     const eng=engR.current;let m=eng.peek();
     while(!((m.h>SESSION_END_H)||(m.h===SESSION_END_H&&m.m>=SESSION_END_M))){m=eng.tick();tickR.current++;const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m),octx=optionCtx(m,candR.current,optionMemoryR.current);if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};}}
-    if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:"16:00",action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
-    setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current})}).catch(()=>{});
+    if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(16,0),action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
+    setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});
     setTimeout(()=>saveSessionRef.current?.(),0);
   },[]);
 
@@ -2309,12 +2314,12 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
   const replayQualityColor=selectedReplayQuality.level==="GREEN"?T.accent:selectedReplayQuality.level==="YELLOW"?T.yellow:T.red;
 if(screen==="home")return(
     <div style={{background:T.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"monospace"}}>
-      <div style={{fontSize:9,color:T.muted,letterSpacing:"0.2em",marginBottom:8}}>FIRSTSIGNAL SIM v1</div>
-      <div style={{fontSize:26,fontWeight:700,color:T.accent,marginBottom:4}}>FirstSignal Sim</div>
+      <div style={{fontSize:9,color:T.muted,letterSpacing:"0.2em",marginBottom:8}}>FIRSTSIGNAL SIM V1</div>
+      <div style={{fontSize:26,fontWeight:700,color:T.accent,marginBottom:4}}>FirstSignal Sim V1</div>
       <div style={{fontSize:9,color:T.muted,marginBottom:28,textAlign:"center",opacity:0.6}}>Regime-aware SPY 0DTE research engine</div>
       {resumeAvailable&&<button onClick={resumeSession} style={{width:"100%",maxWidth:280,padding:"11px 0",background:T.yellowDim,color:T.yellow,border:`1px solid ${T.yellow}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:"pointer",marginBottom:10}}>RESUME SESSION ↩</button>}
       <div style={{width:"100%",maxWidth:280,marginBottom:16}}>
-        <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION · v26 AIR-GAP</div>
+        <div style={{fontSize:9,color:T.muted,marginBottom:8,textAlign:"center",letterSpacing:"0.1em"}}>NEW SESSION | BUILD {BUILD_SEQUENCE}</div>
         <select value={selectedReplayDate} disabled={replayLoading} onChange={e=>{setSelectedReplayDate(e.target.value);setReplayLoadError("");}} style={{width:"100%",marginBottom:8,padding:"8px 10px",background:T.surface,color:T.text,border:`1px solid ${T.border}`,borderRadius:6,fontFamily:"monospace",fontSize:10,opacity:replayLoading?0.6:1}}>
           {AVAILABLE_REPLAY_DATES.map(d=>{const q=replayQualityFor(d),data=replayMetaFor(d);return <option key={d} value={d}>{q.level==="GREEN"?"●":q.level==="YELLOW"?"▲":"■"} {data?.label||d} · {q.label}</option>;})}
         </select>
@@ -2415,7 +2420,7 @@ if(screen==="home")return(
 
   return(
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"monospace",color:T.text,display:"flex",flexDirection:"column"}}>
-      <div style={{position:"fixed",top:10,right:10,zIndex:9999,display:"flex",alignItems:"center",gap:7,padding:"6px 10px",background:"#0e1117ee",border:`1px solid ${qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}88`,borderRadius:999,boxShadow:"0 4px 18px #0008",cursor:"default"}} title={`FirstSignal QA Agent · ${qaFolder}`}>
+      <div style={{position:"fixed",top:10,right:10,zIndex:9999,display:"flex",alignItems:"center",gap:7,padding:"6px 10px",background:"#0e1117ee",border:`1px solid ${qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}88`,borderRadius:999,boxShadow:"0 4px 18px #0008",cursor:"default"}} title={`FirstSignal Sim V1 QA Agent | ${qaFolder}`}>
         <span style={{width:7,height:7,borderRadius:"50%",background:qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:qaStatus.startsWith("OFFLINE")?T.muted:T.accent,boxShadow:qaStatus==="ANALYZING"?`0 0 9px ${T.yellow}`:`0 0 7px ${T.accent}`}}/>
         <span style={{fontSize:8,fontWeight:700,color:qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}}>QA {qaStatus}</span>
       </div>
@@ -2423,7 +2428,7 @@ if(screen==="home")return(
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:running?T.accent:done?T.muted:T.yellow,boxShadow:running?`0 0 6px ${T.accent}`:"none"}}/>
-            <span style={{fontSize:9,fontWeight:700,color:T.accent}}>FIRSTSIGNAL SIM v1 · {BUILD_ID}</span>
+            <span style={{fontSize:9,fontWeight:700,color:T.accent}}>{PRODUCT_NAME.toUpperCase()} {PRODUCT_VERSION} · {BUILD_ID}</span>
             {isPremarket&&<span style={{fontSize:7,color:T.yellow,border:`1px solid ${T.yellow}40`,padding:"1px 4px",borderRadius:2}}>PRE</span>}
             {mkt?.synthData&&<span style={{fontSize:7,color:T.purple,border:`1px solid ${T.purple}40`,padding:"1px 4px",borderRadius:2}}>CHAIN SYNTH</span>}
             {thinking&&<span style={{fontSize:9,color:T.yellow}}>◈</span>}
@@ -2452,7 +2457,7 @@ if(screen==="home")return(
       </div>
 
       {pos&&<div style={{margin:"6px 14px 0",padding:"7px 12px",background:posPnl>=0?T.accentDim:T.redDim,border:`1px solid ${posPnl>=0?T.accent:T.red}40`,borderRadius:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div><div style={{fontSize:8,color:T.muted}}>OPEN · {pos.entryTime}</div><div style={{fontSize:12,fontWeight:700}}>{pos.strike}{pos.isCall?"C":"P"} · ${pos.entry.toFixed(2)}</div></div>
+        <div><div style={{fontSize:8,color:T.muted}}>OPEN · {pos.entryTime}</div><div style={{fontSize:12,fontWeight:700}}>{pos.strike}{pos.isCall?"C":"P"} · ${pos.entry.toFixed(2)}</div><div style={{fontSize:8,color:T.muted,marginTop:2}}>SPY ${mkt?.spySpot?.toFixed(2)??"—"} · entry ${pos.entrySpot?.toFixed(2)??"—"} · Δ {mkt&&pos.entrySpot!=null?`${mkt.spySpot-pos.entrySpot>=0?"+":""}${(mkt.spySpot-pos.entrySpot).toFixed(2)}`:"—"}</div></div>
         <div style={{textAlign:"right"}}><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>${pos.current.toFixed(2)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)} · {posDollar>=0?"+":""}{fmt.bal(posDollar)}</div></div>
       </div>}
 
@@ -2507,12 +2512,12 @@ if(screen==="home")return(
         {mkt&&<details open style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:"9px 12px"}}>
           <summary style={{fontSize:9,color:T.purple,letterSpacing:"0.1em",cursor:"pointer"}}>AI THOUGHTS JOURNAL · {thoughtSync} · {aiSessionMemory.entries?.length||0} NOTES</summary>
           <pre style={{whiteSpace:"pre-wrap",fontSize:9,lineHeight:1.65,color:T.text,maxHeight:320,overflowY:"auto",margin:"10px 0 8px",fontFamily:"Consolas, monospace"}}>{aiMemoryText(aiSessionMemory)}{liveThought?`\n\n[WRITING NOW]\n${liveThought}▌`:""}</pre>
-          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`gcdt-ai-thoughts-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
+          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`firstsignal-sim-v1-ai-thoughts-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
         </details>}
 
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${qaReports.at(-1)?.level==="RED"?T.red:qaReports.at(-1)?.level==="YELLOW"?T.yellow:T.accent}55`,margin:"0 14px 8px",padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>SIM QA AGENT</span>
+            <span style={{fontSize:9,color:T.muted,letterSpacing:"0.1em"}}>FIRSTSIGNAL SIM V1 QA AGENT</span>
             <span style={{fontSize:8,color:qaStatus.includes("APPROVAL")?T.red:qaStatus==="ANALYZING"?T.yellow:T.accent}}>{qaStatus}</span>
           </div>
           <div style={{fontSize:7,color:T.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",marginBottom:6}} title={qaFolder}>SAVES TO: {qaFolder}</div>
@@ -2522,7 +2527,7 @@ if(screen==="home")return(
             return <div key={r.id} style={{marginBottom:7,padding:"7px 9px",background:T.surface2,borderLeft:`3px solid ${color}`,borderRadius:4}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:8}}><span style={{fontSize:9,color,fontWeight:700}}>{r.level} · {r.title}</span><span style={{fontSize:7,color:T.muted}}>{r.t}</span></div>
               <div style={{fontSize:8,color:T.text,marginTop:3,lineHeight:1.45}}>{r.summary}</div>
-              <div style={{fontSize:7,color:T.muted,marginTop:3}}>{r.category} · confidence {Math.round(r.confidence||0)}% · {r.approval_required?"APPROVAL REQUIRED":"NO APPROVAL"}</div>
+              <div style={{fontSize:7,color:T.muted,marginTop:3}}>{r.category} · confidence {Math.round((r.confidence||0)*100)}% · {r.approval_required?"APPROVAL REQUIRED":"NO APPROVAL"}</div>
               {r.suggested_action&&<div style={{fontSize:8,color,marginTop:4}}>NEXT: {r.suggested_action}</div>}
             </div>;
           })}

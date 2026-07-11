@@ -83,7 +83,7 @@ assert.match(agentMain, /snapshot\.tick - lastAnalyzedTick >= 20/);
 assert.match(agentMain, /COOLDOWN: GEMINI RATE LIMIT/);
 assert.match(agentMain, /function completeSession/);
 assert.match(agentMain, /state: 'COMPLETED'/);
-assert.doesNotMatch(agentMain, /session\/end[^\n]+resetSession\(null\)/);
+assert.match(agentMain, /if \(!currentSessionId\) resetSession\(null\)/);
 const viteConfig = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8');
 assert.match(viteConfig, /firstsignal-local-live-token/);
 assert.match(viteConfig, /authTokens\.create/);
@@ -203,3 +203,16 @@ assert.ok(new Set(july9.snapshots.filter(x => x.time >= '12:00').map(x => x.spyS
 
 console.log('FirstSignal strategy acceptance tests passed');
 
+
+
+// FirstSignal Sim V1 migration assertions
+assert.match(app, /const PRODUCT_NAME = "FirstSignal Sim"/);
+assert.match(app, /const PRODUCT_VERSION = "V1"/);
+assert.match(app, /firstsignal-sim-v1\.1-20260711/);
+assert.match(app, /clock12=/);
+assert.match(app, /1M PATH-FILLED/);
+assert.match(app, /productVersion:PRODUCT_VERSION/);
+assert.match(agentMain, /versionMemoryPath/);
+assert.match(agentMain, /sessionFolder\(\)/);
+assert.match(agentMain, /Version assessment:/);
+assert.match(agentMain, /FirstSignal Sim V1 Agent Reports/);

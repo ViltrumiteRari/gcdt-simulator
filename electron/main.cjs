@@ -70,7 +70,7 @@ function resetSession(sessionId, meta = {}) {
   quotaBlocked = false;
   recentFingerprints.clear();
   currentStatus = currentSessionId ? { state: 'WATCHING', sessionId: currentSessionId, replayDate: meta.replayDate || null } : { state: 'IDLE' };
-  if (currentSessionId) addActivity('SESSION', `Started ${currentSessionId}${meta.replayDate ? ` · ${meta.replayDate}` : ''}`);
+  if (currentSessionId) addActivity('SESSION', `Started ${currentSessionId}${meta.replayDate ? ` ï¿½ ${meta.replayDate}` : ''}`);
   else refreshTray();
 }
 
@@ -88,10 +88,14 @@ function isDuplicateReport(report, tick) {
   return previousTick != null && tick - previousTick < 90;
 }
 
+function positionIdentity(position) {
+  if (!position) return 'FLAT';
+  return [position.side || '', position.strike || '', position.entryTick ?? '', position.entry ?? ''].join(':');
+}
 function inspectContext(windowSize = 40, includePriorReports = true) {
   const recent = events.slice(-Math.max(1, Math.min(windowSize, 200)));
   const first = recent[0] || {}; const last = recent.at(-1) || {};
-  return { recentEvents: recent, priorReports: includePriorReports ? reports.slice(-10) : [], delta: { ticks: (last.tick ?? 0) - (first.tick ?? 0), balance: (last.balance ?? 0) - (first.balance ?? 0), positionChanged: JSON.stringify(first.position || null) !== JSON.stringify(last.position || null), intentChanged: first.intent?.action !== last.intent?.action, dataHealthChanged: first.dataHealth?.state !== last.dataHealth?.state } };
+  return { recentEvents: recent, priorReports: includePriorReports ? reports.slice(-10) : [], delta: { ticks: (last.tick ?? 0) - (first.tick ?? 0), balance: (last.balance ?? 0) - (first.balance ?? 0), positionChanged: positionIdentity(first.position) !== positionIdentity(last.position), intentChanged: first.intent?.action !== last.intent?.action, dataHealthChanged: first.dataHealth?.state !== last.dataHealth?.state } };
 }
 
 async function chooseFolder() {
@@ -145,7 +149,7 @@ function startServer() {
         const prior = events.at(-1);
         events = [...events.slice(-499), snapshot];
         const critical = snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
-        const positionChanged = JSON.stringify(prior?.position || null) !== JSON.stringify(snapshot.position || null);
+        const positionChanged = positionIdentity(prior?.position) !== positionIdentity(snapshot.position);
         const periodic = !prior || snapshot.tick - lastAnalyzedTick >= 45;
         const meaningful = critical || positionChanged || periodic;
         if (meaningful && !analyzing && !quotaBlocked) {

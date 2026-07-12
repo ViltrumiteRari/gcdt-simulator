@@ -3,10 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { createRunner } = require('./qa-orchestrator.cjs');
+const { createMeetingRunner, localMeetingName } = require('./meeting-orchestrator.cjs');
 
 let win;
 let tray;
 let runQa;
+let meetingRunner;
 let server;
 let reports = [];
 let events = [];
@@ -18,6 +20,7 @@ let currentSessionId = null;
 let currentSessionMeta = {};
 let quotaBlocked = false;
 let cooldownUntil = 0;
+let currentMeeting = { state:'IDLE', name:null, transcript:[], folder:null, summary:null };
 const recentFingerprints = new Map();
 
 const settingsPath = () => path.join(app.getPath('userData'), 'agent-settings.json');
@@ -55,7 +58,7 @@ function trayIcon(state = 'WATCHING') {
     { type: 'separator' },
     { label: 'Quit Agent', click: () => app.quit() },
   ]));
-  win?.webContents.send('agent:update', { status: currentStatus, sessionId:currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, settings: loadSettings() });
+  win?.webContents.send('agent:update', { status: currentStatus, sessionId:currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:currentMeeting, settings: loadSettings() });
 }
 function addActivity(kind, message) {
   activities = [...activities.slice(-149), { id: 'ACT-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), at: new Date().toISOString(), kind, message }];
@@ -63,6 +66,8 @@ function addActivity(kind, message) {
 }
 
 function resetSession(sessionId, meta = {}) {
+  if (currentMeeting.state === 'RUNNING') meetingRunner?.stop();
+  currentMeeting = { state:'IDLE', name:null, transcript:[], folder:null, summary:null };
   currentSessionId = sessionId || null;
   currentSessionMeta = currentSessionId ? { ...meta, sessionId: currentSessionId, startedAt: new Date().toISOString() } : {};
   events = [];
@@ -93,8 +98,18 @@ function completeSession(meta = {}) {
     buildSequence: Number(currentSessionMeta.buildSequence)||0,
     productVersion: currentSessionMeta.productVersion || null,
   };
+  try { fs.writeFileSync(path.join(sessionFolder(), 'session.json'), JSON.stringify({ ...currentSessionMeta, sessionId:currentSessionId, status:currentStatus, eventCount:events.length, reportCount:reports.length }, null, 2)); } catch {}
   addActivity('SESSION', `Completed ${completedSessionId || 'session'} with ${reports.length} findings across ${events.length} events.`);
 }
+
+function emitMeeting(turn) {
+  currentMeeting = { ...currentMeeting, transcript:[...(currentMeeting.transcript||[]).slice(-199), turn] };
+  if (turn.status) currentMeeting.state = turn.status;
+  if (turn.folder) currentMeeting.folder = turn.folder;
+  if (turn.summary) currentMeeting.summary = turn.summary;
+  addActivity('MEETING', `${turn.speaker}: ${turn.message}`);
+}
+function meetingStatePayload() { return currentMeeting; }
 
 function safeName(value) { return String(value || 'session').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'session'; }
 function sessionFolder() {
@@ -102,6 +117,25 @@ function sessionFolder() {
   const folder = path.join(reportFolder(), day, safeName(currentSessionId));
   fs.mkdirSync(folder, { recursive: true });
   return folder;
+}
+function restoreLatestCompletedSession() {
+  try {
+    const files=[]; const walk=d=>{for(const x of fs.readdirSync(d,{withFileTypes:true})){const f=path.join(d,x.name);if(x.isDirectory())walk(f);else if(x.name==='session.json')files.push(f);}};
+    walk(reportFolder());
+    files.sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);
+    for(const file of files){
+      const meta=JSON.parse(fs.readFileSync(file,'utf8').replace(/^\uFEFF/,''));
+      if(!meta.sessionId)continue;
+      const folder=path.dirname(file), reportFile=path.join(folder,'reports.jsonl'), eventFile=path.join(folder,'events.jsonl');
+      const restoredReports=fs.existsSync(reportFile)?fs.readFileSync(reportFile,'utf8').split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x.replace(/^\uFEFF/,''))):[];
+      if(!restoredReports.length)continue;
+      const restoredEvents=fs.existsSync(eventFile)?fs.readFileSync(eventFile,'utf8').split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x.replace(/^\uFEFF/,''))).slice(-500):[];
+      currentSessionId=meta.sessionId; currentSessionMeta={...meta,startedAt:meta.startedAt||fs.statSync(file).birthtime.toISOString()}; reports=restoredReports.slice(-100); events=restoredEvents; activities=[];
+      currentStatus={state:'COMPLETED',sessionId:currentSessionId,replayDate:meta.replayDate||null,eventCount:Number(meta.eventCount)||events.length,reportCount:reports.length,buildId:meta.buildId||null,buildSequence:Number(meta.buildSequence)||0,productVersion:meta.productVersion||null};
+      addActivity('SESSION',`Restored completed session ${currentSessionId} for review.`); return true;
+    }
+  } catch(error) { console.error('RESTORE_COMPLETED_SESSION_FAILED',error); }
+  return false;
 }
 function versionMemoryPath() { return path.join(reportFolder(), 'version-memory.json'); }
 function loadVersionMemory() { try { return JSON.parse(fs.readFileSync(versionMemoryPath(), 'utf8')); } catch { return { productName:'FirstSignal Sim', productVersion:'V1', builds:{} }; } }
@@ -221,19 +255,44 @@ async function readBody(req) {
 function startServer() {
   server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return json(res, 204, {});
-    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, settings: loadSettings() });
+    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), settings: loadSettings() });
     if (req.url === '/session/start' && req.method === 'POST') { const body = await readBody(req); resetSession(body.sessionId, body); return json(res, 200, { ok: true, sessionId: currentSessionId }); }
     if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!currentSessionId) resetSession(null); else if (!body.sessionId || body.sessionId === currentSessionId) completeSession(body); return json(res, 200, { ok: true, status: currentStatus }); }
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
     if (req.url === '/open-notebook' && req.method === 'POST') { await shell.openPath(path.join(sessionFolder(), 'notebook.txt')); return json(res, 200, { ok: true }); }
     if (req.url === '/choose-folder' && req.method === 'POST') return json(res, 200, await chooseFolder());
+    if (req.url === '/meeting/start' && req.method === 'POST') {
+      const body = await readBody(req);
+      if (currentMeeting.state === 'RUNNING') return json(res, 409, { error:'MEETING_ALREADY_RUNNING', meeting:currentMeeting });
+      if (!currentSessionId || !reports.length) return json(res, 409, { error:'COMPLETED_SESSION_WITH_FINDINGS_REQUIRED' });
+      const name = String(body.name || '').trim();
+      currentMeeting = { state:'RUNNING', name, transcript:[], folder:null, summary:null, startedAt:new Date().toISOString() };
+      refreshTray();
+      meetingRunner.run({ name, reports:[...reports], events:[...events], sessionMeta:{...currentSessionMeta,status:currentStatus}, sessionFolder:sessionFolder() }).then(result => {
+        currentMeeting = { ...currentMeeting, state:result.status, name:result.meetingName, folder:result.folder, summary:result.summary, endedAt:new Date().toISOString() };
+        refreshTray();
+      });
+      return json(res, 202, { ok:true, meeting:currentMeeting });
+    }
+    if (req.url === '/meeting/stop' && req.method === 'POST') {
+      if (currentMeeting.state !== 'RUNNING') return json(res, 409, { error:'NO_RUNNING_MEETING', meeting:currentMeeting });
+      meetingRunner.stop();
+      currentMeeting = { ...currentMeeting, state:'STOPPING' };
+      refreshTray();
+      return json(res, 202, { ok:true, meeting:currentMeeting });
+    }
+    if (req.url === '/meeting/open' && req.method === 'POST') {
+      if (!currentMeeting.folder) return json(res, 404, { error:'NO_MEETING_FOLDER' });
+      await shell.openPath(currentMeeting.folder); return json(res, 200, { ok:true });
+    }
     if ((req.url === '/event' || req.url === '/observe') && req.method === 'POST') {
       try {
         const snapshot = await readBody(req);
         if (!snapshot.sessionId) return json(res, 409, { error: 'SESSION_ID_REQUIRED' });
-        if (snapshot.sessionId !== currentSessionId) resetSession(snapshot.sessionId, { replayDate:snapshot.replayDate, productName:snapshot.productName, productVersion:snapshot.productVersion, buildId:snapshot.buildId, label:snapshot.sessionLabel, mode:snapshot.sessionMode });
+        if (snapshot.sessionId !== currentSessionId) resetSession(snapshot.sessionId, { replayDate:snapshot.replayDate, productName:snapshot.productName, productVersion:snapshot.productVersion, buildId:snapshot.buildId, buildSequence:snapshot.buildSequence, label:snapshot.sessionLabel, mode:snapshot.sessionMode });
         const prior = events.at(-1);
         events = [...events.slice(-499), snapshot];
+        try { fs.appendFileSync(path.join(sessionFolder(), 'events.jsonl'), JSON.stringify(compactEvent(snapshot)) + '\n'); } catch {}
         const critical = snapshot.dataHealth?.state === 'FAILED' || snapshot.transmission?.state === 'FAILED';
         const positionChanged = positionIdentity(prior?.position) !== positionIdentity(snapshot.position);
         const periodic = !prior || snapshot.tick - lastAnalyzedTick >= 20;
@@ -279,18 +338,20 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   runQa = await createRunner({ activity: addActivity, inspect: inspectContext });
+  meetingRunner = createMeetingRunner({ emit: emitMeeting });
+  restoreLatestCompletedSession();
   createWindow();
   startServer();
   tray = new Tray(trayIcon('WATCHING'));
-  currentStatus = { state: 'WATCHING' };
+  if (!currentSessionId) currentStatus = { state: 'WATCHING' };
   tray.on('double-click', () => { win.show(); win.focus(); });
   refreshTray();
   tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal Sim V1 QA Agent', content: 'WATCHING | FirstSignal Sim V1 observer is ready.' });
 });
-app.on('before-quit', () => { app.isQuitting = true; server?.close(); });
+app.on('before-quit', () => { app.isQuitting = true; meetingRunner?.stop(); server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
-ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, settings: loadSettings() }));
+ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), settings: loadSettings() }));
 ipcMain.handle('agent:choose-folder', () => chooseFolder());
 ipcMain.handle('agent:open-folder', () => shell.openPath(reportFolder()));
 ipcMain.handle('agent:open-notebook', () => {

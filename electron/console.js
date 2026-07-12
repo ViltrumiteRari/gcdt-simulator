@@ -18,6 +18,13 @@ function render(data) {
   const meta = data.sessionMeta || {};
   $('buildInfo').textContent = meta.buildId ? `${meta.productName || 'FirstSignal Sim'} ${meta.productVersion || 'V1'} | build ${meta.buildSequence || '?'} | ${meta.buildId} | ${meta.replayDate || 'session'}` : 'No active build';
   $('eventCount').textContent = `${data.eventCount || 0} live events received`;
+  const meeting=data.meeting||{state:'IDLE',transcript:[]};
+  $('meetingStatus').textContent = meeting.state==='IDLE' ? (state==='COMPLETED'?'Ready to review completed run':'Complete a run first') : `${meeting.state}${meeting.name?` · ${meeting.name}`:''}`;
+  $('startMeeting').disabled = meeting.state==='RUNNING'||meeting.state==='STOPPING'||state!=='COMPLETED';
+  $('stopMeeting').disabled = meeting.state!=='RUNNING';
+  $('openMeeting').disabled = !meeting.folder;
+  $('meetingTranscript').innerHTML=(meeting.transcript||[]).length?(meeting.transcript||[]).map(t=>`<div class="meeting-turn"><span class="meeting-speaker">${escapeHtml(t.speaker||'SYSTEM')}</span> ${escapeHtml(t.message||'')}</div>`).join(''):'<div class="meta">The observer will present each flagged case to the trader after you press Start Meeting.</div>';
+  $('meetingTranscript').scrollTop=$('meetingTranscript').scrollHeight;
   const activity = [...(data.activities || [])].reverse().slice(0,30);
   $('activity').innerHTML = activity.length ? activity.map(a => `<div class="activity-line"><span class="activity-kind">${escapeHtml(a.kind)}</span> | ${escapeHtml(a.message)}</div>`).join('') : '<div class="activity-line">Waiting for simulator events...</div>';
   const reports = [...(data.reports || [])].reverse();
@@ -33,3 +40,7 @@ $('openNotebook').onclick = () => window.agentConsole.openNotebook();
 $('changeFolder').onclick = async () => { await window.agentConsole.chooseFolder(); render(await window.agentConsole.getState()); };
 window.agentConsole.onUpdate(render);
 window.agentConsole.getState().then(render);
+
+$('startMeeting').onclick=async()=>{const name=$('meetingName').value.trim();const r=await fetch('http://127.0.0.1:8766/meeting/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name})});if(!r.ok){const j=await r.json().catch(()=>({}));alert(j.error||'Unable to start meeting');}};
+$('stopMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/stop',{method:'POST'});
+$('openMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/open',{method:'POST'});

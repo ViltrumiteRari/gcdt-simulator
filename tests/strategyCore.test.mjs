@@ -208,7 +208,7 @@ console.log('FirstSignal strategy acceptance tests passed');
 // FirstSignal Sim V1 migration assertions
 assert.match(app, /const PRODUCT_NAME = "FirstSignal Sim"/);
 assert.match(app, /const PRODUCT_VERSION = "V1"/);
-assert.match(app, /firstsignal-sim-v1\.1-20260711/);
+assert.match(app, /firstsignal-sim-v1\.2-20260712/);
 assert.match(app, /clock12=/);
 assert.match(app, /1M PATH-FILLED/);
 assert.match(app, /productVersion:PRODUCT_VERSION/);
@@ -216,3 +216,19 @@ assert.match(agentMain, /versionMemoryPath/);
 assert.match(agentMain, /sessionFolder\(\)/);
 assert.match(agentMain, /Version assessment:/);
 assert.match(agentMain, /FirstSignal Sim V1 Agent Reports/);
+
+const meetingMain = fs.readFileSync(new URL('../electron/main.cjs', import.meta.url), 'utf8');
+const meetingModel = fs.readFileSync(new URL('../electron/meeting-model.cjs', import.meta.url), 'utf8');
+const meetingOrchestrator = fs.readFileSync(new URL('../electron/meeting-orchestrator.cjs', import.meta.url), 'utf8');
+const meetingConsole = fs.readFileSync(new URL('../electron/console.html', import.meta.url), 'utf8');
+assert.match(meetingMain, /\/meeting\/start/);
+assert.match(meetingMain, /\/meeting\/stop/);
+assert.match(meetingMain, /events\.jsonl/);
+assert.match(meetingMain, /restoreLatestCompletedSession/);
+assert.match(meetingOrchestrator, /review-packet\.json/);
+assert.match(meetingOrchestrator, /dialogue\.jsonl/);
+assert.match(meetingOrchestrator, /transcript\.txt/);
+assert.match(meetingOrchestrator, /meeting-summary\.json/);
+assert.match(meetingModel, /MEETING_STOPPED/);
+assert.match(meetingConsole, /Start Meeting/);
+assert.match(meetingConsole, /Stop/);

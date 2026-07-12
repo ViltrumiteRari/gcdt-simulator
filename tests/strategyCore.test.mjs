@@ -232,3 +232,10 @@ assert.match(meetingOrchestrator, /meeting-summary\.json/);
 assert.match(meetingModel, /write_memo/);
 assert.match(meetingConsole, /Start Meeting/);
 assert.match(meetingConsole, /Stop/);
+
+const meetingNotebookHtml = fs.readFileSync(new URL('../electron/meeting-notebook.html', import.meta.url), 'utf8');
+const meetingNotebookJs = fs.readFileSync(new URL('../electron/meeting-notebook.js', import.meta.url), 'utf8');
+assert.match(meetingMain, /openMeetingNotebookWindow/);
+assert.match(meetingMain, /\/meeting\/notepad/);
+assert.match(meetingNotebookHtml, /Meeting Notebook/);
+assert.match(meetingNotebookJs, /750/);

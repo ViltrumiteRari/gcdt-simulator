@@ -9,6 +9,7 @@ let win;
 let tray;
 let runQa;
 let meetingRunner;
+let meetingNotebookWin;
 let server;
 let reports = [];
 let events = [];
@@ -102,10 +103,22 @@ function completeSession(meta = {}) {
   addActivity('SESSION', `Completed ${completedSessionId || 'session'} with ${reports.length} findings across ${events.length} events.`);
 }
 
+function openMeetingNotebookWindow() {
+  if (meetingNotebookWin && !meetingNotebookWin.isDestroyed()) {
+    meetingNotebookWin.show(); meetingNotebookWin.focus(); return;
+  }
+  meetingNotebookWin = new BrowserWindow({
+    width: 760, height: 760, minWidth: 520, minHeight: 420,
+    backgroundColor: '#07090c', show: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  meetingNotebookWin.loadFile(path.join(__dirname, 'meeting-notebook.html'));
+  meetingNotebookWin.on('closed', () => { meetingNotebookWin = null; });
+}
 function emitMeeting(turn) {
   currentMeeting = { ...currentMeeting, transcript:[...(currentMeeting.transcript||[]).slice(-199), turn] };
   if (turn.status) currentMeeting.state = turn.status;
-  if (turn.folder) currentMeeting.folder = turn.folder;
+  if (turn.folder) { currentMeeting.folder = turn.folder; openMeetingNotebookWindow(); }
   if (turn.summary) currentMeeting.summary = turn.summary;
   addActivity('MEETING', `${turn.speaker}: ${turn.message}`);
 }
@@ -261,7 +274,12 @@ function startServer() {
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
     if (req.url === '/open-notebook' && req.method === 'POST') { await shell.openPath(path.join(sessionFolder(), 'notebook.txt')); return json(res, 200, { ok: true }); }
     if (req.url === '/choose-folder' && req.method === 'POST') return json(res, 200, await chooseFolder());
-    if (req.url === '/meeting/start' && req.method === 'POST') {
+    if (req.url === '/meeting/notepad' && req.method === 'GET') {
+      const file = currentMeeting.folder ? path.join(currentMeeting.folder, 'shared-notepad.txt') : null;
+      let text = '';
+      try { if (file && fs.existsSync(file)) text = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''); } catch {}
+      return json(res, 200, { name:currentMeeting.name, state:currentMeeting.state, folder:currentMeeting.folder, text });
+    }    if (req.url === '/meeting/start' && req.method === 'POST') {
       const body = await readBody(req);
       if (currentMeeting.state === 'RUNNING') return json(res, 409, { error:'MEETING_ALREADY_RUNNING', meeting:currentMeeting });
       if (!currentSessionId || !reports.length) return json(res, 409, { error:'COMPLETED_SESSION_WITH_FINDINGS_REQUIRED' });
@@ -348,7 +366,7 @@ app.whenReady().then(async () => {
   refreshTray();
   tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal Sim V1 QA Agent', content: 'WATCHING | FirstSignal Sim V1 observer is ready.' });
 });
-app.on('before-quit', () => { app.isQuitting = true; meetingRunner?.stop(); server?.close(); });
+app.on('before-quit', () => { app.isQuitting = true; meetingRunner?.stop(); meetingNotebookWin?.destroy(); server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), settings: loadSettings() }));

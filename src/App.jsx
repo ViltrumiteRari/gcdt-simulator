@@ -1792,7 +1792,7 @@ export default function App(){
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t,entry}];setJournal([...journalR.current]);},[]);
 
   useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-200));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
-  useEffect(()=>{let alive=true;fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).catch(()=>{});const poll=()=>fetch("http://127.0.0.1:8766/status").then(r=>r.json()).then(x=>{if(!alive)return;setQaFolder(x.settings?.reportFolder||"Agent service connected");setQaStatus(x.status?.state||"WATCHING");if(x.reports)setQaReports(x.reports.slice(-20));}).catch(()=>alive&&setQaStatus("OFFLINE: START AGENT CONSOLE"));poll();const id=setInterval(poll,1000);return()=>{alive=false;clearInterval(id);};},[]);
+  useEffect(()=>{let alive=true;const poll=()=>fetch("http://127.0.0.1:8766/status").then(r=>r.json()).then(x=>{if(!alive)return;setQaFolder(x.settings?.reportFolder||"Agent service connected");setQaStatus(x.status?.state||"WATCHING");if(x.reports)setQaReports(x.reports.slice(-20));}).catch(()=>alive&&setQaStatus("OFFLINE: START AGENT CONSOLE"));poll();const id=setInterval(poll,1000);return()=>{alive=false;clearInterval(id);};},[]);
 
   useEffect(()=>{
     const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,archetypeId:archetypeIdR.current});}}
@@ -1892,7 +1892,7 @@ export default function App(){
     const tradeCutoffPassed=(m.h*60+m.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M);
     if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(15,45),action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);addJournal(fmt.time(15,45),"DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 4:15 PM ET.");}
     if(m.h>SESSION_END_H||(m.h===SESSION_END_H&&m.m>=SESSION_END_M)){
-      setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});return;
+      setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);setTimeout(()=>saveSessionRef.current?.(),0);return;
     }
     setMkt(m);setBal(balR.current);setGexInf(m.gexInfluence||0.1);
     const c={t:fmt.time(m.h,m.m),spySpot:m.spySpot,spxSpot:m.spxSpot,itsSPX:m.itsSPX,itsSPY:m.itsSPY,accel:m.accelerator,rawAccel:m.rawAccelerator??m.accelerator,fep:m.fep,ndf:m.ndf,gexInf:m.gexInfluence||0.1,netGex:m.netGex,netGexSpx:m.netGexSpx,gammaFlip:m.gammaFlip,callWall:m.callWall,putWall:m.putWall,isOpen:m.h===OPEN_H&&m.m===OPEN_M,synthData:m.synthData||false,quoteSource:m.quoteSource||"UNKNOWN",marketSource:m.marketSource||"UNKNOWN"};
@@ -2271,7 +2271,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     const eng=engR.current;let m=eng.peek();
     while(!((m.h>SESSION_END_H)||(m.h===SESSION_END_H&&m.m>=SESSION_END_M))){m=eng.tick();tickR.current++;const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m),octx=optionCtx(m,candR.current,optionMemoryR.current);if(posR.current&&m.isTradeable){const p0=posR.current,k=`${p0.isCall?'C':'P'}${p0.strike}`,np=priceOpt(m.spySpot,p0.strike,m.iv,mL,p0.isCall,{...octx,prev:optionMemoryR.current[k]});optionMemoryR.current[k]={price:np,peak:Math.max(optionMemoryR.current[k]?.peak||np,np)};posR.current={...posR.current,current:np};}}
     if(posR.current){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(16,0),action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar}];setTradeLog([...logR.current]);posR.current=null;setPos(null);}
-    setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});
+    setMkt(m);setBal(balR.current);setDone(true);storageSet("interrupted",null);
     setTimeout(()=>saveSessionRef.current?.(),0);
   },[]);
 
@@ -2297,8 +2297,11 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
       const finalizedSessions=[finalized,...sessions];setSessions(finalizedSessions);storageSet("sessions",finalizedSessions);
       const props=await generatePatchProposals(logR.current,mindR.current,[...journalR.current,{t:"END",entry:closing.private_reflection},{t:"HANDOFF",entry:closing.next_session_handoff}],{balance:balR.current,returnPct:r,trades:cl.length,wins:ws.length,label:sessionLabel,forecasts:metacognitionR.current.forecasts,tradeDiagnostics});if(props.length>0){setPatchProposals(props);setPatchIdx(0);setScreen("patch");}
     }catch(e){console.log("patch gen failed",e);}
-    finally{setThinking(false);finalizingR.current=false;}
-  },[sessions,sessionLabel,saved]);
+    finally{
+      await fetch("http://127.0.0.1:8766/session/end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE,reflectionComplete:!!metacognitionR.current.endSession})}).catch(()=>{});
+      setThinking(false);finalizingR.current=false;
+    }
+  },[sessions,sessionLabel,saved,selectedReplayDate]);
   saveSessionRef.current=saveSession;
 
   const handlePatch=useCallback((action,denyNote="")=>{

@@ -1825,7 +1825,18 @@ export default function App(){
     });
   },[addJournal]);
 
-  const doTick=useCallback(eng=>{
+  const resetPostExitState=useCallback((reason,market)=>{
+  const active=activeDecisionR.current;
+  if(active){active.cancelled=true;active.controller?.abort(`POSITION_CLOSED_${reason}`);clearTimeout(active.timeoutId);}
+  activeDecisionR.current=null;cognitionQueueR.current=[];cognitionRunningR.current=false;
+  thinkR.current=false;aiFreezeR.current=false;
+  const flatIntent={action:"WAIT",direction:null,setupQuality:0,executionReadiness:0,readiness:0,confidence:0,contract:null,blockers:[`POSITION_CLOSED_${reason}`],supportingFactors:["No open position"],source:"POST_EXIT_RESET",positionMode:false,episodeKey:null,resetTick:tickR.current};
+  tradeIntentR.current=flatIntent;setTradeIntentData(flatIntent);
+  setThinking(false);setLiveThought("");repeatWaitR.current=0;lastWaitReasonR.current="";lastMeaningfulAiKeyR.current="";
+  if(market)addJournal(fmt.time(market.h,market.m),`POST_EXIT_STATE_RESET ${reason}: position, intent, pending decision, and queued cognition cleared atomically.`);
+},[addJournal]);
+
+const doTick=useCallback(eng=>{
     const nowWall=Date.now();
     if(activeDecisionR.current&&nowWall-lastActiveWallR.current>45000){
       activeDecisionR.current.cancelled=true;
@@ -1885,12 +1896,12 @@ export default function App(){
         const why=spotFail?'SPOT_INVALIDATION':vehicleFailure?'VEHICLE_FAILURE':catastrophicLoss?'CATASTROPHIC_FLOOR':thesisHealth.hard?'THESIS_INVALIDATED_'+thesisHealth.invalidations.map(x=>x.key).join('+'):thesisHealth.softExit?'THESIS_DECAY_'+thesisHealth.invalidations.map(x=>x.key).join('+'):trailingProfit?'TRAILING_PROFIT':spotTarget?'SPOT_TARGET_PROFIT':`CONFIRMED_OPPOSITE_CONTROL_${oppositeCount}`;
         logR.current=[...logR.current,{t:fmt.time(m.h,m.m),action:`THESIS-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)} ${why}`,result:`${fmt.pct(optPnl)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:optPnl,dollarPnl:dollar,exitType:why,entrySpot:p.entrySpot,exitSpot:m.spySpot}];
         tradeMemoryR.current=recordTradeOutcome(tradeMemoryR.current,p,m,optPnl,why,tickR.current);
-        setTradeLog([...logR.current]);posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);if(activeDecisionR.current)activeDecisionR.current.cancelled=true;activeDecisionR.current=null;return;
+        setTradeLog([...logR.current]);posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);resetPostExitState(why,m);return;
       }
       prevCallWallR.current=m.callWall;prevPutWallR.current=m.putWall;
     }
     const tradeCutoffPassed=(m.h*60+m.m)>=(TRADE_CUTOFF_H*60+TRADE_CUTOFF_M);
-    if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(15,45),action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);addJournal(fmt.time(15,45),"DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 4:15 PM ET.");}
+    if(posR.current&&tradeCutoffPassed){const p=posR.current,size=p.size||balR.current,r=(p.current/p.entry-1)*100,dollar=size*r/100;balR.current=size*(p.current/p.entry);logR.current=[...logR.current,{t:fmt.time(15,45),action:`AUTO-CLOSE ${p.strike}${p.isCall?"C":"P"} ROBINHOOD 0DTE CUTOFF`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"DEFAULT_0DTE_CUTOFF_15_45"}];setTradeLog([...logR.current]);posR.current=null;setPos(null);setBal(balR.current);resetPostExitState("DEFAULT_0DTE_CUTOFF_15_45",m);addJournal(fmt.time(15,45),"DEFAULT 0DTE CUTOFF — position liquidated; market observation continues through 4:15 PM ET.");}
     if(m.h>SESSION_END_H||(m.h===SESSION_END_H&&m.m>=SESSION_END_M)){
       setBal(balR.current);setDone(true);setRunning(false);clearInterval(ivR.current);storageSet("interrupted",null);setTimeout(()=>saveSessionRef.current?.(),0);return;
     }
@@ -2078,7 +2089,7 @@ export default function App(){
             logR.current=[...logR.current,{t:ts,action:`AI-EXIT ${p.strike}${p.isCall?"C":"P"} @$${p.current.toFixed(2)}`,result:`${fmt.pct(r)} (${dollar>=0?"+":""}${fmt.bal(dollar)})`,pnl:r,dollarPnl:dollar,exitType:"AI_SELL"}];
             setTradeLog([...logR.current]);addJournal(ts,`AI_EXIT_AUTHORIZED ${fmt.pct(r)} — ${dec.reasoning||"thesis invalidated"}`);
             tradeMemoryR.current=recordTradeOutcome(tradeMemoryR.current,p,m,r,"AI_SELL",tickR.current);
-            posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);
+            posR.current=null;setPos(null);leadWrongTicksR.current=0;setBal(balR.current);resetPostExitState("AI_SELL",currentMarket);
           }
           else if(dec.decision==="BUY_CALL"||dec.decision==="BUY_PUT"){
             const isC=dec.decision==="BUY_CALL";
@@ -2159,7 +2170,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
         })
         .finally(()=>{clearTimeout(requestCtx.timeoutId);if(activeDecisionR.current?.id===requestCtx.id)activeDecisionR.current=null;if(requestCtx.freezeSim)aiFreezeR.current=false;thinkR.current=false;setThinking(false);setLiveThought("");});
     }
-  },[aiFreq,addM,addJournal,rules.approved,drainCognition]);
+  },[aiFreq,addM,addJournal,rules.approved,drainCognition,resetPostExitState]);
 
   useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>{if(!aiFreezeR.current)doTick(engR.current);},Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
 

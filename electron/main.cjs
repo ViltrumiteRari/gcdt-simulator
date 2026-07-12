@@ -4,11 +4,13 @@ const path = require('path');
 const http = require('http');
 const { createRunner } = require('./qa-orchestrator.cjs');
 const { createMeetingRunner, localMeetingName } = require('./meeting-orchestrator.cjs');
+const { createSupervisorService } = require('./supervisor-service.cjs');
 
 let win;
 let tray;
 let runQa;
 let meetingRunner;
+let supervisor;
 let meetingNotebookWin;
 let server;
 let reports = [];
@@ -268,7 +270,9 @@ async function readBody(req) {
 function startServer() {
   server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return json(res, 204, {});
-    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), settings: loadSettings() });
+    if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), supervisor:supervisor?.getState()||null, settings: loadSettings() });
+    if (req.url === '/supervisor/status' && req.method === 'GET') return json(res, 200, supervisor?.getState()||{state:'STARTING'});
+    if (req.url === '/supervisor/decision' && req.method === 'POST') { const body=await readBody(req); const item=supervisor?.decide(body.itemId, body.decision); return item?json(res,200,{ok:true,item}):json(res,404,{error:'BACKLOG_ITEM_NOT_FOUND'}); }
     if (req.url === '/session/start' && req.method === 'POST') { const body = await readBody(req); resetSession(body.sessionId, body); return json(res, 200, { ok: true, sessionId: currentSessionId }); }
     if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!currentSessionId) resetSession(null); else if (!body.sessionId || body.sessionId === currentSessionId) completeSession(body); return json(res, 200, { ok: true, status: currentStatus }); }
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
@@ -360,16 +364,18 @@ app.whenReady().then(async () => {
   restoreLatestCompletedSession();
   createWindow();
   startServer();
+  supervisor = createSupervisorService({ reportFolder, sessionFolder, snapshot:()=>({status:currentStatus,sessionId:currentSessionId,sessionMeta:currentSessionMeta,reports,meeting:currentMeeting}), activity:addActivity, emit:()=>refreshTray() });
+  supervisor.start();
   tray = new Tray(trayIcon('WATCHING'));
   if (!currentSessionId) currentStatus = { state: 'WATCHING' };
   tray.on('double-click', () => { win.show(); win.focus(); });
   refreshTray();
   tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal Sim V1 QA Agent', content: 'WATCHING | FirstSignal Sim V1 observer is ready.' });
 });
-app.on('before-quit', () => { app.isQuitting = true; meetingRunner?.stop(); meetingNotebookWin?.destroy(); server?.close(); });
+app.on('before-quit', () => { app.isQuitting = true; supervisor?.stop(); meetingRunner?.stop(); meetingNotebookWin?.destroy(); server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
-ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), settings: loadSettings() }));
+ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), supervisor:supervisor?.getState()||null, settings: loadSettings() }));
 ipcMain.handle('agent:choose-folder', () => chooseFolder());
 ipcMain.handle('agent:open-folder', () => shell.openPath(reportFolder()));
 ipcMain.handle('agent:open-notebook', () => {

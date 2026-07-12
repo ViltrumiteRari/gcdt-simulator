@@ -7,6 +7,7 @@ const { createMeetingRunner, localMeetingName } = require('./meeting-orchestrato
 const { createSupervisorService } = require('./supervisor-service.cjs');
 
 let win;
+let simulatorWin;
 let tray;
 let runQa;
 let meetingRunner;
@@ -273,6 +274,10 @@ function startServer() {
     if (req.url === '/status' && req.method === 'GET') return json(res, 200, { status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), supervisor:supervisor?.getState()||null, settings: loadSettings() });
     if (req.url === '/supervisor/status' && req.method === 'GET') return json(res, 200, supervisor?.getState()||{state:'STARTING'});
     if (req.url === '/supervisor/decision' && req.method === 'POST') { const body=await readBody(req); const item=supervisor?.decide(body.itemId, body.decision); return item?json(res,200,{ok:true,item}):json(res,404,{error:'BACKLOG_ITEM_NOT_FOUND'}); }
+    if (req.url === '/supervisor/campaign' && req.method === 'POST') { const body=await readBody(req); return json(res,202,{ok:true,campaign:supervisor?.startCampaign(body)}); }
+    if (req.url === '/supervisor/command' && req.method === 'GET') return json(res,200,{command:supervisor?.nextCommand()||null});
+    if (req.url === '/supervisor/command/ack' && req.method === 'POST') { const body=await readBody(req); const command=supervisor?.ackCommand(body.commandId,body); return command?json(res,200,{ok:true,command}):json(res,404,{error:'COMMAND_NOT_FOUND'}); }
+    if (req.url === '/supervisor/proposal/decision' && req.method === 'POST') { const body=await readBody(req); const proposal=supervisor?.decideProposal(body.index,body.decision); return proposal?json(res,200,{ok:true,proposal}):json(res,404,{error:'PROPOSAL_NOT_FOUND'}); }
     if (req.url === '/session/start' && req.method === 'POST') { const body = await readBody(req); resetSession(body.sessionId, body); return json(res, 200, { ok: true, sessionId: currentSessionId }); }
     if (req.url === '/session/end' && req.method === 'POST') { const body = await readBody(req); if (!currentSessionId) resetSession(null); else if (!body.sessionId || body.sessionId === currentSessionId) completeSession(body); return json(res, 200, { ok: true, status: currentStatus }); }
     if (req.url === '/open-folder' && req.method === 'POST') { await shell.openPath(reportFolder()); return json(res, 200, { ok: true }); }
@@ -346,6 +351,17 @@ function startServer() {
   server.listen(8766, '127.0.0.1');
 }
 
+function createHeadlessSimulator() {
+  simulatorWin = new BrowserWindow({
+    width: 1280, height: 900, show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+  });
+  const url = process.env.FIRSTSIGNAL_URL || 'http://127.0.0.1:5173/index.html';
+  simulatorWin.loadURL(url);
+  simulatorWin.webContents.setBackgroundThrottling(false);
+  simulatorWin.on('closed', () => { simulatorWin = null; });
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 430, height: 720, minWidth: 390, minHeight: 520,
@@ -363,6 +379,7 @@ app.whenReady().then(async () => {
   meetingRunner = createMeetingRunner({ emit: emitMeeting });
   restoreLatestCompletedSession();
   createWindow();
+  createHeadlessSimulator();
   startServer();
   supervisor = createSupervisorService({ reportFolder, sessionFolder, snapshot:()=>({status:currentStatus,sessionId:currentSessionId,sessionMeta:currentSessionMeta,reports,meeting:currentMeeting}), activity:addActivity, emit:()=>refreshTray() });
   supervisor.start();
@@ -372,7 +389,7 @@ app.whenReady().then(async () => {
   refreshTray();
   tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal Sim V1 QA Agent', content: 'WATCHING | FirstSignal Sim V1 observer is ready.' });
 });
-app.on('before-quit', () => { app.isQuitting = true; supervisor?.stop(); meetingRunner?.stop(); meetingNotebookWin?.destroy(); server?.close(); });
+app.on('before-quit', () => { app.isQuitting = true; supervisor?.stop(); meetingRunner?.stop(); meetingNotebookWin?.destroy(); simulatorWin?.destroy(); server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), supervisor:supervisor?.getState()||null, settings: loadSettings() }));

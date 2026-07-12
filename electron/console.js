@@ -1,46 +1,13 @@
-const $ = id => document.getElementById(id);
-
-function colorFor(state) {
-  if (state.includes('APPROVAL')) return '#ff4060';
-  if (state === 'ANALYZING') return '#f0c040';
-  if (state.startsWith('OFFLINE')) return '#4a5568';
-  return '#00d4a8';
-}
-
-function render(data) {
-  const state = data.status?.state || 'UNKNOWN';
-  const color = colorFor(state);
-  $('status').textContent = state;
-  $('status').style.color = color;
-  $('dot').style.background = color;
-  $('dot').style.boxShadow = `0 0 9px ${color}`;
-  $('folder').textContent = `Saves to: ${data.settings?.reportFolder || 'Not configured'}`;
-  const meta = data.sessionMeta || {};
-  $('buildInfo').textContent = meta.buildId ? `${meta.productName || 'FirstSignal Sim'} ${meta.productVersion || 'V1'} | build ${meta.buildSequence || '?'} | ${meta.buildId} | ${meta.replayDate || 'session'}` : 'No active build';
-  $('eventCount').textContent = `${data.eventCount || 0} live events received`;
-  const meeting=data.meeting||{state:'IDLE',transcript:[]};
-  $('meetingStatus').textContent = meeting.state==='IDLE' ? (state==='COMPLETED'?'Ready to review completed run':'Complete a run first') : `${meeting.state}${meeting.name?` · ${meeting.name}`:''}`;
-  $('startMeeting').disabled = ['RUNNING','STOPPING','PAUSED_RATE_LIMIT'].includes(meeting.state)||state!=='COMPLETED';
-  $('stopMeeting').disabled = !['RUNNING','PAUSED_RATE_LIMIT'].includes(meeting.state);
-  $('openMeeting').disabled = !meeting.folder;
-  $('meetingTranscript').innerHTML=(meeting.transcript||[]).length?(meeting.transcript||[]).map(t=>`<div class="meeting-turn"><span class="meeting-speaker">${escapeHtml(t.speaker||'SYSTEM')}</span> ${escapeHtml(t.message||'')}</div>`).join(''):'<div class="meta">Meeting memos stay in the notebook files. This window shows progress only.</div>';
-  $('meetingTranscript').scrollTop=$('meetingTranscript').scrollHeight;
-  const activity = [...(data.activities || [])].reverse().slice(0,30);
-  $('activity').innerHTML = activity.length ? activity.map(a => `<div class="activity-line"><span class="activity-kind">${escapeHtml(a.kind)}</span> | ${escapeHtml(a.message)}</div>`).join('') : '<div class="activity-line">Waiting for simulator events...</div>';
-  const reports = [...(data.reports || [])].reverse();
-  $('reports').innerHTML = reports.length ? reports.map(r => {
-    const cls = String(r.level || 'GREEN').toLowerCase();
-    return `<div class="card ${cls}"><div class="meta">${r.t || '—'} | ${r.level || 'GREEN'} | ${r.category || 'UNKNOWN'} | ${r.buildId || 'unknown build'} | ${r.version_assessment || 'NEW_FINDING'}</div><div class="title">${escapeHtml(r.title || 'Observation')}</div><div class="summary">${escapeHtml(r.summary || '')}</div><div class="next">NEXT: ${escapeHtml(r.suggested_action || 'None')}</div></div>`;
-  }).join('') : '<div class="empty">Watching for the first simulator observation…</div>';
-}
-function escapeHtml(value) { return String(value).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-$('openFolder').onclick = () => window.agentConsole.openFolder();
-$('openNotebook').onclick = () => window.agentConsole.openNotebook();
-$('changeFolder').onclick = async () => { await window.agentConsole.chooseFolder(); render(await window.agentConsole.getState()); };
-window.agentConsole.onUpdate(render);
-window.agentConsole.getState().then(render);
-
-$('startMeeting').onclick=async()=>{const name=$('meetingName').value.trim();const r=await fetch('http://127.0.0.1:8766/meeting/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name})});if(!r.ok){const j=await r.json().catch(()=>({}));alert(j.error||'Unable to start meeting');}};
-$('stopMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/stop',{method:'POST'});
-$('openMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/open',{method:'POST'});
+const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function color(s){if(String(s).includes('APPROVAL'))return'#ff4060';if(String(s).includes('MEETING')||String(s).includes('STARTING'))return'#f0c040';return'#00d4a8'}
+function render(d){const sup=d.supervisor||{},state=sup.state||d.status?.state||'UNKNOWN',c=color(state);$('status').textContent=state;$('status').style.color=c;$('dot').style.background=c;$('folder').textContent=`Saves to: ${d.settings?.reportFolder||'Not configured'}`;
+const camp=sup.campaign;$('campaignStatus').textContent=camp?`${camp.name} | ${camp.completedRuns||0}/${camp.targetRuns} complete | ${camp.status}`:'No campaign running';
+$('proposals').innerHTML=camp?.proposals?.length?camp.proposals.map((p,i)=>`<div class="card ${String(p.severity||'yellow').toLowerCase()}"><div class="meta">${esc(p.severity)} | ${esc(p.category)} | ${esc(p.observedIn)} | risk ${esc(p.risk)} | ${esc(p.approvalStatus)}</div><div class="title">${i+1}. ${esc(p.title)}</div><div class="summary"><b>Why:</b> ${esc(p.why)}<br><b>Proposed:</b> ${esc(p.proposedAction)}</div><div class="proposal-actions"><button onclick="decideProposal(${i},'approve')">Approve</button><button onclick="decideProposal(${i},'reject')">Reject</button></div></div>`).join(''):'<div class="panel meta">The consolidated approval list appears after the requested simulations and meetings finish.</div>';
+const m=d.meeting||{};$('meetingStatus').textContent=`${m.state||'IDLE'}${m.name?` · ${m.name}`:''}`;$('startMeeting').disabled=d.status?.state!=='COMPLETED'||['RUNNING','STOPPING','PAUSED_RATE_LIMIT'].includes(m.state);$('stopMeeting').disabled=!['RUNNING','PAUSED_RATE_LIMIT'].includes(m.state);$('openMeeting').disabled=!m.folder;
+$('activity').innerHTML=[...(d.activities||[])].reverse().slice(0,30).map(a=>`<div class="activity-line"><b>${esc(a.kind)}</b> | ${esc(a.message)}</div>`).join('')||'<div class="meta">Waiting for activity...</div>';
+$('reports').innerHTML=[...(d.reports||[])].reverse().map(r=>`<div class="card ${String(r.level||'green').toLowerCase()}"><div class="meta">${esc(r.level)} | ${esc(r.category)} | ${esc(r.buildId)}</div><div class="title">${esc(r.title)}</div><div class="summary">${esc(r.summary)}</div></div>`).join('')||'<div class="panel meta">No findings yet.</div>'}
+async function refresh(){try{const r=await fetch('http://127.0.0.1:8766/status');render(await r.json())}catch{ $('status').textContent='OFFLINE'}}setInterval(refresh,1000);refresh();
+$('startCampaign').onclick=async()=>{const runs=Number($('campaignRuns').value||1),replayDates=$('campaignDates').value.split(',').map(x=>x.trim()).filter(Boolean);const r=await fetch('http://127.0.0.1:8766/supervisor/campaign',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({runs,replayDates})});if(!r.ok)alert((await r.json().catch(()=>({}))).error||'Unable to start campaign');};
+window.decideProposal=(index,decision)=>fetch('http://127.0.0.1:8766/supervisor/proposal/decision',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({index,decision})});
+$('startMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:$('meetingName').value.trim()})});$('stopMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/stop',{method:'POST'});$('openMeeting').onclick=()=>fetch('http://127.0.0.1:8766/meeting/open',{method:'POST'});
+$('openFolder').onclick=()=>window.agentConsole.openFolder();$('openNotebook').onclick=()=>window.agentConsole.openNotebook();$('changeFolder').onclick=()=>window.agentConsole.chooseFolder();

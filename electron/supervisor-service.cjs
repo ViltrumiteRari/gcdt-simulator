@@ -17,7 +17,8 @@ function createSupervisorService(hooks) {
   const stateFile = path.join(root, 'supervisor-state.json');
   const backlogFile = path.join(root, 'engineering-backlog.json');
   const findingsFile = path.join(root, 'durable-findings.json');
-  let state = readJson(stateFile, { state: 'STARTING', processedMeetings: {}, approvals: {}, lastError: null });
+  let state = readJson(stateFile, { state: 'STARTING', processedMeetings: {}, approvals: {}, lastError: null, campaign: null, command: null });
+  state.campaign ||= null; state.command ||= null;
   let backlog = readJson(backlogFile, { updatedAt: null, items: [] });
   let durable = readJson(findingsFile, { updatedAt: null, findings: {} });
 
@@ -77,8 +78,16 @@ function createSupervisorService(hooks) {
       backlog.items = [...backlog.items.filter(x => x.id !== id), next];
     }
     backlog.items.sort((a, b) => (({ RED: 0, YELLOW: 1, GREEN: 2 }[a.severity] ?? 3) - ({ RED: 0, YELLOW: 1, GREEN: 2 }[b.severity] ?? 3)) || b.updatedAt.localeCompare(a.updatedAt));
-    state.processedMeetings[meeting.dir] = { at: now, sessionId: session.sessionId, items: backlog.items.filter(x => x.sourceMeeting === meeting.summary.meetingName).map(x => x.id) };
-    state.state = 'READY_FOR_NEXT_RUN';
+    const meetingItems = backlog.items.filter(x => x.sourceMeeting === meeting.summary.meetingName).map(x => x.id);
+    state.processedMeetings[meeting.dir] = { at: now, sessionId: session.sessionId, items: meetingItems };
+    if (state.campaign?.status === 'RUNNING' && !state.campaign.processedSessionIds?.includes(session.sessionId)) {
+      state.campaign.processedSessionIds ||= []; state.campaign.runs ||= [];
+      state.campaign.processedSessionIds.push(session.sessionId);
+      state.campaign.runs.push({ index: state.campaign.runs.length + 1, sessionId: session.sessionId, replayDate: session.replayDate || state.campaign.currentReplayDate || null, meeting: meeting.summary.meetingName, itemIds: meetingItems, completedAt: now });
+      state.campaign.completedRuns = state.campaign.runs.length;
+      if (state.campaign.completedRuns >= state.campaign.targetRuns) { state.campaign.status = 'AWAITING_APPROVAL'; state.campaign.completedAt = now; state.campaign.proposals = buildCampaignProposals(state.campaign); state.state = 'CAMPAIGN_AWAITING_APPROVAL'; }
+      else { state.state = 'READY_FOR_NEXT_RUN'; state.command = null; }
+    } else state.state = 'READY_FOR_NEXT_RUN';
     state.currentSessionId = session.sessionId;
     state.currentMeeting = meeting.summary.meetingName;
     state.summary = {
@@ -91,6 +100,17 @@ function createSupervisorService(hooks) {
     persist();
   }
 
+  function buildCampaignProposals(campaign) {
+    const runIds = new Set((campaign.runs || []).flatMap(r => r.itemIds || [])); const relevant = backlog.items.filter(x => runIds.has(x.id)); const groups = new Map();
+    for (const item of relevant) { const key = item.findingKey || item.title; const g = groups.get(key) || { findingKey:key, title:item.title, category:item.category, severity:item.severity, why:item.diagnosis, proposedAction:item.proposedAction, risk:item.approvalLevel === 'RED' ? 'HIGH' : item.approvalLevel === 'YELLOW' ? 'MEDIUM' : 'LOW', observedRunIds:[], itemIds:[] }; for (const run of campaign.runs || []) if ((run.itemIds || []).includes(item.id)) g.observedRunIds.push(run.index); g.itemIds.push(item.id); groups.set(key,g); }
+    return [...groups.values()].map(g => ({...g, observedRunIds:[...new Set(g.observedRunIds)].sort((a,b)=>a-b), observedIn:`${new Set(g.observedRunIds).size} of ${campaign.targetRuns} simulations`, approvalStatus:'PENDING'})).sort((a,b)=>(({RED:0,YELLOW:1,GREEN:2}[a.severity]??3)-({RED:0,YELLOW:1,GREEN:2}[b.severity]??3)));
+  }
+  function campaignReplayDate(campaign) { const dates = campaign.replayDates?.length ? campaign.replayDates : []; return dates.length ? dates[campaign.completedRuns % dates.length] : null; }
+  function startCampaign(input={}) { const targetRuns = Math.max(1, Math.min(100, Number(input.runs || input.targetRuns || 1))); const replayDates = Array.isArray(input.replayDates) ? input.replayDates.filter(Boolean) : (input.replayDate ? [input.replayDate] : []); state.campaign = { id:`CAMPAIGN-${Date.now()}`, name:input.name || `${targetRuns}-simulation campaign`, targetRuns, completedRuns:0, replayDates, status:'RUNNING', createdAt:new Date().toISOString(), runs:[], processedSessionIds:[], proposals:[] }; state.command = null; state.state='CAMPAIGN_QUEUED'; persist(); return state.campaign; }
+  function nextCommand() { if (!state.campaign || state.campaign.status !== 'RUNNING') return null; if (state.command && !state.command.ackedAt) return state.command; if (!['WAITING_FOR_RUN','READY_FOR_NEXT_RUN','CAMPAIGN_QUEUED'].includes(state.state)) return null; const replayDate = campaignReplayDate(state.campaign); state.campaign.currentReplayDate = replayDate; state.command = { id:`CMD-${Date.now()}`, type:'START_REPLAY', replayDate, campaignId:state.campaign.id, runNumber:state.campaign.completedRuns+1, issuedAt:new Date().toISOString(), ackedAt:null }; state.state='CAMPAIGN_STARTING_RUN'; persist(); return state.command; }
+  function ackCommand(id, payload={}) { if (!state.command || state.command.id !== id) return null; state.command.ackedAt=new Date().toISOString(); state.command.sessionId=payload.sessionId||null; state.state='WATCHING_REPLAY'; persist(); return state.command; }
+  function decideProposal(index, decision) { const p=state.campaign?.proposals?.[Number(index)]; if(!p)return null; p.approvalStatus=decision==='approve'?'APPROVED':'REJECTED'; p.decidedAt=new Date().toISOString(); for(const id of p.itemIds||[]) decide(id,decision); persist(); return p; }
+
   async function tick() {
     if (busy || stopped) return;
     busy = true;
@@ -99,10 +119,12 @@ function createSupervisorService(hooks) {
       state.observerState = snapshot.status?.state || 'UNKNOWN';
       state.currentSessionId = snapshot.sessionId || state.currentSessionId || null;
       if (snapshot.status?.state !== 'COMPLETED' || !snapshot.sessionId || !(snapshot.reports || []).length) {
-        state.state = snapshot.sessionId ? 'WATCHING_REPLAY' : 'WAITING_FOR_RUN'; persist(); return;
+        if (state.campaign?.status === 'RUNNING' && !snapshot.sessionId) { state.state = state.command?.ackedAt ? 'WATCHING_REPLAY' : 'READY_FOR_NEXT_RUN'; nextCommand(); }
+        else state.state = snapshot.sessionId ? 'WATCHING_REPLAY' : 'WAITING_FOR_RUN';
+        persist(); return;
       }
       const folder = hooks.sessionFolder();
-      const session = { folder, sessionId: snapshot.sessionId };
+      const session = { folder, sessionId: snapshot.sessionId, replayDate: snapshot.sessionMeta?.replayDate || null };
       const completed = latestCompletedMeeting(folder);
       if (!completed) {
         if (!['RUNNING', 'PAUSED_RATE_LIMIT', 'STOPPING'].includes(snapshot.meeting?.state)) {
@@ -113,7 +135,7 @@ function createSupervisorService(hooks) {
         return;
       }
       if (!state.processedMeetings[completed.dir]) { state.state = 'ANALYZING_COMPLETED_NOTEBOOK'; persist(); analyzeMeeting(session, completed); }
-      else { state.state = 'READY_FOR_NEXT_RUN'; persist(); }
+      else { if(state.campaign?.status==='RUNNING') { state.state='READY_FOR_NEXT_RUN'; nextCommand(); } else if(state.campaign?.status==='AWAITING_APPROVAL') state.state='CAMPAIGN_AWAITING_APPROVAL'; else state.state = 'READY_FOR_NEXT_RUN'; persist(); }
     } catch (error) {
       state.state = 'DEGRADED'; state.lastError = String(error?.stack || error); persist();
       hooks.activity?.('SUPERVISOR_ERROR', String(error?.message || error));
@@ -128,7 +150,7 @@ function createSupervisorService(hooks) {
   function getState() { return { ...state, backlog: { ...backlog, items: backlog.items.slice(0, 100) } }; }
   function start() { if (timer) return; stopped = false; timer = setInterval(tick, 5000); tick(); }
   function stop() { stopped = true; if (timer) clearInterval(timer); timer = null; }
-  return { start, stop, tick, decide, getState };
+  return { start, stop, tick, decide, getState, startCampaign, nextCommand, ackCommand, decideProposal };
 }
 module.exports = { createSupervisorService };
 

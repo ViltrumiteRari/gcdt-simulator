@@ -1765,6 +1765,7 @@ export default function App(){
   const metacognitionR=useRef(createMetacognitionState());
   const dataHealthR=useRef({state:"UNKNOWN"}),transmissionR=useRef({state:"UNKNOWN",failedTicks:0}),lastCognitionStateR=useRef(null);
   const saveSessionRef=useRef(null),finalizingR=useRef(false);
+  const campaignStartRef=useRef(null),campaignCommandR=useRef(null);
   const qaLastTickR=useRef(-99),qaBusyR=useRef(false);
   const confR=useRef({score:50,factors:[]}),tradeIntentR=useRef({action:"WAIT",readiness:0,confidence:0,blockers:[],supportingFactors:[]}),tickR=useRef(0),thinkR=useRef(false);
   const ivR=useRef(null),lastSR=useRef("transition"),sessionTickData=useRef([]),archetypeIdR=useRef(null);
@@ -2205,15 +2206,16 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     return()=>document.removeEventListener("visibilitychange",onVisibility);
   },[addJournal]);
 
-  const startSession=useCallback(async(mode)=>{
+  const startSession=useCallback(async(mode,replayDateOverride=null)=>{
+    const targetReplayDate=replayDateOverride||selectedReplayDate;
     setReplayLoadError("");
     let replayData=null;
     if(mode==="replay"){
       setReplayLoading(true);
-      try{replayData=await replayDataFor(selectedReplayDate);}
+      try{replayData=replayDateOverride?await replayDataFor(replayDateOverride):await replayDataFor(selectedReplayDate);}
       catch(error){setReplayLoadError(String(error?.message||error));return;}
       finally{setReplayLoading(false);}
-      if(!replayData){setReplayLoadError(`Replay unavailable: ${selectedReplayDate}`);return;}
+      if(!replayData){setReplayLoadError(`Replay unavailable: ${targetReplayDate}`);return;}
     }
     engR.current=mode==="replay"?createReplayEngine(replayData):createSeedEngine();
     const sess=engR.current.getSession();
@@ -2221,7 +2223,7 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     const label=mode==="replay"?`${replayData.label} · ${replayData.dayType}`:`SEED · ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
     setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
-    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`firstsignal-sim-v1-${selectedReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;fetch("http://127.0.0.1:8766/session/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,mode,label,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});const aiBlindLabel=mode==="replay"?"BLIND_REPLAY_SESSION":label;const freshAiMemory={...createAiSessionMemory(aiBlindLabel),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
+    setJournal([]);journalR.current=[];thoughtSessionIdR.current=`firstsignal-sim-v1-${targetReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;fetch("http://127.0.0.1:8766/session/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:targetReplayDate,mode,label,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE})}).catch(()=>{});const aiBlindLabel=mode==="replay"?"BLIND_REPLAY_SESSION":label;const freshAiMemory={...createAiSessionMemory(aiBlindLabel),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
     setItsSPXHist([]);setItsSPYHist([]);setTimeline([]);tlR.current=[];
     setProbs({discovery:25,pin:25,transition:25,macro:25});setConfData({score:50,factors:[]});setOptionChain(null);
     lastSR.current="transition";tickR.current=0;thinkR.current=false;sessionTickData.current=[];cognitionQueueR.current=[];cognitionRunningR.current=false;cognitionSeqR.current=0;
@@ -2231,7 +2233,20 @@ A BUY-ready canonical action is eligible, not mandatory. Decline it when data he
     storageSet("interrupted",null);setRunning(true);setScreen("trading");
   },[selectedReplayDate]);
 
-  const resumeSession=useCallback(async()=>{
+  campaignStartRef.current=startSession;
+  useEffect(()=>{
+    let alive=true;
+    const poll=()=>fetch("http://127.0.0.1:8766/supervisor/command").then(r=>r.json()).then(async({command})=>{
+      if(!alive||!command||command.type!=="START_REPLAY"||campaignCommandR.current===command.id||running)return;
+      campaignCommandR.current=command.id;
+      if(command.replayDate)setSelectedReplayDate(command.replayDate);
+      await campaignStartRef.current?.("replay",command.replayDate||null);
+      await fetch("http://127.0.0.1:8766/supervisor/command/ack",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({commandId:command.id,sessionId:thoughtSessionIdR.current})});
+    }).catch(()=>{});
+    poll();const id=setInterval(poll,2000);return()=>{alive=false;clearInterval(id);};
+  },[running]);
+
+  const resumeSession=useCallback(async()=>{
     const sv=storageGet("interrupted",null);if(!sv)return;
     balR.current=sv.bal;setBal(sv.bal);if(sv.pos){posR.current=sv.pos;setPos(sv.pos);}
     logR.current=sv.log||[];setTradeLog([...logR.current]);mindR.current=sv.mindset||[];setMindsetLog([...mindR.current]);

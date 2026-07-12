@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -8,6 +8,7 @@ const { createSupervisorService } = require('./supervisor-service.cjs');
 
 let win;
 let simulatorWin;
+let hudWin;
 let tray;
 let runQa;
 let meetingRunner;
@@ -351,6 +352,21 @@ function startServer() {
   server.listen(8766, '127.0.0.1');
 }
 
+function createCampaignHud() {
+  const area = screen.getPrimaryDisplay().workArea;
+  const width = 360, height = 86;
+  hudWin = new BrowserWindow({
+    width, height, x: area.x + area.width - width - 14, y: area.y + area.height - height - 14,
+    frame: false, transparent: true, alwaysOnTop: true, skipTaskbar: true,
+    resizable: false, movable: false, focusable: false, show: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
+  });
+  hudWin.setAlwaysOnTop(true, 'screen-saver');
+  hudWin.setIgnoreMouseEvents(true);
+  hudWin.loadFile(path.join(__dirname, 'campaign-hud.html'));
+  hudWin.on('closed', () => { hudWin = null; });
+}
+
 function createHeadlessSimulator() {
   simulatorWin = new BrowserWindow({
     width: 1280, height: 900, show: false,
@@ -380,6 +396,7 @@ app.whenReady().then(async () => {
   restoreLatestCompletedSession();
   createWindow();
   createHeadlessSimulator();
+  createCampaignHud();
   startServer();
   supervisor = createSupervisorService({ reportFolder, sessionFolder, snapshot:()=>({status:currentStatus,sessionId:currentSessionId,sessionMeta:currentSessionMeta,reports,meeting:currentMeeting}), activity:addActivity, emit:()=>refreshTray() });
   supervisor.start();
@@ -389,7 +406,7 @@ app.whenReady().then(async () => {
   refreshTray();
   tray.displayBalloon?.({ iconType: 'info', title: 'FirstSignal Sim V1 QA Agent', content: 'WATCHING | FirstSignal Sim V1 observer is ready.' });
 });
-app.on('before-quit', () => { app.isQuitting = true; supervisor?.stop(); meetingRunner?.stop(); meetingNotebookWin?.destroy(); simulatorWin?.destroy(); server?.close(); });
+app.on('before-quit', () => { app.isQuitting = true; supervisor?.stop(); meetingRunner?.stop(); meetingNotebookWin?.destroy(); simulatorWin?.destroy(); hudWin?.destroy(); server?.close(); });
 app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('agent:get-state', () => ({ status: currentStatus, sessionId: currentSessionId, sessionMeta:currentSessionMeta, reports, activities, eventCount: events.length, meeting:meetingStatePayload(), supervisor:supervisor?.getState()||null, settings: loadSettings() }));

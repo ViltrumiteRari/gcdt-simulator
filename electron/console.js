@@ -20,10 +20,10 @@ function render(data) {
   $('eventCount').textContent = `${data.eventCount || 0} live events received`;
   const meeting=data.meeting||{state:'IDLE',transcript:[]};
   $('meetingStatus').textContent = meeting.state==='IDLE' ? (state==='COMPLETED'?'Ready to review completed run':'Complete a run first') : `${meeting.state}${meeting.name?` · ${meeting.name}`:''}`;
-  $('startMeeting').disabled = meeting.state==='RUNNING'||meeting.state==='STOPPING'||state!=='COMPLETED';
-  $('stopMeeting').disabled = meeting.state!=='RUNNING';
+  $('startMeeting').disabled = ['RUNNING','STOPPING','PAUSED_RATE_LIMIT'].includes(meeting.state)||state!=='COMPLETED';
+  $('stopMeeting').disabled = !['RUNNING','PAUSED_RATE_LIMIT'].includes(meeting.state);
   $('openMeeting').disabled = !meeting.folder;
-  $('meetingTranscript').innerHTML=(meeting.transcript||[]).length?(meeting.transcript||[]).map(t=>`<div class="meeting-turn"><span class="meeting-speaker">${escapeHtml(t.speaker||'SYSTEM')}</span> ${escapeHtml(t.message||'')}</div>`).join(''):'<div class="meta">The observer will present each flagged case to the trader after you press Start Meeting.</div>';
+  $('meetingTranscript').innerHTML=(meeting.transcript||[]).length?(meeting.transcript||[]).map(t=>`<div class="meeting-turn"><span class="meeting-speaker">${escapeHtml(t.speaker||'SYSTEM')}</span> ${escapeHtml(t.message||'')}</div>`).join(''):'<div class="meta">Meeting memos stay in the notebook files. This window shows progress only.</div>';
   $('meetingTranscript').scrollTop=$('meetingTranscript').scrollHeight;
   const activity = [...(data.activities || [])].reverse().slice(0,30);
   $('activity').innerHTML = activity.length ? activity.map(a => `<div class="activity-line"><span class="activity-kind">${escapeHtml(a.kind)}</span> | ${escapeHtml(a.message)}</div>`).join('') : '<div class="activity-line">Waiting for simulator events...</div>';

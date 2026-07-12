@@ -275,7 +275,7 @@ function startServer() {
       return json(res, 202, { ok:true, meeting:currentMeeting });
     }
     if (req.url === '/meeting/stop' && req.method === 'POST') {
-      if (currentMeeting.state !== 'RUNNING') return json(res, 409, { error:'NO_RUNNING_MEETING', meeting:currentMeeting });
+      if (!['RUNNING','PAUSED_RATE_LIMIT'].includes(currentMeeting.state)) return json(res, 409, { error:'NO_RUNNING_MEETING', meeting:currentMeeting });
       meetingRunner.stop();
       currentMeeting = { ...currentMeeting, state:'STOPPING' };
       refreshTray();

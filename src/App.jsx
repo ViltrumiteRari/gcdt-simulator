@@ -9,8 +9,8 @@ import { createMetacognitionState, computeGexImpulse, createForecast, scoreForec
 
 const PRODUCT_NAME = "FirstSignal Sim";
 const PRODUCT_VERSION = "V1";
-const BUILD_ID = "firstsignal-sim-v1.2-20260712";
-const BUILD_SEQUENCE = 3;
+const BUILD_ID = "firstsignal-sim-v1.3-20260712";
+const BUILD_SEQUENCE = 4;
 const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_META),...REPLAY_DATES])].sort().reverse();
 const replayMetaFor=date=>REAL_REPLAY_META[date]||REPLAY_CATALOG[date]||null;
 const replayDataFor=async date=>REAL_REPLAY_META[date]?loadRealReplay(date):(REPLAY_CATALOG[date]||null);

@@ -1,0 +1,42 @@
+{
+  "state": "WATCHING_REPLAY",
+  "processedMeetings": {},
+  "approvals": {},
+  "lastError": null,
+  "campaign": {
+    "id": "CAMPAIGN-1783900136911",
+    "name": "worker-1 2026-07-07",
+    "targetRuns": 1,
+    "completedRuns": 0,
+    "replayDates": [
+      "2026-07-07"
+    ],
+    "status": "RUNNING",
+    "createdAt": "2026-07-12T23:48:56.911Z",
+    "runs": [],
+    "processedSessionIds": [],
+    "proposals": [],
+    "currentReplayDate": "2026-07-07"
+  },
+  "command": {
+    "id": "CMD-1783900137557",
+    "type": "START_REPLAY",
+    "replayDate": "2026-07-07",
+    "campaignId": "CAMPAIGN-1783900136911",
+    "runNumber": 1,
+    "issuedAt": "2026-07-12T23:48:57.557Z",
+    "ackedAt": "2026-07-12T23:48:57.714Z",
+    "sessionId": "firstsignal-sim-v1-2026-07-07-1783900137711-6ko47i"
+  },
+  "observerState": "AWAITING_REVIEW_MEETING",
+  "currentSessionId": "firstsignal-sim-v1-2026-07-07-1783900137711-6ko47i",
+  "updatedAt": "2026-07-13T00:10:39.750Z",
+  "summary": {
+    "backlogItems": 0,
+    "blocked": 0,
+    "awaitingApproval": 0,
+    "approved": 0,
+    "fixedPendingValidation": 0,
+    "fixVerified": 0
+  }
+}

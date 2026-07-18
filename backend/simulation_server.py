@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-DATASET_ROOT = Path(r"D:\FirstSignal_GCDT_Dataset")
+DATASET_ROOT = Path(r"D:\FirstSignal_Sim_Dataset")
 HOST, PORT = "127.0.0.1", 8765
 TRADE_CUTOFF, DATA_END = "15:45:00", "16:15:00"
 SIMS = {}
@@ -121,7 +121,7 @@ class Handler(BaseHTTPRequestHandler):
         p=[x for x in urlparse(self.path).path.split("/") if x]
         try:
             if p==["api","health"]:
-                return self.send_json(200,{"ok":True,"service":"gcdt-v26-airgap",
+                return self.send_json(200,{"ok":True,"service":"firstsignal-sim-v1",
                   "dataset_root":str(DATASET_ROOT),"trade_cutoff":TRADE_CUTOFF,"data_end":DATA_END})
             if p==["api","sessions"]:
                 days=[]
@@ -145,14 +145,14 @@ class Handler(BaseHTTPRequestHandler):
                 SIMS[sim.id]=sim; return self.send_json(201,sim.observation())
             if len(p)==4 and p[:2]==["api","simulations"]:
                 sim=SIMS[p[2]]
-                if p[3]=="advance": return self.send_json(200,sim.advance(data.get("seconds",60)))
+                if p[3]=="advance": return self.send_json(200,sim.advance(data.get("seconds",20)))
                 if p[3]=="orders": return self.send_json(200,sim.order(data))
             self.send_json(404,{"error":"not found"})
         except PermissionError as e: self.send_json(409,{"error":str(e),"code":"TRADE_CUTOFF"})
         except Exception as e: self.send_json(400,{"error":str(e)})
-    def log_message(self,fmt,*args): print("[GCDT API]",fmt%args)
+    def log_message(self,fmt,*args): print("[FirstSignal Sim API]",fmt%args)
 
 if __name__=="__main__":
-    print(f"GCDT v26 air-gap API http://{HOST}:{PORT}")
+    print(f"FirstSignal Sim v1 air-gap API http://{HOST}:{PORT}")
     print(f"3:45 ET trade cutoff; data continues through 4:15 ET; dataset {DATASET_ROOT}")
     ThreadingHTTPServer((HOST,PORT),Handler).serve_forever()

@@ -1,0 +1,17 @@
+{
+  "generatedAtUtc": "2026-07-12T23:57:58.966Z",
+  "sessions": [
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783900137711-6ko47i",
+      "replayDate": "2026-07-07",
+      "startedAt": "2026-07-12T23:48:57.713Z",
+      "completedAt": "2026-07-12T23:57:58.963Z",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "buildSequence": 5,
+      "eventCount": 405,
+      "reportCount": 0,
+      "status": "AWAITING_REVIEW_MEETING",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-07-1783900137711-6ko47i"
+    }
+  ]
+}

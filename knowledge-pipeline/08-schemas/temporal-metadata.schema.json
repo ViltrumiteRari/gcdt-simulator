@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "firstsignal://schemas/temporal-metadata-v1",
+  "title": "FirstSignal Temporal Metadata",
+  "type": "object",
+  "required": ["observedAtUtc", "observedAtLocal", "localDate", "marketDate", "chronologicalKey"],
+  "properties": {
+    "observedAtUtc": { "type": "string", "format": "date-time" },
+    "observedAtLocal": { "type": "string" },
+    "localDate": { "type": "string", "format": "date" },
+    "replayDate": { "type": ["string", "null"], "format": "date" },
+    "marketDate": { "type": "string", "format": "date" },
+    "marketTime": { "type": ["string", "null"] },
+    "marketTime24": { "type": ["string", "null"] },
+    "chronologicalKey": { "type": "string" }
+  },
+  "additionalProperties": true
+}

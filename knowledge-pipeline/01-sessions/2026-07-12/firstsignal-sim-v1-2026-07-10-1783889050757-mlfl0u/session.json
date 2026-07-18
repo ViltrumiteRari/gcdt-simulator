@@ -1,0 +1,25 @@
+{
+  "sessionId": "firstsignal-sim-v1-2026-07-10-1783889050757-mlfl0u",
+  "replayDate": "2026-07-10",
+  "mode": "replay",
+  "label": "2026-07-10 | Unified native SPY/SPX | 1-minute replay · REAL DATA REPLAY",
+  "productName": "FirstSignal Sim",
+  "productVersion": "V1",
+  "buildId": "firstsignal-sim-v1.4-20260712",
+  "buildSequence": 5,
+  "startedAt": "2026-07-12T20:44:10.758Z",
+  "observedAtUtc": "2026-07-12T20:44:10.758Z",
+  "observedAtLocal": "2026-07-12T16:44:10.758-04:00",
+  "localDate": "2026-07-12",
+  "marketDate": "2026-07-10",
+  "marketTime": null,
+  "marketTime24": null,
+  "chronologicalKey": "2026-07-10T00:00:00|2026-07-12T20:44:10.758Z",
+  "status": {
+    "state": "ANALYZING",
+    "tick": 205,
+    "time": "12:54 PM"
+  },
+  "eventCount": 183,
+  "reportCount": 10
+}

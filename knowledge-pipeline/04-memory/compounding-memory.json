@@ -1,0 +1,136 @@
+﻿{
+    "schemaVersion":  1,
+    "memories":  [
+                     {
+                         "id":  "CM-0001",
+                         "title":  "Confirmed local episode reset under mixed dealer structure",
+                         "status":  "ACTIVE",
+                         "knowledgeCutoffTick":  131,
+                         "sessionMinute":  130,
+                         "confidence":  0.72,
+                         "evidenceCount":  1,
+                         "source":  {
+                                        "sessionId":  "firstsignal-sim-v1-2026-07-07-1784013724643-px2ot8",
+                                        "marketDate":  "2026-07-07",
+                                        "hiddenFromTrader":  true
+                                    },
+                         "thesisScope":  {
+                                             "active":  "LOCAL_4T_TO_8T_BEARISH_CONTINUATION",
+                                             "parent":  "SESSION_NEGATIVE_SPX_GEX_STRUCTURE",
+                                             "invalidated":  "IMMEDIATE_DOWNSIDE_CONTINUATION",
+                                             "survived":  "BROADER_NEGATIVE_DEALER_REGIME"
+                                         },
+                         "state":  {
+                                       "spy":  746.39,
+                                       "spx":  7490.27,
+                                       "spyFep":  745.7275721882411,
+                                       "spyFepDistance":  0.6624278117589,
+                                       "spyGex":  2143766008,
+                                       "spxGex":  -10654323188,
+                                       "spyIts":  6.420130248615225,
+                                       "spxIts":  6.129677883236436,
+                                       "itsDivergence":  -0.290452365378789,
+                                       "accelerator":  12,
+                                       "priceResponse4tSpy":  0.78,
+                                       "priceResponse4tSpxNormalized":  0.81,
+                                       "priceResponse8tSpy":  0.49,
+                                       "priceResponse8tSpxNormalized":  0.4,
+                                       "transmission":  "PENDING_AT_CUTOFF",
+                                       "dataHealth":  "HEALTHY"
+                                   },
+                         "interpretation":  "A sharp 4-tick and 8-tick upside response moved SPY 0.66 above FEP while SPX GEX remained negative and the accelerator reached 12. This invalidated the immediate local bearish-continuation thesis without proving that the broader negative-dealer session structure had reversed. Treat the local episode and the parent regime as separate hypotheses. Price response and FEP acceptance can reset the executable local thesis even while the higher-horizon regime remains directionally hostile.",
+                         "usePolicy":  "Use only information available through tick 131. Apply as guidance for thesis hierarchy, episode reset, and confirmation requirements. Do not infer the later path, winning direction, strike, premium, exit, P/L, final balance, or any post-cutoff level."
+                     },
+                     {
+                         "id":  "CM-0002",
+                         "title":  "Separate directional thesis from entry confirmation during structural whipsaw",
+                         "status":  "ACTIVE",
+                         "knowledgeCutoffTick":  405,
+                         "sessionMinute":  404,
+                         "confidence":  0.35,
+                         "evidenceCount":  1,
+                         "source":  {
+                                        "sessionId":  "firstsignal-sim-v1-2026-07-08-1784089829330-brgavh",
+                                        "marketDate":  "2026-07-08",
+                                        "outcomeVisibleToTrader":  true
+                                    },
+                         "thesisScope":  {
+                                             "active":  "ENTRY_LOCATION_AND_CONFIRMATION_DISCIPLINE",
+                                             "parent":  "STRUCTURAL_DIRECTION_CAN_REMAIN_VALID_WHILE_LOCAL_EXECUTION_EPISODE_IS_INVALID",
+                                             "invalidated":  "ACCELERATION_SPIKE_OR_HIGH_READINESS_ALONE_CONFIRMS_ENTRY",
+                                             "survived":  "CONFIRMED_RESUMPTION_AFTER_REJECTION_OR_RESET_MAY_RETAIN_EDGE"
+                                         },
+                         "state":  {
+                                       "startingBalance":  1000,
+                                       "endingBalance":  491.44556816181534,
+                                       "netReturnPct":  -50.855443183818466,
+                                       "tradeCount":  8,
+                                       "winners":  3,
+                                       "losers":  5,
+                                       "grossWinnerDollars":  441.3411371237458,
+                                       "grossLoserDollars":  -949.8955689619308,
+                                       "oneMinuteLossCount":  3,
+                                       "oneMinuteLossDollars":  -611.7651341793218,
+                                       "midSessionResumptionWinCount":  2,
+                                       "midSessionResumptionWinDollars":  357.3411371237457,
+                                       "observedWinningReturnsPct":  [
+                                                                         42.30769230769229,
+                                                                         10.714285714285698
+                                                                     ],
+                                       "observedChaseLossReturnsPct":  [
+                                                                           -12.49999999999999,
+                                                                           -26.315789473684205,
+                                                                           -31.818181818181824
+                                                                       ],
+                                       "dataHealth":  "HEALTHY",
+                                       "quoteSource":  "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+                                       "sampleScope":  "ONE_SESSION"
+                                   },
+                         "interpretation":  "This single run does not establish directional expectancy. It does provide evidence that direction and execution timing must be evaluated as separate hypotheses. A coherent short-side parent thesis produced two mid-session resumption gains of +42.3% and +10.7% (+$357.34 combined), yet the account fell from $1,000.00 to $491.45 because several entries were taken on fresh vertical impulses before rejection, acceptance, or resumption had stabilized. Three one-minute trades lost $611.77 combined. Treat accelerator, GEX change, and readiness as setup evidence rather than entry confirmation by themselves. Before entering after a vertical move or structural flip, look for an observable location test at FEP, flip, wall, or rejection node and evidence that the move persists or resumes after that test. A valid parent regime does not rescue a stale, poorly located, or unconfirmed local episode. This is one session of evidence and future runs may support, narrow, or contradict it.",
+                         "usePolicy":  "Use only as a low-confidence process prior. It may force a confirmation question or reduce confidence when entry location is unresolved, but it must not dictate direction, ban breakout trades, create fixed numeric thresholds, copy this day\u0027s times, levels, strikes, or outcomes, or override genuinely new evidence. Track supporting and contradicting cases separately. Increase influence only after independent runs across different dates and regimes reproduce the distinction between confirmed resumption and impulse chasing."
+                     },
+                     {
+                         "id":  "CM-0004",
+                         "title":  "Same-side expected-response failure must raise the burden of proof for immediate re-entry",
+                         "status":  "ACTIVE",
+                         "knowledgeCutoffTick":  1215,
+                         "sessionMinute":  405,
+                         "confidence":  0.62,
+                         "evidenceCount":  1,
+                         "source":  {
+                                        "sessionId":  "firstsignal-sim-v1-2026-07-15-1784355721102-5i8cvl",
+                                        "marketDate":  "2026-07-15",
+                                        "outcomeVisibleToTrader":  true,
+                                        "finalReflectionAvailable":  false,
+                                        "evidenceIntegrity":  "FULL_REPLAY_COMPLETE_FINAL_REFLECTION_PROVIDER_BLOCKED"
+                                    },
+                         "thesisScope":  {
+                                             "active":  "HYPER_TIMEFRAME_SAME_SIDE_REENTRY_DISCIPLINE",
+                                             "parent":  "EXPECTED_RESPONSE_AND_CAPITAL_FEEDBACK",
+                                             "invalidated":  "A_FRESH_LOCAL_IMPULSE_AUTOMATICALLY_RESETS_REPEATED_SAME_SIDE_FAILURE",
+                                             "survived":  "FAST_REENTRY_REMAINS_VALID_WHEN_CURRENT_EVIDENCE_PRODUCES_A_MATERIALLY_DIFFERENT_AND_TIMELY_PRICE_RESPONSE"
+                                         },
+                         "state":  {
+                                       "startingBalance":  1000,
+                                       "endingBalance":  26.68804510394574,
+                                       "netReturnPct":  -97.33119548960543,
+                                       "entryCount":  50,
+                                       "callEntries":  42,
+                                       "putEntries":  8,
+                                       "completedPositions":  50,
+                                       "positivePositions":  10,
+                                       "negativePositions":  40,
+                                       "maxLossExits":  28,
+                                       "positionHoldEvExits":  17,
+                                       "scaleOutEvents":  44,
+                                       "aiRequestCancellations":  55,
+                                       "canonicalEventCount":  1215,
+                                       "sampleScope":  "ONE_FULL_20_SECOND_SESSION",
+                                       "dataHealth":  "MOSTLY_HEALTHY_WITH_LATE_SESSION_STALENESS",
+                                       "finalReflection":  "UNAVAILABLE_PROVIDER_THROTTLE_AND_INVALID_ARGUMENT"
+                                   },
+                         "interpretation":  "This full 20-second replay showed that position-level damage control can function while session capital still collapses through repeated low-quality re-entry. Fifty entries produced forty negative completed positions and reduced the account from ,000.00 to .69. The durable lesson is not that CALLs were wrong or that the opposite side should be preferred. It is that, on a hyper timeframe, each new local impulse must still be judged by whether the expected response actually appears quickly enough to justify renewed exposure. Repeated same-side failures are cumulative evidence that the current mapping from signal to immediate executable response is underperforming. A small change in acceleration, GEX, readiness, or local price direction is not automatically materially new evidence when the same thesis has repeatedly failed to generate its expected response. Fast re-entry remains allowed, but its burden of proof should rise after repeated same-side failure: the new attempt should show a genuinely different contemporaneous configuration, timely price transmission, and enough remaining contract runway to distinguish it from another variation of the failed attempt. Successful scaling and runner management do not compensate for repeatedly reopening weak campaigns. Evaluate capital feedback across the recent sequence while preserving the ability to act immediately when the evidence and response truly reset. This is one session of evidence and should guide questioning and confidence rather than dictate direction.",
+                         "usePolicy":  "Apply symmetrically to CALL and PUT decisions on hyper timeframes. Use it to raise the evidentiary burden for immediate same-side re-entry after repeated failed expected responses, and to distinguish materially new contemporaneous evidence from cosmetic local variation. It may reduce confidence, demand clearer immediate transmission, or favor waiting for one more confirming update, but it must not impose a fixed cooldown, fixed loss count, fixed time window, slower-timeframe regime narrative, automatic opposite-side trade, directional ban, or numeric threshold. It must not treat ordinary losses as proof that the thesis is wrong, and it must not prevent a rapid re-entry when the current configuration and price response are genuinely different. Do not infer that CALLs are generally inferior from this session. Track future supporting and contradicting cases separately, and increase influence only if independent sessions reproduce the same failure pattern."
+                     }
+                 ]
+}

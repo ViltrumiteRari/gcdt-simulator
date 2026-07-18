@@ -1,0 +1,3423 @@
+{
+  "meetingName": "meeting91_jul12_512pm",
+  "createdAt": "2026-07-12T21:12:28.467Z",
+  "temporal": {
+    "observedAtUtc": "2026-07-12T21:12:28.467Z",
+    "observedAtLocal": "2026-07-12T17:12:28.467-04:00",
+    "localDate": "2026-07-12",
+    "replayDate": "2026-07-10",
+    "marketDate": "2026-07-10",
+    "marketTime": null,
+    "marketTime24": null,
+    "chronologicalKey": "2026-07-10T00:00:00|2026-07-12T21:12:28.467Z"
+  },
+  "session": {
+    "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn",
+    "replayDate": "2026-07-10",
+    "mode": "replay",
+    "label": "2026-07-10 | Unified native SPY/SPX | 1-minute replay · REAL DATA REPLAY",
+    "productName": "FirstSignal Sim",
+    "productVersion": "V1",
+    "buildId": "firstsignal-sim-v1.4-20260712",
+    "buildSequence": 5,
+    "startedAt": "2026-07-12T20:51:54.534Z",
+    "observedAtUtc": "2026-07-12T20:51:54.534Z",
+    "observedAtLocal": "2026-07-12T16:51:54.534-04:00",
+    "localDate": "2026-07-12",
+    "marketDate": "2026-07-10",
+    "marketTime": null,
+    "marketTime24": null,
+    "chronologicalKey": "2026-07-10T00:00:00|2026-07-12T20:51:54.534Z",
+    "status": {
+      "state": "COMPLETED",
+      "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn",
+      "replayDate": "2026-07-10",
+      "eventCount": 404,
+      "reportCount": 8,
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "buildSequence": 5,
+      "productVersion": "V1"
+    },
+    "eventCount": 404,
+    "reportCount": 8
+  },
+  "cases": [
+    {
+      "caseId": "CASE-1",
+      "finding": {
+        "related_build_id": "firstsignal-sim-v1.4-20260712",
+        "finding_key": "INTENT_GAP_DEDUPLICATION_REPEATED_V1.4",
+        "category": "PERFORMANCE",
+        "level": "YELLOW",
+        "version_assessment": "SAME_BUILD_REPEAT",
+        "title": "Verification of Unique Intent Gaps Array",
+        "confidence": 1,
+        "suggested_action": "Implement deduplication logic when populating the structured gaps array in the intent state generation.",
+        "approval_required": false,
+        "evidence": [
+          "Intent gaps array at tick 248 contains duplicates: 'Market brain WAIT', 'Current leg agrees', 'Directional edge', 'Price persistence', 'FEP / flip location', 'Response quality', 'Acceleration active' are listed."
+        ],
+        "summary": "The structured 'gaps' array within the intent data persistently contains unique entries in this snapshot, but prior pending knowledge suggests deduplication fixes require verification. Current data shows the array is functionally blocking entry but sloppy.",
+        "t": "1:37 PM",
+        "tick": 248,
+        "buildId": "firstsignal-sim-v1.4-20260712",
+        "buildSequence": 5,
+        "productVersion": "V1",
+        "id": "QA-1783889849783",
+        "evidenceStatus": "RAW_OBSERVATION",
+        "observedAtUtc": "2026-07-12T20:57:29.784Z",
+        "observedAtLocal": "2026-07-12T16:57:29.784-04:00",
+        "localDate": "2026-07-12",
+        "replayDate": "2026-07-10",
+        "marketDate": "2026-07-10",
+        "marketTime": "1:37 PM",
+        "marketTime24": "13:37:00",
+        "chronologicalKey": "2026-07-10T13:37:00|2026-07-12T20:57:29.784Z",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn"
+      },
+      "evidenceWindow": [
+        {
+          "tick": 245,
+          "time": "1:34 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.01,
+            "spx": 7566.650066764993,
+            "gexSpy": 12945558551,
+            "gexSpx": 103776632698,
+            "itsSPX": 9.029466365462621,
+            "itsSPY": 8.757265280462418,
+            "accelerator": 2.5,
+            "fep": 751.7326455452984,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 69,
+            "confidence": 56,
+            "blockers": [
+              "DATA_STALE_OR_NONINFORMATIVE",
+              "No genuinely new evidence since failed CALL"
+            ]
+          },
+          "dataHealth": "DATA_STALE_OR_NONINFORMATIVE",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:25 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:0.34 SPY:0.02 failedTicks:1."
+            },
+            {
+              "t": "1:28 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.12 SPY:0.01 failedTicks:0."
+            },
+            {
+              "t": "1:30 PM",
+              "entry": "DATA_STATE DATA_STALE_OR_NONINFORMATIVE source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:70."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:17 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. SPX lead-lag watch + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.07 vs SPY:+0.06 gap:+0.00 | 8t SPX:+0.10 vs SPY:+0.10 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 38,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:21.167Z",
+            "observedAtLocal": "2026-07-12T16:57:21.167-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:34 PM",
+            "marketTime24": "13:34:00",
+            "chronologicalKey": "2026-07-10T13:34:00|2026-07-12T20:57:21.167Z"
+          }
+        },
+        {
+          "tick": 246,
+          "time": "1:35 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.24,
+            "spx": 7568.8,
+            "gexSpy": 11409264337,
+            "gexSpx": 116024212338,
+            "itsSPX": 8.100541174578568,
+            "itsSPY": 7.7907612847911025,
+            "accelerator": 6.640000000000327,
+            "fep": 754.7709691156349,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 69,
+            "confidence": 56,
+            "blockers": [
+              "DATA_STALE_OR_NONINFORMATIVE",
+              "No genuinely new evidence since failed CALL"
+            ]
+          },
+          "dataHealth": "DATA_STALE_OR_NONINFORMATIVE",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:28 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.12 SPY:0.01 failedTicks:0."
+            },
+            {
+              "t": "1:30 PM",
+              "entry": "DATA_STATE DATA_STALE_OR_NONINFORMATIVE source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:70."
+            },
+            {
+              "t": "1:35 PM",
+              "entry": "MARKET_BRAIN CALL 54% | bullP 54 bearP 32 | session +0.67 | ITS3 SPX -1.05 SPY -1.07 | highP 0.24 lowP 0.01 | aboveQ 0.49 belowQ 0.22 | bullResp 0.43 bearResp 0.14 | 3t +0.23, 6t +0.22, accel 6.6"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:17 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. SPX lead-lag watch + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.07 vs SPY:+0.06 gap:+0.00 | 8t SPX:+0.10 vs SPY:+0.10 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 38,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:22.489Z",
+            "observedAtLocal": "2026-07-12T16:57:22.489-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:35 PM",
+            "marketTime24": "13:35:00",
+            "chronologicalKey": "2026-07-10T13:35:00|2026-07-12T20:57:22.489Z"
+          }
+        },
+        {
+          "tick": 247,
+          "time": "1:36 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.2729604402864,
+            "spx": 7569.1138407140315,
+            "gexSpy": 11409264337,
+            "gexSpx": 116024212338,
+            "itsSPX": 7.467154484724278,
+            "itsSPY": 7.131042960145465,
+            "accelerator": 3.093287925154982,
+            "fep": 754.7709691156349,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 68,
+            "confidence": 54,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:35 PM",
+              "entry": "DATA_STATE DATA_HEALTHY source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:66."
+            },
+            {
+              "t": "1:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:2.15 SPY:0.23 failedTicks:0."
+            },
+            {
+              "t": "1:36 PM",
+              "entry": "MARKET_BRAIN WAIT 49% | bullP 49 bearP 43 | session +0.65 | ITS3 SPX -1.61 SPY -1.67 | highP 0.20 lowP 0.00 | aboveQ 0.38 belowQ 0.36 | bullResp 0.49 bearResp 0.22 | 3t +0.26, 6t +0.26, accel 3.1"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:23.828Z",
+            "observedAtLocal": "2026-07-12T16:57:23.828-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:36 PM",
+            "marketTime24": "13:36:00",
+            "chronologicalKey": "2026-07-10T13:36:00|2026-07-12T20:57:23.828Z"
+          }
+        },
+        {
+          "tick": 248,
+          "time": "1:37 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.287234374951,
+            "spx": 7569.249753396273,
+            "gexSpy": 11409264337,
+            "gexSpx": 116024212338,
+            "itsSPX": 7.031160479212237,
+            "itsSPY": 6.676605229001606,
+            "accelerator": 2.75693082396333,
+            "fep": 754.7709691156349,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "WAIT",
+            "direction": null,
+            "readiness": 11,
+            "confidence": 24,
+            "blockers": [
+              "No valid contract"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:2.15 SPY:0.23 failedTicks:0."
+            },
+            {
+              "t": "1:36 PM",
+              "entry": "MARKET_BRAIN WAIT 49% | bullP 49 bearP 43 | session +0.65 | ITS3 SPX -1.61 SPY -1.67 | highP 0.20 lowP 0.00 | aboveQ 0.38 belowQ 0.36 | bullResp 0.49 bearResp 0.22 | 3t +0.26, 6t +0.26, accel 3.1"
+            },
+            {
+              "t": "1:37 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 46 bearP 53 | session +0.64 | ITS3 SPX -2.00 SPY -2.08 | highP 0.16 lowP 0.00 | aboveQ 0.31 belowQ 0.44 | bullResp 0.56 bearResp 0.28 | 3t +0.28, 6t +0.28, accel 2.8"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:25.151Z",
+            "observedAtLocal": "2026-07-12T16:57:25.151-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:37 PM",
+            "marketTime24": "13:37:00",
+            "chronologicalKey": "2026-07-10T13:37:00|2026-07-12T20:57:25.151Z"
+          }
+        },
+        {
+          "tick": 249,
+          "time": "1:38 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.2907673628816,
+            "spx": 7569.2833935857,
+            "gexSpy": 11409264337,
+            "gexSpx": 116024212338,
+            "itsSPX": 6.727797314745931,
+            "itsSPY": 6.360328579375386,
+            "accelerator": 2.5635937827510134,
+            "fep": 754.7709691156349,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "WAIT",
+            "direction": null,
+            "readiness": 11,
+            "confidence": 26,
+            "blockers": [
+              "No valid contract"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:36 PM",
+              "entry": "MARKET_BRAIN WAIT 49% | bullP 49 bearP 43 | session +0.65 | ITS3 SPX -1.61 SPY -1.67 | highP 0.20 lowP 0.00 | aboveQ 0.38 belowQ 0.36 | bullResp 0.49 bearResp 0.22 | 3t +0.26, 6t +0.26, accel 3.1"
+            },
+            {
+              "t": "1:37 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 46 bearP 53 | session +0.64 | ITS3 SPX -2.00 SPY -2.08 | highP 0.16 lowP 0.00 | aboveQ 0.31 belowQ 0.44 | bullResp 0.56 bearResp 0.28 | 3t +0.28, 6t +0.28, accel 2.8"
+            },
+            {
+              "t": "1:38 PM",
+              "entry": "MARKET_BRAIN PUT 59% | bullP 42 bearP 59 | session +0.64 | ITS3 SPX -1.37 SPY -1.43 | highP 0.13 lowP 0.00 | aboveQ 0.26 belowQ 0.50 | bullResp 0.48 bearResp 0.32 | 3t +0.05, 6t +0.28, accel 2.6"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:26.490Z",
+            "observedAtLocal": "2026-07-12T16:57:26.490-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:38 PM",
+            "marketTime24": "13:38:00",
+            "chronologicalKey": "2026-07-10T13:38:00|2026-07-12T20:57:26.490Z"
+          }
+        },
+        {
+          "tick": 250,
+          "time": "1:39 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.2885018734133,
+            "spx": 7569.261822185979,
+            "gexSpy": 11409264337,
+            "gexSpx": 116024212338,
+            "itsSPX": 6.514267631262555,
+            "itsSPY": 6.137761301748556,
+            "accelerator": 2.5407788104294013,
+            "fep": 754.7709691156349,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 51,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:37 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 46 bearP 53 | session +0.64 | ITS3 SPX -2.00 SPY -2.08 | highP 0.16 lowP 0.00 | aboveQ 0.31 belowQ 0.44 | bullResp 0.56 bearResp 0.28 | 3t +0.28, 6t +0.28, accel 2.8"
+            },
+            {
+              "t": "1:38 PM",
+              "entry": "MARKET_BRAIN PUT 59% | bullP 42 bearP 59 | session +0.64 | ITS3 SPX -1.37 SPY -1.43 | highP 0.13 lowP 0.00 | aboveQ 0.26 belowQ 0.50 | bullResp 0.48 bearResp 0.32 | 3t +0.05, 6t +0.28, accel 2.6"
+            },
+            {
+              "t": "1:38 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:0.48 SPY:0.05 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:27.831Z",
+            "observedAtLocal": "2026-07-12T16:57:27.831-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:39 PM",
+            "marketTime24": "13:39:00",
+            "chronologicalKey": "2026-07-10T13:39:00|2026-07-12T20:57:27.831Z"
+          }
+        },
+        {
+          "tick": 251,
+          "time": "1:40 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.12,
+            "spx": 7567.73,
+            "gexSpy": 11688585751,
+            "gexSpx": 108307538682,
+            "itsSPX": 6.017868614905225,
+            "itsSPY": 5.645574976322322,
+            "accelerator": 5.533033721440006,
+            "fep": 754.9816057034349,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 52,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:38 PM",
+              "entry": "MARKET_BRAIN PUT 59% | bullP 42 bearP 59 | session +0.64 | ITS3 SPX -1.37 SPY -1.43 | highP 0.13 lowP 0.00 | aboveQ 0.26 belowQ 0.50 | bullResp 0.48 bearResp 0.32 | 3t +0.05, 6t +0.28, accel 2.6"
+            },
+            {
+              "t": "1:38 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:0.48 SPY:0.05 failedTicks:1."
+            },
+            {
+              "t": "1:39 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.15 SPY:0.02 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:29.151Z",
+            "observedAtLocal": "2026-07-12T16:57:29.151-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:40 PM",
+            "marketTime24": "13:40:00",
+            "chronologicalKey": "2026-07-10T13:40:00|2026-07-12T20:57:29.151Z"
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "CASE-2",
+      "finding": {
+        "category": "PERFORMANCE",
+        "finding_key": "STALE_MINDSET_LACKS_COHERENCE_T328",
+        "related_build_id": "firstsignal-sim-v1.4-20260712",
+        "version_assessment": "NEW_FINDING",
+        "level": "YELLOW",
+        "suggested_action": "Investigate decoupling between structured intent model and AI mindset narrative generation.",
+        "confidence": 1,
+        "title": "Stale AI Mindset Guidance Fails to Cohere with Active PUT Intent",
+        "summary": "Active logical incoherence is observed between intent and AI mindset engines. At tick 328, the structured model presents PREPARE_PUT, yet the Mindset engine fails to generate supporting narrative, with the latest entry stale from 1:35 PM (WAIT), repeating functional decoupling themes from prior builds. Structured risk logic is properly gating execution readiness.",
+        "evidence": [
+          "At tick 328, the state is PREPARE_PUT with readiness (62) suppressed below the threshold (80), enforced by dynamic gaps including 'Current leg agrees'. Transmission data shows mixed short-term movement (spxMove: -1.05, spyMove: -0.04). Mindset data shows only stale WAIT guidance from 1:35 PM, contradicting the active model intent."
+        ],
+        "approval_required": false,
+        "t": "2:57 PM",
+        "tick": 328,
+        "buildId": "firstsignal-sim-v1.4-20260712",
+        "buildSequence": 5,
+        "productVersion": "V1",
+        "id": "QA-1783889955654",
+        "evidenceStatus": "RAW_OBSERVATION",
+        "observedAtUtc": "2026-07-12T20:59:15.655Z",
+        "observedAtLocal": "2026-07-12T16:59:15.655-04:00",
+        "localDate": "2026-07-12",
+        "replayDate": "2026-07-10",
+        "marketDate": "2026-07-10",
+        "marketTime": "2:57 PM",
+        "marketTime24": "14:57:00",
+        "chronologicalKey": "2026-07-10T14:57:00|2026-07-12T20:59:15.655Z",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn"
+      },
+      "evidenceWindow": [
+        {
+          "tick": 325,
+          "time": "2:54 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.5847614397345,
+            "spx": 7572.018158282869,
+            "gexSpy": 7958163547,
+            "gexSpx": 140753230974,
+            "itsSPX": 5.248547798389721,
+            "itsSPY": 4.821492391537098,
+            "accelerator": 2.512410942305223,
+            "fep": 755.0455742151528,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 69,
+            "confidence": 54,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:50 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:0.74 SPY:0.07 failedTicks:1."
+            },
+            {
+              "t": "2:51 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:0.84 SPY:0.08 failedTicks:0."
+            },
+            {
+              "t": "2:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.17 SPY:0.02 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:07.805Z",
+            "observedAtLocal": "2026-07-12T16:59:07.805-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:54 PM",
+            "marketTime24": "14:54:00",
+            "chronologicalKey": "2026-07-10T14:54:00|2026-07-12T20:59:07.805Z"
+          }
+        },
+        {
+          "tick": 326,
+          "time": "2:55 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.55,
+            "spx": 7571.09,
+            "gexSpy": 4042356892,
+            "gexSpx": 135006378648,
+            "itsSPX": 5.514369502700271,
+            "itsSPY": 5.050878915749691,
+            "accelerator": 3.1257059152219426,
+            "fep": 754.7818522203627,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 49,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:51 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:0.84 SPY:0.08 failedTicks:0."
+            },
+            {
+              "t": "2:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.17 SPY:0.02 failedTicks:0."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "CHOP_GATE OFF — pin 29%, failed crosses 0, holdSide true, wallExpand true."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:09.128Z",
+            "observedAtLocal": "2026-07-12T16:59:09.128-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:55 PM",
+            "marketTime24": "14:55:00",
+            "chronologicalKey": "2026-07-10T14:55:00|2026-07-12T20:59:09.128Z"
+          }
+        },
+        {
+          "tick": 327,
+          "time": "2:56 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.5471338747576,
+            "spx": 7570.979654178172,
+            "gexSpy": 4042356892,
+            "gexSpx": 135006378648,
+            "itsSPX": 5.6980698626973565,
+            "itsSPY": 5.209254446205377,
+            "accelerator": 2.5515902543622815,
+            "fep": 754.7818522203627,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 49,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.17 SPY:0.02 failedTicks:0."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "CHOP_GATE OFF — pin 29%, failed crosses 0, holdSide true, wallExpand true."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.92 SPY:-0.03 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:10.466Z",
+            "observedAtLocal": "2026-07-12T16:59:10.466-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:56 PM",
+            "marketTime24": "14:56:00",
+            "chronologicalKey": "2026-07-10T14:56:00|2026-07-12T20:59:10.466Z"
+          }
+        },
+        {
+          "tick": 328,
+          "time": "2:57 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.5458926630477,
+            "spx": 7570.931867527338,
+            "gexSpy": 4042356892,
+            "gexSpx": 135006378648,
+            "itsSPX": 5.825632634397364,
+            "itsSPY": 5.319167626859447,
+            "accelerator": 2.522341810779153,
+            "fep": 754.7818522203627,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 49,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.17 SPY:0.02 failedTicks:0."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "CHOP_GATE OFF — pin 29%, failed crosses 0, holdSide true, wallExpand true."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.92 SPY:-0.03 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:11.805Z",
+            "observedAtLocal": "2026-07-12T16:59:11.805-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:57 PM",
+            "marketTime24": "14:57:00",
+            "chronologicalKey": "2026-07-10T14:57:00|2026-07-12T20:59:11.805Z"
+          }
+        },
+        {
+          "tick": 329,
+          "time": "2:58 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.5455854467059,
+            "spx": 7570.920039698179,
+            "gexSpy": 4042356892,
+            "gexSpx": 135006378648,
+            "itsSPX": 5.914672350703839,
+            "itsSPY": 5.395871876501149,
+            "accelerator": 2.5055298941515503,
+            "fep": 754.7818522203627,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 49,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.17 SPY:0.02 failedTicks:0."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "CHOP_GATE OFF — pin 29%, failed crosses 0, holdSide true, wallExpand true."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.92 SPY:-0.03 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:13.128Z",
+            "observedAtLocal": "2026-07-12T16:59:13.128-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:58 PM",
+            "marketTime24": "14:58:00",
+            "chronologicalKey": "2026-07-10T14:58:00|2026-07-12T20:59:13.128Z"
+          }
+        },
+        {
+          "tick": 330,
+          "time": "2:59 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.5457824457901,
+            "spx": 7570.927624162921,
+            "gexSpy": 4042356892,
+            "gexSpx": 135006378648,
+            "itsSPX": 5.977163166209376,
+            "itsSPY": 5.449715523687368,
+            "accelerator": 2.503545983515778,
+            "fep": 754.7818522203627,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 49,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:55 PM",
+              "entry": "CHOP_GATE OFF — pin 29%, failed crosses 0, holdSide true, wallExpand true."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.92 SPY:-0.03 failedTicks:1."
+            },
+            {
+              "t": "2:58 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.17 SPY:-0.00 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:14.466Z",
+            "observedAtLocal": "2026-07-12T16:59:14.466-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:59 PM",
+            "marketTime24": "14:59:00",
+            "chronologicalKey": "2026-07-10T14:59:00|2026-07-12T20:59:14.466Z"
+          }
+        },
+        {
+          "tick": 331,
+          "time": "3:00 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.97,
+            "spx": 7575.76,
+            "gexSpy": 5341285556,
+            "gexSpx": 183848315254,
+            "itsSPX": 6.4858458061766076,
+            "itsSPY": 5.898597478149226,
+            "accelerator": 10.135915975778516,
+            "fep": 754.7245943657854,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 49,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "2:55 PM",
+              "entry": "CHOP_GATE OFF — pin 29%, failed crosses 0, holdSide true, wallExpand true."
+            },
+            {
+              "t": "2:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.92 SPY:-0.03 failedTicks:1."
+            },
+            {
+              "t": "2:58 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.17 SPY:-0.00 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:59:15.804Z",
+            "observedAtLocal": "2026-07-12T16:59:15.804-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:00 PM",
+            "marketTime24": "15:00:00",
+            "chronologicalKey": "2026-07-10T15:00:00|2026-07-12T20:59:15.804Z"
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "CASE-3",
+      "finding": {
+        "level": "YELLOW",
+        "confidence": 1,
+        "evidence": [
+          "Tick: 368, Time: 3:37 PM",
+          "Structured Intent: PREPARE_PUT, Readiness: 56, Threshold: 92",
+          "Mindset Guide (Latest): 3:01 PM GUIDE_CALL (Score: 59), Stale 36 minutes.",
+          "Model Brain Side: PUT"
+        ],
+        "title": "Persistent Stale Mindset Guidance Fails to Cohere with Active PUT Intent",
+        "version_assessment": "SAME_BUILD_REPEAT",
+        "approval_required": false,
+        "related_build_id": "firstsignal-sim-v1.4-20260712",
+        "finding_key": "MINDSET_LACKS_COHERENCE_TICK_368",
+        "category": "PERFORMANCE",
+        "suggested_action": "Investigate narrative generation pipeline latency to ensure Mindset coherence overrides or aligns with structured PREPARE_PUT model state.",
+        "summary": "Functional decoupling between model state and narrative generation persists at tick 368. The structured model presents a blocked PREPARE_PUT intent (Readiness 56 vs Threshold 92), while the AI Mindset engine remains stale from 3:01 PM with a GUIDE_CALL direction. Structured risk logic is properly gating execution readiness despite the narrative inconsistency.",
+        "t": "3:37 PM",
+        "tick": 368,
+        "buildId": "firstsignal-sim-v1.4-20260712",
+        "buildSequence": 5,
+        "productVersion": "V1",
+        "id": "QA-1783890009290",
+        "evidenceStatus": "RAW_OBSERVATION",
+        "observedAtUtc": "2026-07-12T21:00:09.291Z",
+        "observedAtLocal": "2026-07-12T17:00:09.291-04:00",
+        "localDate": "2026-07-12",
+        "replayDate": "2026-07-10",
+        "marketDate": "2026-07-10",
+        "marketTime": "3:37 PM",
+        "marketTime24": "15:37:00",
+        "chronologicalKey": "2026-07-10T15:37:00|2026-07-12T21:00:09.291Z",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn"
+      },
+      "evidenceWindow": [
+        {
+          "tick": 365,
+          "time": "3:34 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.9336736686853,
+            "spx": 7575.434084024223,
+            "gexSpy": 5352866806,
+            "gexSpx": 195368528226,
+            "itsSPX": 6.4856932643946275,
+            "itsSPY": 5.918935117368366,
+            "accelerator": 2.505318975273667,
+            "fep": 755.0484268540703,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 46,
+            "confidence": 40,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:30 PM",
+              "entry": "DATA_STATE DATA_HEALTHY source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:68."
+            },
+            {
+              "t": "3:30 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.40 SPY:-0.03 failedTicks:1."
+            },
+            {
+              "t": "3:33 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.08 SPY:-0.01 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:01.123Z",
+            "observedAtLocal": "2026-07-12T17:00:01.123-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:34 PM",
+            "marketTime24": "15:34:00",
+            "chronologicalKey": "2026-07-10T15:34:00|2026-07-12T21:00:01.123Z"
+          }
+        },
+        {
+          "tick": 366,
+          "time": "3:35 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.05,
+            "spx": 7577.04,
+            "gexSpy": 1425852934,
+            "gexSpx": 224335001754,
+            "itsSPX": 6.422639888943599,
+            "itsSPY": 5.7971701798753505,
+            "accelerator": 4.593873963664009,
+            "fep": 755.267112721566,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 46,
+            "confidence": 39,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:30 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.40 SPY:-0.03 failedTicks:1."
+            },
+            {
+              "t": "3:33 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.08 SPY:-0.01 failedTicks:0."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "CHOP_GATE OFF — pin 12%, failed crosses 2, holdSide true, wallExpand false."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:02.445Z",
+            "observedAtLocal": "2026-07-12T17:00:02.445-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:35 PM",
+            "marketTime24": "15:35:00",
+            "chronologicalKey": "2026-07-10T15:35:00|2026-07-12T21:00:02.445Z"
+          }
+        },
+        {
+          "tick": 367,
+          "time": "3:36 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.0657636888326,
+            "spx": 7577.259258581035,
+            "gexSpy": 1425852934,
+            "gexSpx": 224335001754,
+            "itsSPX": 6.39264516193051,
+            "itsSPY": 5.723857884562534,
+            "accelerator": 2.7837463989874323,
+            "fep": 755.267112721566,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 58,
+            "confidence": 48,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:33 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.08 SPY:-0.01 failedTicks:0."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "CHOP_GATE OFF — pin 12%, failed crosses 2, holdSide true, wallExpand false."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:1.60 SPY:0.12 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:03.783Z",
+            "observedAtLocal": "2026-07-12T17:00:03.783-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:36 PM",
+            "marketTime24": "15:36:00",
+            "chronologicalKey": "2026-07-10T15:36:00|2026-07-12T21:00:03.783Z"
+          }
+        },
+        {
+          "tick": 368,
+          "time": "3:37 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.0725903532374,
+            "spx": 7577.354211276848,
+            "gexSpy": 1425852934,
+            "gexSpx": 224335001754,
+            "itsSPX": 6.377801437342013,
+            "itsSPY": 5.67772630620453,
+            "accelerator": 2.622879959286365,
+            "fep": 755.267112721566,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 56,
+            "confidence": 47,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:33 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.08 SPY:-0.01 failedTicks:0."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "CHOP_GATE OFF — pin 12%, failed crosses 2, holdSide true, wallExpand false."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:1.60 SPY:0.12 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:05.121Z",
+            "observedAtLocal": "2026-07-12T17:00:05.121-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:37 PM",
+            "marketTime24": "15:37:00",
+            "chronologicalKey": "2026-07-10T15:37:00|2026-07-12T21:00:05.121Z"
+          }
+        },
+        {
+          "tick": 369,
+          "time": "3:38 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.0742800431173,
+            "spx": 7577.377713326995,
+            "gexSpy": 1425852934,
+            "gexSpx": 224335001754,
+            "itsSPX": 6.368936190714181,
+            "itsSPY": 5.6467201794400665,
+            "accelerator": 2.530414417837619,
+            "fep": 755.267112721566,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 56,
+            "confidence": 47,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:33 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.08 SPY:-0.01 failedTicks:0."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "CHOP_GATE OFF — pin 12%, failed crosses 2, holdSide true, wallExpand false."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:1.60 SPY:0.12 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:06.445Z",
+            "observedAtLocal": "2026-07-12T17:00:06.445-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:38 PM",
+            "marketTime24": "15:38:00",
+            "chronologicalKey": "2026-07-10T15:38:00|2026-07-12T21:00:06.445Z"
+          }
+        },
+        {
+          "tick": 370,
+          "time": "3:39 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.0731965481541,
+            "spx": 7577.362642897054,
+            "gexSpy": 1425852934,
+            "gexSpx": 224335001754,
+            "itsSPX": 6.361752283991661,
+            "itsSPY": 5.624191175809969,
+            "accelerator": 2.5195029093367793,
+            "fep": 755.267112721566,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 56,
+            "confidence": 46,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:35 PM",
+              "entry": "CHOP_GATE OFF — pin 12%, failed crosses 2, holdSide true, wallExpand false."
+            },
+            {
+              "t": "3:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:1.60 SPY:0.12 failedTicks:0."
+            },
+            {
+              "t": "3:38 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:0.34 SPY:0.02 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:07.782Z",
+            "observedAtLocal": "2026-07-12T17:00:07.782-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:39 PM",
+            "marketTime24": "15:39:00",
+            "chronologicalKey": "2026-07-10T15:39:00|2026-07-12T21:00:07.782Z"
+          }
+        },
+        {
+          "tick": 371,
+          "time": "3:40 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.02,
+            "spx": 7576.64,
+            "gexSpy": 4300929080,
+            "gexSpx": 224154578728,
+            "itsSPX": 6.72006275292531,
+            "itsSPY": 5.960781381715925,
+            "accelerator": 3.457537866774146,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 56,
+            "confidence": 46,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:35 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:1.60 SPY:0.12 failedTicks:0."
+            },
+            {
+              "t": "3:38 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:0.34 SPY:0.02 failedTicks:1."
+            },
+            {
+              "t": "3:39 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.10 SPY:0.01 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:09.121Z",
+            "observedAtLocal": "2026-07-12T17:00:09.121-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:40 PM",
+            "marketTime24": "15:40:00",
+            "chronologicalKey": "2026-07-10T15:40:00|2026-07-12T21:00:09.121Z"
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "CASE-4",
+      "finding": {
+        "level": "GREEN",
+        "version_assessment": "FIX_VERIFIED",
+        "category": "PERFORMANCE",
+        "related_build_id": "firstsignal-sim-v1.4-20260712",
+        "finding_key": "INTENT_GAP_DEDUPLICATION_FIXED_SNAPSHOT268",
+        "evidence": [
+          "The structured 'gaps' array at tick 268 contains: 'Market brain WAIT', 'Current leg agrees', 'Directional edge', 'Price persistence', 'FEP / flip location', 'Acceleration active'. No duplicates are present."
+        ],
+        "approval_required": false,
+        "summary": "The structured 'gaps' array within the intent data contains only unique entries at tick 268. This verifies the fix for duplicate gaps reported previously in this build.",
+        "confidence": 1,
+        "suggested_action": "None, fix confirmed.",
+        "title": "Fix Verified: Intent Gaps Array Deduplicated",
+        "t": "1:57 PM",
+        "tick": 268,
+        "buildId": "firstsignal-sim-v1.4-20260712",
+        "buildSequence": 5,
+        "productVersion": "V1",
+        "id": "QA-1783889874626",
+        "evidenceStatus": "RAW_OBSERVATION",
+        "observedAtUtc": "2026-07-12T20:57:54.627Z",
+        "observedAtLocal": "2026-07-12T16:57:54.627-04:00",
+        "localDate": "2026-07-12",
+        "replayDate": "2026-07-10",
+        "marketDate": "2026-07-10",
+        "marketTime": "1:57 PM",
+        "marketTime24": "13:57:00",
+        "chronologicalKey": "2026-07-10T13:57:00|2026-07-12T20:57:54.627Z",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn"
+      },
+      "evidenceWindow": [
+        {
+          "tick": 265,
+          "time": "1:54 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.2521087771049,
+            "spx": 7568.880954241062,
+            "gexSpy": 11252455249,
+            "gexSpx": 116666837469,
+            "itsSPX": 6.356737308768186,
+            "itsSPY": 5.980384051101929,
+            "accelerator": 2.501772991757889,
+            "fep": 754.8114997158912,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 53,
+            "blockers": [
+              "DATA_STALE_OR_NONINFORMATIVE"
+            ]
+          },
+          "dataHealth": "DATA_STALE_OR_NONINFORMATIVE",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:53 PM",
+              "entry": "MARKET_BRAIN PUT 62% | bullP 45 bearP 62 | session +0.70 | ITS3 SPX -1.41 SPY -1.38 | highP 0.20 lowP 0.05 | aboveQ 0.20 belowQ 0.58 | bullResp 0.21 bearResp 0.41 | 3t +0.00, 6t -0.01, accel 2.5"
+            },
+            {
+              "t": "1:53 PM",
+              "entry": "DATA_STATE DATA_STALE_OR_NONINFORMATIVE source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:70."
+            },
+            {
+              "t": "1:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.06 SPY:0.00 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:47.814Z",
+            "observedAtLocal": "2026-07-12T16:57:47.814-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:54 PM",
+            "marketTime24": "13:54:00",
+            "chronologicalKey": "2026-07-10T13:54:00|2026-07-12T20:57:47.814Z"
+          }
+        },
+        {
+          "tick": 266,
+          "time": "1:55 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.03,
+            "spx": 7566.47,
+            "gexSpy": 12717196219,
+            "gexSpx": 98338819239,
+            "itsSPX": 7.398101136026472,
+            "itsSPY": 6.9597589023367945,
+            "accelerator": 6.4979579878890945,
+            "fep": 752.3539107022617,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 69,
+            "confidence": 58,
+            "blockers": [
+              "DATA_STALE_OR_NONINFORMATIVE"
+            ]
+          },
+          "dataHealth": "DATA_STALE_OR_NONINFORMATIVE",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:53 PM",
+              "entry": "DATA_STATE DATA_STALE_OR_NONINFORMATIVE source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:70."
+            },
+            {
+              "t": "1:53 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.06 SPY:0.00 failedTicks:0."
+            },
+            {
+              "t": "1:55 PM",
+              "entry": "CHOP_GATE ON — pin 56%, failed crosses 2, holdSide true, wallExpand false."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:49.151Z",
+            "observedAtLocal": "2026-07-12T16:57:49.151-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:55 PM",
+            "marketTime24": "13:55:00",
+            "chronologicalKey": "2026-07-10T13:55:00|2026-07-12T20:57:49.151Z"
+          }
+        },
+        {
+          "tick": 267,
+          "time": "1:56 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 753.9984726223347,
+            "spx": 7566.116033532577,
+            "gexSpy": 12717196219,
+            "gexSpx": 98338819239,
+            "itsSPX": 8.122853660339416,
+            "itsSPY": 7.641632653649674,
+            "accelerator": 3.0674927979748645,
+            "fep": 752.3539107022617,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_PUT",
+            "direction": "PUT",
+            "readiness": 62,
+            "confidence": 50,
+            "blockers": []
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:55 PM",
+              "entry": "DATA_STATE DATA_HEALTHY source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:67."
+            },
+            {
+              "t": "1:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-2.41 SPY:-0.22 failedTicks:0."
+            },
+            {
+              "t": "1:56 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 53 bearP 51 | session +0.76 | ITS3 SPX +1.54 SPY +1.45 | highP 0.20 lowP 0.04 | aboveQ 0.44 belowQ 0.37 | bullResp 0.31 bearResp 0.46 | 3t -0.25, 6t -0.25, accel 3.1"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:50.490Z",
+            "observedAtLocal": "2026-07-12T16:57:50.490-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:56 PM",
+            "marketTime24": "13:56:00",
+            "chronologicalKey": "2026-07-10T13:56:00|2026-07-12T20:57:50.490Z"
+          }
+        },
+        {
+          "tick": 268,
+          "time": "1:57 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 753.9848192935251,
+            "spx": 7565.962743886396,
+            "gexSpy": 12717196219,
+            "gexSpx": 98338819239,
+            "itsSPX": 8.628282851898204,
+            "itsSPY": 8.117278590947173,
+            "accelerator": 2.7457599185727304,
+            "fep": 752.3539107022617,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "WAIT",
+            "direction": null,
+            "readiness": 18,
+            "confidence": 30,
+            "blockers": [
+              "No valid contract"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-2.41 SPY:-0.22 failedTicks:0."
+            },
+            {
+              "t": "1:56 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 53 bearP 51 | session +0.76 | ITS3 SPX +1.54 SPY +1.45 | highP 0.20 lowP 0.04 | aboveQ 0.44 belowQ 0.37 | bullResp 0.31 bearResp 0.46 | 3t -0.25, 6t -0.25, accel 3.1"
+            },
+            {
+              "t": "1:57 PM",
+              "entry": "MARKET_BRAIN CALL 60% | bullP 60 bearP 45 | session +0.76 | ITS3 SPX +2.27 SPY +2.14 | highP 0.19 lowP 0.03 | aboveQ 0.53 belowQ 0.30 | bullResp 0.37 bearResp 0.54 | 3t -0.27, 6t -0.27, accel 2.7"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:51.812Z",
+            "observedAtLocal": "2026-07-12T16:57:51.812-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:57 PM",
+            "marketTime24": "13:57:00",
+            "chronologicalKey": "2026-07-10T13:57:00|2026-07-12T20:57:51.812Z"
+          }
+        },
+        {
+          "tick": 269,
+          "time": "1:58 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 753.9814399137654,
+            "spx": 7565.924802668184,
+            "gexSpy": 12717196219,
+            "gexSpx": 98338819239,
+            "itsSPX": 8.981606150828878,
+            "itsSPY": 8.449811918595442,
+            "accelerator": 2.5608288356752382,
+            "fep": 752.3539107022617,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 62,
+            "confidence": 52,
+            "blockers": [
+              "No genuinely new evidence since failed CALL"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-2.41 SPY:-0.22 failedTicks:0."
+            },
+            {
+              "t": "1:56 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 53 bearP 51 | session +0.76 | ITS3 SPX +1.54 SPY +1.45 | highP 0.20 lowP 0.04 | aboveQ 0.44 belowQ 0.37 | bullResp 0.31 bearResp 0.46 | 3t -0.25, 6t -0.25, accel 3.1"
+            },
+            {
+              "t": "1:57 PM",
+              "entry": "MARKET_BRAIN CALL 60% | bullP 60 bearP 45 | session +0.76 | ITS3 SPX +2.27 SPY +2.14 | highP 0.19 lowP 0.03 | aboveQ 0.53 belowQ 0.30 | bullResp 0.37 bearResp 0.54 | 3t -0.27, 6t -0.27, accel 2.7"
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:53.151Z",
+            "observedAtLocal": "2026-07-12T16:57:53.151-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:58 PM",
+            "marketTime24": "13:58:00",
+            "chronologicalKey": "2026-07-10T13:58:00|2026-07-12T20:57:53.151Z"
+          }
+        },
+        {
+          "tick": 270,
+          "time": "1:59 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 753.9836069036916,
+            "spx": 7565.949132055083,
+            "gexSpy": 12717196219,
+            "gexSpx": 98338819239,
+            "itsSPX": 9.229238761108125,
+            "itsSPY": 8.682854118488201,
+            "accelerator": 2.5390058186715123,
+            "fep": 752.3539107022617,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 62,
+            "confidence": 54,
+            "blockers": [
+              "No genuinely new evidence since failed CALL"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:56 PM",
+              "entry": "MARKET_BRAIN WAIT 53% | bullP 53 bearP 51 | session +0.76 | ITS3 SPX +1.54 SPY +1.45 | highP 0.20 lowP 0.04 | aboveQ 0.44 belowQ 0.37 | bullResp 0.31 bearResp 0.46 | 3t -0.25, 6t -0.25, accel 3.1"
+            },
+            {
+              "t": "1:57 PM",
+              "entry": "MARKET_BRAIN CALL 60% | bullP 60 bearP 45 | session +0.76 | ITS3 SPX +2.27 SPY +2.14 | highP 0.19 lowP 0.03 | aboveQ 0.53 belowQ 0.30 | bullResp 0.37 bearResp 0.54 | 3t -0.27, 6t -0.27, accel 2.7"
+            },
+            {
+              "t": "1:58 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.55 SPY:-0.05 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:54.489Z",
+            "observedAtLocal": "2026-07-12T16:57:54.489-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "1:59 PM",
+            "marketTime24": "13:59:00",
+            "chronologicalKey": "2026-07-10T13:59:00|2026-07-12T20:57:54.489Z"
+          }
+        },
+        {
+          "tick": 271,
+          "time": "2:00 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.04,
+            "spx": 7566.67,
+            "gexSpy": 11475863479,
+            "gexSpx": 97464423689,
+            "itsSPX": 9.443595598243853,
+            "itsSPY": 8.864598172368849,
+            "accelerator": 3.515075733551157,
+            "fep": 751.946742853971,
+            "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 69,
+            "confidence": 60,
+            "blockers": [
+              "No genuinely new evidence since failed CALL"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_PENDING",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "1:57 PM",
+              "entry": "MARKET_BRAIN CALL 60% | bullP 60 bearP 45 | session +0.76 | ITS3 SPX +2.27 SPY +2.14 | highP 0.19 lowP 0.03 | aboveQ 0.53 belowQ 0.30 | bullResp 0.37 bearResp 0.54 | 3t -0.27, 6t -0.27, accel 2.7"
+            },
+            {
+              "t": "1:58 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.55 SPY:-0.05 failedTicks:1."
+            },
+            {
+              "t": "1:59 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_PENDING SPX:-0.17 SPY:-0.01 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "1:29 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: FLAT | NO_CLEAR_LAG | 4t SPX:+0.00 vs SPY:+0.00 gap:+0.00 | 8t SPX:+0.05 vs SPY:+0.03 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 22,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            },
+            {
+              "t": "1:35 PM",
+              "mindset": "local scan",
+              "reasoning": "No local entry. accel with upside slope + upper pin edge unconfirmed, no rejection yet. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.22 vs SPY:+0.23 gap:-0.01 | 8t SPX:+0.23 vs SPY:+0.22 | lead-lag context only.",
+              "decision": "WAIT",
+              "score": 54,
+              "edgeState": "LOCAL_SCAN",
+              "confTrend": "STABLE"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T20:57:55.812Z",
+            "observedAtLocal": "2026-07-12T16:57:55.812-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "2:00 PM",
+            "marketTime24": "14:00:00",
+            "chronologicalKey": "2026-07-10T14:00:00|2026-07-12T20:57:55.812Z"
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "CASE-5",
+      "finding": {
+        "finding_key": "MARKET_CLOSE_PROTOCOL_STABLE_T388",
+        "related_build_id": "firstsignal-sim-v1.4-20260712",
+        "approval_required": false,
+        "version_assessment": "FIX_VERIFIED",
+        "title": "Fix Verified: Market Close Protocol Successfully Blocks Late Session Entry",
+        "evidence": [
+          "Tick: 388, Time: 3:57 PM",
+          "Structured Intent: PREPARE_CALL, Execution Readiness: 0",
+          "Hard Blocker: Market not tradeable",
+          "Transmission: Confirmed"
+        ],
+        "level": "GREEN",
+        "confidence": 1,
+        "summary": "Correct system protocol adherence is verified at tick 388 (3:57 PM). Despite favorable supporting factors, the hard blocker 'Market not tradeable' is appropriately applied as the session approaches 4:00 PM, successfully reducing entry readiness to zero and maintaining stable risk management at close.",
+        "suggested_action": "Maintain current market close risk management settings.",
+        "category": "PERFORMANCE",
+        "t": "3:57 PM",
+        "tick": 388,
+        "buildId": "firstsignal-sim-v1.4-20260712",
+        "buildSequence": 5,
+        "productVersion": "V1",
+        "id": "QA-1783890035314",
+        "evidenceStatus": "RAW_OBSERVATION",
+        "observedAtUtc": "2026-07-12T21:00:35.315Z",
+        "observedAtLocal": "2026-07-12T17:00:35.315-04:00",
+        "localDate": "2026-07-12",
+        "replayDate": "2026-07-10",
+        "marketDate": "2026-07-10",
+        "marketTime": "3:57 PM",
+        "marketTime24": "15:57:00",
+        "chronologicalKey": "2026-07-10T15:57:00|2026-07-12T21:00:35.315Z",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn"
+      },
+      "evidenceWindow": [
+        {
+          "tick": 385,
+          "time": "3:54 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 755.0662595663213,
+            "spx": 7577.143606903691,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 7.236484958774158,
+            "itsSPY": 7.132849519557027,
+            "accelerator": 2.5283678681262245,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 55,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "RELATIONSHIP_UNRELIABLE",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:49 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:0.05 SPY:0.02 failedTicks:0."
+            },
+            {
+              "t": "3:50 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-0.38 SPY:-0.21 failedTicks:0."
+            },
+            {
+              "t": "3:53 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.05 SPY:-0.04 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:27.779Z",
+            "observedAtLocal": "2026-07-12T17:00:27.779-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:54 PM",
+            "marketTime24": "15:54:00",
+            "chronologicalKey": "2026-07-10T15:54:00|2026-07-12T21:00:27.779Z"
+          }
+        },
+        {
+          "tick": 386,
+          "time": "3:55 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.9,
+            "spx": 7573.79,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 7.066326909910673,
+            "itsSPY": 6.969656538764396,
+            "accelerator": 5.492672193783164,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 50,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "RELATIONSHIP_UNRELIABLE",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:49 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:0.05 SPY:0.02 failedTicks:0."
+            },
+            {
+              "t": "3:50 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-0.38 SPY:-0.21 failedTicks:0."
+            },
+            {
+              "t": "3:53 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.05 SPY:-0.04 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:29.117Z",
+            "observedAtLocal": "2026-07-12T17:00:29.117-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:55 PM",
+            "marketTime24": "15:55:00",
+            "chronologicalKey": "2026-07-10T15:55:00|2026-07-12T21:00:29.117Z"
+          }
+        },
+        {
+          "tick": 387,
+          "time": "3:56 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.871338747577,
+            "spx": 7573.30275870881,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 6.922715090621142,
+            "itsSPY": 6.830599569592135,
+            "accelerator": 3.015902543612583,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 44,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:50 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-0.38 SPY:-0.21 failedTicks:0."
+            },
+            {
+              "t": "3:53 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.05 SPY:-0.04 failedTicks:0."
+            },
+            {
+              "t": "3:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-3.35 SPY:-0.17 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:30.439Z",
+            "observedAtLocal": "2026-07-12T17:00:30.439-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:56 PM",
+            "marketTime24": "15:56:00",
+            "chronologicalKey": "2026-07-10T15:56:00|2026-07-12T21:00:30.439Z"
+          }
+        },
+        {
+          "tick": 388,
+          "time": "3:57 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.8589266304774,
+            "spx": 7573.0917527181155,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 6.811548842070907,
+            "itsSPY": 6.722482475008145,
+            "accelerator": 2.7234181077935773,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 41,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:50 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-0.38 SPY:-0.21 failedTicks:0."
+            },
+            {
+              "t": "3:53 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.05 SPY:-0.04 failedTicks:0."
+            },
+            {
+              "t": "3:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-3.35 SPY:-0.17 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:31.778Z",
+            "observedAtLocal": "2026-07-12T17:00:31.778-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:57 PM",
+            "marketTime24": "15:57:00",
+            "chronologicalKey": "2026-07-10T15:57:00|2026-07-12T21:00:31.778Z"
+          }
+        },
+        {
+          "tick": 389,
+          "time": "3:58 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.8558544670594,
+            "spx": 7573.03952594001,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 6.7310974624681,
+            "itsSPY": 6.6441310134295986,
+            "accelerator": 2.555298941523688,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 41,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_CONFIRMED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:50 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-0.38 SPY:-0.21 failedTicks:0."
+            },
+            {
+              "t": "3:53 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.05 SPY:-0.04 failedTicks:0."
+            },
+            {
+              "t": "3:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-3.35 SPY:-0.17 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:33.116Z",
+            "observedAtLocal": "2026-07-12T17:00:33.116-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:58 PM",
+            "marketTime24": "15:58:00",
+            "chronologicalKey": "2026-07-10T15:58:00|2026-07-12T21:00:33.116Z"
+          }
+        },
+        {
+          "tick": 390,
+          "time": "3:59 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.8578244579014,
+            "spx": 7573.073015784325,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 6.676471246377876,
+            "itsSPY": 6.590996857194258,
+            "accelerator": 2.5354598351557343,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 41,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "TRANSMISSION_DELAYED",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:53 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.05 SPY:-0.04 failedTicks:0."
+            },
+            {
+              "t": "3:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-3.35 SPY:-0.17 failedTicks:0."
+            },
+            {
+              "t": "3:58 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.75 SPY:-0.04 failedTicks:1."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:34.439Z",
+            "observedAtLocal": "2026-07-12T17:00:34.439-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "3:59 PM",
+            "marketTime24": "15:59:00",
+            "chronologicalKey": "2026-07-10T15:59:00|2026-07-12T21:00:34.439Z"
+          }
+        },
+        {
+          "tick": 391,
+          "time": "4:00 PM",
+          "balance": 727.2727272727273,
+          "position": null,
+          "market": {
+            "spy": 754.95,
+            "spx": 7574.71,
+            "gexSpy": 12940438633,
+            "gexSpx": 113335969904,
+            "itsSPX": 6.716748586952038,
+            "itsSPY": 6.633346336430913,
+            "accelerator": 4.159159757775342,
+            "fep": 754.8137983596107,
+            "quoteSource": "REAL_QUOTE_WITH_HISTORY_FILL",
+            "marketSource": "UNKNOWN",
+            "synthData": false
+          },
+          "intent": {
+            "action": "PREPARE_CALL",
+            "direction": "CALL",
+            "readiness": 0,
+            "confidence": 41,
+            "blockers": [
+              "Market not tradeable"
+            ]
+          },
+          "dataHealth": "DATA_HEALTHY",
+          "transmission": "RELATIONSHIP_UNRELIABLE",
+          "recentTrades": [
+            {
+              "t": "12:53 PM",
+              "action": "CANONICAL FILL BUY CALL 755C @$0.22 QUALITY source:REAL_TRADE_OHLCV_WITH_PATH_FILL invalidation 753.00 target 755.50 noise 22% vehicleFail 38% catastrophic 50% deadline 4t confidence 82",
+              "result": null,
+              "quoteSource": "REAL_TRADE_OHLCV_WITH_PATH_FILL"
+            },
+            {
+              "t": "1:01 PM",
+              "action": "THESIS-EXIT 755C @$0.16 MAX_LOSS_LIMIT",
+              "result": "-27.3% ($-273)",
+              "pnl": -27.27272727272727,
+              "dollarPnl": -272.7272727272727,
+              "exitType": "MAX_LOSS_LIMIT",
+              "entrySpot": 754.0131091497054,
+              "exitSpot": 753.6784411839867
+            }
+          ],
+          "recentJournal": [
+            {
+              "t": "3:55 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_CONFIRMED SPX:-3.35 SPY:-0.17 failedTicks:0."
+            },
+            {
+              "t": "3:58 PM",
+              "entry": "TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.75 SPY:-0.04 failedTicks:1."
+            },
+            {
+              "t": "3:59 PM",
+              "entry": "TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.23 SPY:-0.01 failedTicks:0."
+            }
+          ],
+          "recentMindset": [
+            {
+              "t": "3:00 PM",
+              "mindset": "deterministic guide PIN_RANGE",
+              "reasoning": "Playbook CALL: accel with upside slope + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.48 vs SPY:+0.42 gap:+0.06 | 8t SPX:+0.37 vs SPY:+0.38 | lead-lag context only | candidate 756C @$0.13 Δ0.19 QUALITY. Unified intent PREPARE_PUT 47%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 97,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            },
+            {
+              "t": "3:01 PM",
+              "mindset": "deterministic guide GEX_EXPANSION",
+              "reasoning": "Playbook CALL: above FEP+flip acceptance + upper pin edge unconfirmed, no rejection yet + PUT suppressed above FEP/flip without rejection. SPX lead-lag: UP | SPY_CATCHING_UP | 4t SPX:+0.55 vs SPY:+0.48 gap:+0.07 | 8t SPX:+0.44 vs SPY:+0.45 | lead-lag context only | candidate 756C @$0.14 Δ0.20 QUALITY. Unified intent PREPARE_PUT 45%; blockers: none.",
+              "decision": "GUIDE_CALL",
+              "score": 59,
+              "edgeState": "LOCAL_GUIDE",
+              "confTrend": "BUILDING"
+            }
+          ],
+          "temporal": {
+            "observedAtUtc": "2026-07-12T21:00:35.777Z",
+            "observedAtLocal": "2026-07-12T17:00:35.777-04:00",
+            "localDate": "2026-07-12",
+            "replayDate": "2026-07-10",
+            "marketDate": "2026-07-10",
+            "marketTime": "4:00 PM",
+            "marketTime24": "16:00:00",
+            "chronologicalKey": "2026-07-10T16:00:00|2026-07-12T21:00:35.777Z"
+          }
+        }
+      ]
+    }
+  ]
+}

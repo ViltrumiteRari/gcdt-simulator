@@ -1,7 +1,7 @@
 import json, math
 from pathlib import Path
 
-p=Path(r'C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js')
+p=Path(r'C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayData.js')
 text=p.read_text(encoding='utf-8')
 data=json.loads(text.split('=',1)[1].rsplit(';',1)[0].strip())
 failed=[]

@@ -1,6 +1,12 @@
-# FirstSignal Sim V1
+# FirstSignal Sim v1
 
-Canonical repository for FirstSignal Sim V1. The GitHub/Vercel slug remains legacy-compatible to avoid breaking deployment routing.
+Canonical repository for FirstSignal Sim v1.
+
+- Product name: `FirstSignal Sim v1`
+- Repository and deployment slug: `firstsignal-sim`
+- Production URL: `https://firstsignal-sim.vercel.app`
+
+Legacy GCDT names are retained only where required to read historical data or preserve backward compatibility. New code, configuration, deployments, and project paths use the FirstSignal Sim identity.
 
 ## Architecture
 
@@ -9,6 +15,7 @@ Canonical repository for FirstSignal Sim V1. The GitHub/Vercel slug remains lega
 - `backend/` — local private replay/account server for air-gapped simulations.
 - `tools/` — dataset-to-replay catalog builders.
 - `docs/` — architecture and operating notes.
+- `knowledge-pipeline/` — canonical project-local evidence, review, findings, campaign, approval, and validated-learning pipeline. Start with `knowledge-pipeline/00_START_HERE.md`.
 - `archive/v25/` — frozen pre-air-gap v25 baseline.
 - `scripts/start-local.cmd` — starts the local replay API and Vite UI.
 

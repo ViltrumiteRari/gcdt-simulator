@@ -1,0 +1,54 @@
+
+===== CASE-1 TRADER MEMO =====
+This deliberation memo confirms the underlying facts: the recorded trader executed a structured SPOT_INVALIDATION exit on the 752C CALL position at 9:55 AM for a -12.0% loss. The position telemetry correctly reflects this, showing null at tick 27 (9:56 AM).
+
+Addressing the observer's questions regarding inconsistencies in the supporting data:
+
+1. The journal prose at 9:56 AM and 9:58 AM appears to be reasoning about an exit that already occurred at 9:55 AM because the narrative generation component of the system was operating on significantly stale data or experienced extreme latency. The record shows the mindset reasoning trailed the execution engine's actual output by several minutes.
+
+2. The intent 'HOLD' action at 9:56 AM, despite the position being closed, is determined to be an error of state persistence rather than a strategic desire to re-evaluate. Had the strategic intent been re-evaluation, the recorded state should have reflected a non-holding status (e.g., WATCHING, PREPARING). The system correctly updated intent to 'PREPARE_CALL' at 9:57 AM (tick 28), reflecting the start of re-evaluation.
+
+The record shows the execution itself followed proper invalidation protocols. However, the accompanying metadata (Intent and Journal) displayed persistent data latency, implying a disconnection between execution and strategic logging components. Uncertainty remains due to the missing evidence window for Tick 26, which would reveal the exact moment state data failed to clear upon exit confirmation.
+Questions: Why does the journal prose at 9:56 AM and 9:58 AM present reasoning for an exit that already occurred at 9:55 AM? | Is the intent 'HOLD' state at 9:56 AM based on an error, or a strategic desire to re-evaluate for reentry?
+Claims needing verification: State update latency in intent engine immediately following exit | Severe chronological disconnection between transactional execution logs and AI-generated journal prose
+
+===== CASE-2 TRADER MEMO =====
+To: Shared Review Notebook
+From: FirstSignal Sim Trader Review Agent
+Subject: Deliberation Memo - CASE-2: Intent State Latency Post-Exit
+
+### Synopsis of Findings
+The record indicates a significant logical synchronization failure following a thesis exit. A CALL position (752C) was exited at 10:18 AM (implied Tick 49) via a `VEHICLE_FAILURE` trigger, resulting in a recorded loss of -38.5% ($-338). Standard evidence confirms the trade execution occurred and the position, as recorded in the 'position' object, updated to `null` immediately afterward for Tick 50 at 10:19 AM. However, the recorded trader's internal intent state for Tick 50 remained `HOLD`, referencing direct management of the now non-existent CALL entry.
+
+### Review of Contemporaneous State Data
+Observation of the recorded states across relevant ticks demonstrates the latency window clearly:
+*   **Tick 48 (10:17 AM):** A CALL position exists. Intent action is `HOLD` for reason described as `Managing existing CALL thesis`.
+*   **10:18 AM:** A `THESIS-EXIT` is executed via `VEHICLE_FAILURE`.
+*   **Tick 50 (10:19 AM):** The position object is correctly updated to `null`. Despite this, the intent action persists as `HOLD`, sourced from `OPEN_POSITION`.
+*   **Tick 51 (10:20 AM):** The intent state corrects to `PREPARE_CALL`.
+
+The contemporaneously recorded evidence at Tick 50 shows a distinct divergence between factual portfolio state (null) and intentional rationale (HOLD). The record suggests the intent module was processing cached or stale context from Tick 48, creating a critical logical mismatch where the system attempted to continue managing an asset it no longer possessed.
+
+### Addressing Observer Questions
+
+**1. Can you pinpoint the specific logical sequence triggered by VEHICLE_FAILURE and why it failed to update the intent state?**
+The visual primary data does not define the architectural sequence of the simulation engine. The record shows that the `VEHICLE_FAILURE` logic successfully executed the exit trade. We can confirm the position was zeroed out. The failure lies specifically in the notification or observation mechanism between the execution data and the intent model. Without system logs or source code, the record does not provide evidence to pinpoint if this was a failure of the exit process to push an update, a failure of the intent engine to fetch the current state for that tick, or a multi-threading scenario where intent calculation preceded data synchronization.
+
+**2. What checks are in place to ensure the intent engine is always working with the exact current position state, rather than cached parameters?**
+The primary evidence presented does not include information on established safeguards or system architecture. Therefore, I cannot identify specific checks. However, the recorded finding classifies this event as a "version assertion: REGRESSION," suggesting that a correct synchronization check existed in prior builds and has been compromised in version `firstsignal-sim-v1.3-20260712`.
+
+### Conclusion and Missing Evidence
+The record definitively shows that for Tick 50, the intentional state failed to recognize the `null` position after the 10:18 AM exit. The key missing evidence is direct access to the internal data flow logs of the sim itself, which prevented a determination of exactly why the `HOLD` intent persisted with stale parameters.
+Questions: Identify the direct specific process causing the intent engine to use stale P/L data. | Confirm what architectural change in v1.3 led to this regression.
+Claims needing verification: The recorded reasoning at Tick 50 explicitly referenced stale P/L data from Tick 48. | This behavior constitutes a regression in version v1.3 Snapshot 3.
+
+===== CASE-3 TRADER MEMO =====
+The record shows that at 10:39 AM (tick 70), the FirstSignal Sim was in an intent state of PREPARE_CALL, but this action was blocked. Contemporaneous evidence from the diagnostics shows the system blocked the entry with logical states indicating 'No genuinely new evidence' and that the drawdown required a model change.
+
+Subsequent finding diagnostics from tick 69 report that 'freshFrontier' and 'clearedPriorAttempt' were both false. However, the record for SPY price at tick 70 shows 749.657, which objectively exceeded the previous trade's EntrySpot (749.508) and MaxFavorableSpot (749.556). Based on price evidence alone, the recorded reason for blocking re-entry based on diagnostics appears incorrect, supporting the case finding.
+
+Notwithstanding this logic failure, the contemporaneous blockers `No genuinely new evidence since failed CALL` and `DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE` were active. The recorded trader appears to have reasoned (or was logically bound) that without a model change, further entries were forbidden despite current price performance. Fixing the diagnostic mapping may not have directly triggered an order preparation given the explicit drawdown blocker present in the intent log.
+
+There is missing evidence regarding the precise definitions of the faulty diagnostics and the history of the previous regression fix cited at tick 43.
+Questions: What is the exact logic criteria used to determined 'freshFrontier' and 'clearedPriorAttempt'? | Can the details of the specific fix verified at tick 43 be retrieved for comparison? | Given the presence of the 'DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE' blocker, what effect would correcting the diagnostic logic actually have on preventing the trade?
+Claims needing verification: Definition of 'freshFrontier' logic beyond price surpassing previous high. | Definition of 'clearedPriorAttempt' logic beyond price surpassing previous entry spot. | Specific details of the regression fix reportedly verified at tick 43.

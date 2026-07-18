@@ -1,0 +1,707 @@
+{
+  "generatedAt": "2026-07-18T15:07:35.791274",
+  "days": [
+    {
+      "date": "2026-06-29",
+      "preparedAt": "2026-07-18T14:59:10.597467",
+      "sourceFingerprint": "8ef3435c4fceb972354a7a2c4465bae73f608a002eaac539f2326b9427f444aa",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 81,
+          "first": "09:30",
+          "last": "16:10",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 82,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 171,
+        "gex_key_levels": 6192,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "YELLOW",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 16,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 0,
+        "optionCoverage": "PARTIAL_OR_SYNTHETIC"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-06-29.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-06-30",
+      "preparedAt": "2026-07-18T14:59:26.520275",
+      "sourceFingerprint": "fd0e60fd07c2e2fc4ae59066bfc348626790cbb2da84d034e4cc239d321bdc33",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 81,
+          "first": "09:30",
+          "last": "16:10",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 82,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 173,
+        "gex_key_levels": 6103,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "YELLOW",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 16,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 0,
+        "optionCoverage": "PARTIAL_OR_SYNTHETIC"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-06-30.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-01",
+      "preparedAt": "2026-07-18T14:59:41.860170",
+      "sourceFingerprint": "7fffd93a81e1b31680fe05abb5877939e0ae7334604ea3cd33b9b87c949f70c2",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 81,
+          "first": "09:30",
+          "last": "16:10",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 82,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 173,
+        "gex_key_levels": 6120,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "YELLOW",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 16,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 0,
+        "optionCoverage": "PARTIAL_OR_SYNTHETIC"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-01.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-02",
+      "preparedAt": "2026-07-18T14:59:57.753479",
+      "sourceFingerprint": "0a29e0008ccc0813c09a892754922c69b72b11f82f1ff1a836df56ddba9948c4",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 81,
+          "first": "09:30",
+          "last": "16:10",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 82,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 173,
+        "gex_key_levels": 6227,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "YELLOW",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 16,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 0,
+        "optionCoverage": "PARTIAL_OR_SYNTHETIC"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-02.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-06",
+      "preparedAt": "2026-07-18T15:01:09.221707",
+      "sourceFingerprint": "100ef2c86d8f2ba775b85f22cdff47c6662dd03a7f55d4aad92bc61135b24d91",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 394,
+          "first": "09:30",
+          "last": "16:14",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 395,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 1279,
+        "gex_key_levels": 6077,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 15,
+        "gexResearchWindowHeldTicksSPY": 15,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1216,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-06.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-07",
+      "preparedAt": "2026-07-18T15:03:10.298963",
+      "sourceFingerprint": "11401e681d3e41c3742a9f65353b128f100447255b102b08735efef3b5a9b067",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv",
+        "options_chains\\IWM\\snapshots.csv.gz",
+        "options_chains\\QQQ\\snapshots.csv.gz",
+        "options_chains\\SPX\\snapshots.csv.gz",
+        "options_chains\\SPY\\snapshots.csv.gz"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 79,
+          "canonicalBuckets": 162,
+          "first": "09:30",
+          "last": "16:04",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 79,
+          "canonicalBuckets": 162,
+          "first": "09:30",
+          "last": "16:04",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 1403,
+        "gex_key_levels": 5963,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 33,
+        "gexResearchWindowHeldTicksSPX": 33,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1216,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-07.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-08",
+      "preparedAt": "2026-07-18T15:04:25.642574",
+      "sourceFingerprint": "0d212f24f435fa3eaae9797c6a380c8ae86075c71938b19872f4ab86b26a7991",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv",
+        "options_chains\\IWM\\snapshots.csv",
+        "options_chains\\QQQ\\snapshots.csv.gz",
+        "options_chains\\SPX\\snapshots.csv.gz",
+        "options_chains\\SPY\\snapshots.csv.gz"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 101,
+          "first": "09:30",
+          "last": "16:14",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 101,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 977,
+        "gex_key_levels": 6169,
+        "options_focus": 1868
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 15,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1216,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-08.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-09",
+      "preparedAt": "2026-07-18T15:05:19.662083",
+      "sourceFingerprint": "2a37f4363f456caa65f893170b83e593a2bd3379128977f87a59097a6703be79",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv",
+        "options_chains\\IWM\\snapshots.csv.gz",
+        "options_chains\\QQQ\\snapshots.csv.gz",
+        "options_chains\\SPX\\snapshots.csv.gz",
+        "options_chains\\SPY\\snapshots.csv.gz"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 265,
+          "first": "09:30",
+          "last": "16:14",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 266,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 4430,
+        "gex_key_levels": 6131,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 15,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1200,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-09.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-10",
+      "preparedAt": "2026-07-18T15:06:31.805286",
+      "sourceFingerprint": "e511f4d321bc09263ede82d070f685f1dcb3e13c36462ca65c20e82973b18f1b",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv",
+        "options_chains\\IWM\\snapshots.csv",
+        "options_chains\\QQQ\\snapshots.csv.gz",
+        "options_chains\\SPX\\snapshots.csv.gz",
+        "options_chains\\SPY\\snapshots.csv.gz"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 104,
+          "first": "09:30",
+          "last": "16:13",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 105,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 5419,
+        "gex_key_levels": 6169,
+        "options_focus": 1727
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 15,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1129,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-10.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-13",
+      "preparedAt": "2026-07-18T15:06:11.801416",
+      "sourceFingerprint": "1963f518989bb0456a0b130b0c542096d4cb85c258e2ee433a1e0f49368479f8",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 225,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 225,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 746,
+        "gex_key_levels": 6193,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "YELLOW",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 27,
+        "gexLongestHeldTicksSPX": 27,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 27,
+        "gexResearchWindowHeldTicksSPX": 27,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 0,
+        "optionCoverage": "PARTIAL_OR_SYNTHETIC"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-13.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-14",
+      "preparedAt": "2026-07-18T15:06:49.639784",
+      "sourceFingerprint": "99ac991eb8efc49d967475595e446a0d1d5922f7c66a9a50aa71b2436739510e",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "SPY\\spot\\spot_intraday_5m.csv",
+        "SPX\\spot\\spot_intraday_5m.csv"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 81,
+          "canonicalBuckets": 81,
+          "first": "09:30",
+          "last": "16:10",
+          "maxGapMinutes": 5.0
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 82,
+          "canonicalBuckets": 82,
+          "first": "09:30",
+          "last": "16:15",
+          "maxGapMinutes": 5.0
+        }
+      ],
+      "simRows": {
+        "market_timeline": 326,
+        "gex_key_levels": 6197,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "YELLOW",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 15,
+        "gexLongestHeldTicksSPX": 15,
+        "spotLongestHeldTicksSPY": 15,
+        "spotLongestHeldTicksSPX": 1,
+        "gexResearchWindowHeldTicksSPY": 16,
+        "gexResearchWindowHeldTicksSPX": 15,
+        "expectedNativeHoldTicks": 15,
+        "sourceIntervalSeconds": 300,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 0,
+        "optionCoverage": "PARTIAL_OR_SYNTHETIC"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-14.json",
+      "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-15",
+      "preparedAt": "2026-07-18T15:07:35.780723",
+      "sourceFingerprint": "78cb95d46ac62920f3ba2aed47e7e21ad5e2edcae640f5d67a16d91f626c5347",
+      "sources": [
+        "capture_manifest.json",
+        "SPY\\interval_map\\latest_interval_map.json",
+        "SPX\\interval_map\\latest_interval_map.json",
+        "options_chains\\IWM\\snapshots.csv.gz",
+        "options_chains\\QQQ\\snapshots.csv.gz",
+        "options_chains\\SPX\\snapshots.csv.gz",
+        "options_chains\\SPY\\snapshots.csv.gz"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "intervalBuckets": 26,
+          "canonicalBuckets": 332,
+          "first": "09:30",
+          "last": "16:14",
+          "maxGapMinutes": 198.76666666666668
+        },
+        {
+          "ticker": "SPX",
+          "intervalBuckets": 26,
+          "canonicalBuckets": 330,
+          "first": "09:30",
+          "last": "16:14",
+          "maxGapMinutes": 198.83333333333334
+        }
+      ],
+      "simRows": {
+        "market_timeline": 4075,
+        "gex_key_levels": 7014,
+        "options_focus": 0
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 1,
+        "gexLongestHeldTicksSPX": 2,
+        "spotLongestHeldTicksSPY": 3,
+        "spotLongestHeldTicksSPX": 15,
+        "gexResearchWindowHeldTicksSPY": 46,
+        "gexResearchWindowHeldTicksSPX": 46,
+        "expectedNativeHoldTicks": 1,
+        "sourceIntervalSeconds": 20,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1216,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-15.json",
+      "cache": "BUILT"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "pipelineVersion": 2,
+  "generatedAtUtc": "2026-07-12T18:47:36.654Z",
+  "counts": {
+    "sessions": 6,
+    "reviews": 7,
+    "canonicalFindings": 34,
+    "backlogItems": 21
+  },
+  "lifecycleCounts": {
+    "RAW_OBSERVATION": 30,
+    "FIXED_PENDING_VALIDATION": 3,
+    "FIX_VERIFIED": 1
+  },
+  "latestSession": {
+    "sessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+    "replayDate": "2026-07-09",
+    "startedAt": "2026-07-12T08:24:31.796Z",
+    "completedAt": "2026-07-12T08:38:50.575000Z",
+    "buildId": "firstsignal-sim-v1.3-20260712",
+    "buildSequence": 4,
+    "eventCount": 403,
+    "reportCount": 15,
+    "status": "COMPLETED",
+    "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv"
+  },
+  "latestReview": {
+    "meetingName": "meeting1_jul12_429am",
+    "status": "COMPLETED",
+    "replayDate": "2026-07-09",
+    "sessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+    "completedCases": 12,
+    "totalCases": 12,
+    "endedAt": "2026-07-12T08:38:50.575Z",
+    "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv/meetings/meeting1_jul12_429am"
+  }
+}

@@ -1,9 +1,9 @@
-﻿import json
+import json
 from datetime import datetime
 from pathlib import Path
 
-DATA=Path(r'D:\FirstSignal_GCDT_Dataset')
-OUT=Path(r'C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js')
+DATA=Path(r'D:\FirstSignal_Sim_Dataset')
+OUT=Path(r'C:\Users\adahy\Desktop\FirstSignal Sim v1\src\replayCatalog.js')
 DAYS=sorted([d.name for d in DATA.iterdir() if d.is_dir() and d.name.startswith('2026-')])
 
 def load_interval(day,ticker='SPY'):

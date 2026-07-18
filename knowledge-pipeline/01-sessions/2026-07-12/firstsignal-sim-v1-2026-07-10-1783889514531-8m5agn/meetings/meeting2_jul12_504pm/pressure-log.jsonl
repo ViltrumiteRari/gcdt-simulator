@@ -1,0 +1,4 @@
+{"at":"2026-07-12T21:04:23.612Z","role":"OBSERVER","attempt":1,"promptBytes":19579,"elapsedMs":9235,"status":"OK"}
+{"at":"2026-07-12T21:04:32.612Z","role":"TRADER","attempt":1,"promptBytes":20935,"elapsedMs":8128,"status":"OK"}
+{"at":"2026-07-12T21:04:42.497Z","role":"OBSERVER","attempt":1,"promptBytes":22278,"elapsedMs":8901,"status":"OK"}
+{"at":"2026-07-12T21:05:01.600Z","role":"OBSERVER","attempt":1,"promptBytes":18305,"status":"ERROR","error":"TOKEN_ROUTE_OFFLINE:fetch failed"}

@@ -1,0 +1,21 @@
+{
+  "pipelineVersion": 2,
+  "updatedAtUtc": "2026-07-12T20:51:47.569Z",
+  "supervisorState": "WATCHING_REPLAY",
+  "currentSessionId": null,
+  "currentMeeting": null,
+  "campaign": {
+    "id": "CAMPAIGN-1783889359681",
+    "name": "worker-10 2026-07-06",
+    "status": "RUNNING",
+    "completedRuns": 0,
+    "targetRuns": 1
+  },
+  "counts": {
+    "canonicalFindings": 0,
+    "backlogItems": 0,
+    "blocked": 0,
+    "awaitingApproval": 0,
+    "validated": 0
+  }
+}

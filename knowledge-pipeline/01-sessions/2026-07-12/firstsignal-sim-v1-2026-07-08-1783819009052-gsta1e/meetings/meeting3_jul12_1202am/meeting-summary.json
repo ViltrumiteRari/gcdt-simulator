@@ -1,0 +1,31 @@
+{
+  "meetingName": "meeting3_jul12_1202am",
+  "status": "COMPLETED",
+  "completedCases": [
+    "CASE-1",
+    "CASE-2",
+    "CASE-3",
+    "CASE-4",
+    "CASE-5",
+    "CASE-6",
+    "CASE-7",
+    "CASE-8",
+    "CASE-9",
+    "CASE-10",
+    "CASE-11",
+    "CASE-12"
+  ],
+  "totalCases": 12,
+  "endedAt": "2026-07-12T04:11:34.682Z",
+  "temporal": {
+    "observedAtUtc": "2026-07-12T04:11:34.682000Z",
+    "observedAtLocal": "2026-07-12T00:11:34.682000-04:00",
+    "localDate": "2026-07-12",
+    "replayDate": "2026-07-08",
+    "marketDate": "2026-07-08",
+    "marketTime": null,
+    "marketTime24": null,
+    "chronologicalKey": "2026-07-08T00:00:00|2026-07-12T04:11:34.682000Z",
+    "timestampBackfilled": true
+  }
+}

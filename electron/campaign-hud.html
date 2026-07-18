@@ -1,14 +1,3 @@
-<!doctype html>
-<html><head><meta charset="UTF-8"><style>
-*{box-sizing:border-box} body{margin:0;background:transparent;color:#dde4f0;font:11px Consolas,monospace;overflow:hidden}
-#hud{margin:8px;background:rgba(7,9,12,.94);border:1px solid #263047;border-radius:10px;padding:11px 12px}
-.row{display:flex;justify-content:space-between;gap:12px;align-items:center}
-.name{color:#00d4a8;font-weight:700}.state,.meta{color:#8fa0b8;font-size:9px}
-.track{height:7px;background:#1a2030;border-radius:9px;overflow:hidden;margin:9px 0 7px}
-.fill{height:100%;width:0;background:#00d4a8;transition:width .4s ease}
-.meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-</style></head><body>
-<div id="hud"><div class="row"><span class="name">FIRSTSIGNAL AGENT</span><span id="pct">0%</span></div>
-<div class="track"><div id="fill" class="fill"></div></div>
-<div class="row"><span id="detail" class="meta">Waiting for campaign</span><span id="state" class="state">IDLE</span></div></div>
-<script src="campaign-hud.js"></script></body></html>
+<!doctype html><html><head><meta charset="UTF-8"><style>
+*{box-sizing:border-box}body{margin:0;background:transparent;color:#dde4f0;font:11px Consolas,monospace;overflow:hidden}#hud{margin:8px;background:rgba(7,9,12,.96);border:1px solid #263047;border-radius:10px;padding:10px 11px}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.name{color:#00d4a8;font-weight:700}.state,.meta{color:#8fa0b8;font-size:9px}.track{height:7px;background:#1a2030;border-radius:9px;overflow:hidden;margin:8px 0 6px}.fill{height:100%;width:0;background:#00d4a8;transition:width .4s ease}.meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ctl{border:1px solid #34415a;background:#111722;color:#00d4a8;border-radius:4px;font:9px Consolas;padding:3px 6px;cursor:pointer}</style></head><body>
+<div id="hud"><div class="row"><span class="name">FIRSTSIGNAL AGENT</span><div><span id="pct">0%</span> <button id="controller" class="ctl">CONTROLS</button></div></div><div class="track"><div id="fill" class="fill"></div></div><div class="row"><span id="detail" class="meta">Waiting for campaign</span><span id="state" class="state">IDLE</span></div><div id="eta" class="meta" style="margin-top:5px">Time remaining: —</div></div><script src="campaign-hud.js"></script></body></html>

@@ -19,9 +19,11 @@ export function classifyGexVelocity(history, market) {
   const terminalSpike = priorDecel && Math.abs(c) > 5 * Math.max(1, Math.abs(b)) && nearWall(market);
   if (terminalSpike) return { state: c > 0 ? 'TERMINAL_SPIKE_POSITIVE' : 'TERMINAL_SPIKE_NEGATIVE', direction: c > 0 ? -1 : 1, score: 32, terminalSpike: true };
   if (crossingUp) return { state: 'CROSSING_NEG_TO_POS', direction: 1, score: 30, terminalSpike: false };
-  if (crossingDown) return { state: 'CROSSING_POS_TO_NEG', direction: -1, score: 30, terminalSpike: false };
+  // Neutralized 2026-07-18: the audit rejected bearish authority, but did not establish bullish authority.
+  if (crossingDown) return { state: 'CROSSING_POS_TO_NEG', direction: 0, score: 0, contextBias: 0, instability: true, oppositeWatch: 'PUT', terminalSpike: false };
   if (c > 0 && d2 > 0 && Math.abs(d2) >= Math.abs(d1)) return { state: 'ACCELERATING_POSITIVE', direction: 1, score: 28, terminalSpike: false };
-  if (c > 0 && d2 < 0) return { state: 'DECELERATING_POSITIVE', direction: -1, score: 20, terminalSpike: false };
+  // Neutralized 2026-07-18: positive level remains contextually supportive, but deceleration is not fresh bullish authority.
+  if (c > 0 && d2 < 0) return { state: 'DECELERATING_POSITIVE', direction: 0, score: 0, contextBias: 1, exhaustionRisk: 'RISING', terminalSpike: false };
   if (c < 0 && d2 < 0 && Math.abs(d2) >= Math.abs(d1)) return { state: 'ACCELERATING_NEGATIVE', direction: -1, score: 28, terminalSpike: false };
   if (c < 0 && d2 > 0) return { state: 'DECELERATING_NEGATIVE', direction: 1, score: 20, terminalSpike: false };
   return { state: 'OSCILLATING', direction: 0, score: 0, terminalSpike: false };
@@ -39,11 +41,12 @@ export function classifyCallDom(history, market) {
   const cascadeExhausting = Number.isFinite(current) && current < 0.20;
   let direction = 0, score = 0, state = 'NEUTRAL';
   if (extremeReversal) { direction = -1; score = 18; state = 'EXTREME_WALL_REVERSAL'; }
-  else if (distribution) { direction = -1; score = 16; state = 'DISTRIBUTION'; }
+  // Neutralized 2026-07-18: falling call dominance removes bullish support and opens a PUT watch, but is not directional alone.
+  else if (distribution) { direction = 0; score = 0; state = 'DISTRIBUTION'; }
   else if (deadZone) { state = 'DEAD_ZONE'; }
   else if (shortCovering) { state = 'SHORT_COVERING_INFO'; }
   else if (cascadeExhausting) { state = 'CASCADE_EXHAUSTING_INFO'; }
-  return { state, direction, score, deadZone, distribution, extremeReversal, informational: shortCovering || cascadeExhausting, delta };
+  return { state, direction, score, deadZone, distribution, extremeReversal, exhaustionSide: distribution ? 'CALL' : null, oppositeWatch: distribution ? 'PUT' : null, informational: shortCovering || cascadeExhausting || distribution, delta };
 }
 
 export function choosePrimarySignal({ gex, callDom, fepDistance, accelScore = 0, leadLagScore = 0 }) {
@@ -56,10 +59,11 @@ export function choosePrimarySignal({ gex, callDom, fepDistance, accelScore = 0,
   return candidates.sort((a, b) => b.score - a.score)[0].category;
 }
 
-export function evaluateReentryDiscipline(memory, side, primaryCategory, gexState, currentTick = null) {
+export function evaluateReentryDiscipline(memory, side, primaryCategory, gexState, currentTick = null, episodeKey = null) {
   const prior = (memory?.attempts || []).filter(x => x.side === side).slice(-3);
   const last = prior.at(-1) || null;
-  const repeatedCategory = !!last && primaryCategory !== SIGNAL_CATEGORIES.FEP_DISTANCE && last.primaryCategory === primaryCategory;
+  const sameEpisode = !!last && !!episodeKey && last.episodeKey === episodeKey;
+  const repeatedCategory = sameEpisode && primaryCategory !== SIGNAL_CATEGORIES.FEP_DISTANCE && last.primaryCategory === primaryCategory;
   return {
     allowed: true,
     code: repeatedCategory ? 'REENTRY_REASSESS_REQUIRED' : null,

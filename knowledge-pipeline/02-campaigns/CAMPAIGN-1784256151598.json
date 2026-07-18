@@ -1,0 +1,54 @@
+{
+  "id": "CAMPAIGN-1784256151598",
+  "name": "Fresh Jul15 preserved-thesis verified launch",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-17T02:42:31.598Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15",
+  "failedAt": "2026-07-17T02:46:09.864Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "IDLE",
+      "tick": 0,
+      "eventCount": 0,
+      "lastProgressAt": 1784256133920,
+      "updatedAt": "2026-07-17T02:46:09.307Z",
+      "provider": {
+        "state": "DISCONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": false,
+        "connecting": false,
+        "pendingKind": null,
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": false,
+          "connectedAt": null,
+          "bootstrapped": false,
+          "state": "UNPROVEN",
+          "resumptionHandleAvailable": false,
+          "sessionGeneration": 0,
+          "breakReason": null
+        }
+      },
+      "running": false,
+      "aiFrozen": false,
+      "thinking": false,
+      "buildId": "firstsignal-sim-v1.12-canonical-entry-authorization-20260715",
+      "buildSequence": 13,
+      "at": "2026-07-17T02:46:09.307Z"
+    }
+  }
+}

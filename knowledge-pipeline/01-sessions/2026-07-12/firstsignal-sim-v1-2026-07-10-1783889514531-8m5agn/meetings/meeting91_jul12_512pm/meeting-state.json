@@ -1,0 +1,10 @@
+{
+  "meetingName": "meeting91_jul12_512pm",
+  "state": "FAILED",
+  "currentCase": 1,
+  "phase": "OBSERVER_MEMO",
+  "completedCases": [],
+  "startedAt": "2026-07-12T21:12:28.467Z",
+  "error": "TOKEN_ROUTE_OFFLINE:Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+  "endedAt": "2026-07-12T21:12:32.570Z"
+}

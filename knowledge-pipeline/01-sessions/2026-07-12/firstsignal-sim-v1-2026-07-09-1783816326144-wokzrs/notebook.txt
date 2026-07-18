@@ -1,0 +1,289 @@
+
+[9:30 AM] GREEN · HEALTHY · firstsignal-sim-v1.1-20260711
+Session Starts in Warmup State
+Simulator starts in warmup mode as expected on the first tick, with intent set to WAIT.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Session tick: 1 at 9:30 AM. Intent action is WAIT. Blockers: ["Session warming up"].
+Next: No current action required; monitor system progression after warmup phase completes.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:50 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Execution Paused Due to Transmission Instability
+Trader behavior demonstrates an explicit pause in execution decision-making despite a perceived 'perfect structural setup' for a PUT due to recurring TRANSMISSION_DELAYED and TRANSMISSION_PENDING states, prioritizing data integrity over execution.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 21, 9:50 AM. Intent: WAIT. Blockers: ["No valid contract"]. Journal (9:48 AM): "Transmission is DELAYED again... I cannot execute on 7507 if I cannot trust it's the real price *now*... pausing execution decision." Mindset (9:48 AM): "deterministic guide GEX_EXPANSION... decision: GUIDE_PUT... Unified intent WAIT 18%; blockers: No valid contract."
+Next: Monitor if frequent transmission delays lead to missed trade opportunities or if the caution prevents bad fills, validating the behavior against expected strategy performance under unstable data conditions.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:58 AM] GREEN · TRADER_BEHAVIOR · firstsignal-sim-v1.1-20260711
+Trader Defines Explicit Risk Invalidation Point on Entry
+Upon executing BUY_CALL entry at tick 28, the trader explicitly defined a logical risk management invalidation point at 748.24, approximately ~0.34 below the SPY entry spot, confirming active risk containment.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 28 journal: "invalidation 748.24 target 7520.00". Market tick 28: SPY 748.58, SPX 7513.03. Entry tick 28, CALL 752C @$0.25 filled. Tick 28 currentSpot (SPY): 748.5804436141922. Invalidation point: 748.24. Delta: 0.34.
+Next: Verify that the invalidation logic triggers correct and prompt exit if the current spot price crosses 748.24 to validate risk management execution.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:06 AM] GREEN · TRADER_BEHAVIOR · firstsignal-sim-v1.1-20260711
+Position Exited Successfully per Explicit Risk Invalidation
+The system successfully executed the defined risk management strategy, exiting the long CALL position via SPOT_INVALIDATION at an exitSpot of 748.04, having breached the predetermined invalidation level of 748.24.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 28 journal: defined invalidation at 748.24. Tick 37, 10:05 AM trade: THESIS-EXIT 752C @$0.23, exitSpot: 748.04. The current snapshot (tick 37) shows current market SPY is 747.9497170548676.
+Next: Verify the calculation and capture of the exitSpot upon invalidation to ensure precise execution data.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:26 AM] GREEN · APPROVAL · firstsignal-sim-v1.1-20260711
+Model Approves Re-Entry, Trader Renews CALL Thesis
+Model diagnostics confirm reentry is allowed 20 ticks after the prior invalidation. The trader has renewed the CALL thesis, approving a BUY_CALL intent at tick 57 based on a diagnosed "fresh multi-tick leg" and "continuing structure," demonstrating a persistent bullish conviction.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 57 Intent: action: BUY_CALL, direction: CALL, confidence: 74. Reassessment Diagnostics: reentry.allowed: true, ticksSince: 20, cooldwonNeeded: 0. Reentry reasoning: "fresh multi-tick leg". Mindset (10:24 AM): decision: GUIDE_CALL, score: 51. Journal (10:25 AM): MARKET_BRAIN CALL 44%.
+Next: Monitor the outcome of this re-entry attempt, specifically if the "fresh multi-tick leg" reasoning leads to profitability or another invalidation, testing the reentry logic's efficacy.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:46 AM] YELLOW · EXPERIMENT · firstsignal-sim-v1.1-20260711
+Re-Entry Blocked by Repeated GEX_VELOCITY Constraint
+The model has explicitly blocked re-entry into the CALL thesis due to a "repeated GEX_VELOCITY" constraint, causing the intent to flip from BUY_CALL (tick 70) to PREPARE_CALL with a blocker, despite the trader's stated desire to act on a perceived localized target.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 77 Intent: PREPARE_CALL. Blockers: ["REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY;..."]. diagnostics.reentry.allowed: false. discipline: code "REENTRY_REASSESS_REQUIRED", repeatedCategory "GEX_VELOCITY".
+Next: Analyze the specific parameters of "GEX_VELOCITY" that trigger this restriction and determine if this behavior is desired to prevent over-trading in choppy conditions, or if it represents an overly restrictive logic.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:57 AM] GREEN · APPROVAL · firstsignal-sim-v1.1-20260711
+Canonical GEX Block Overridden by Local Frontier Evidence
+The GEX_VELOCITY re-entry blocker reported in prior ticks is successfully overridden at tick 87. The model approved new BUY_CALL intent based on evidence of a 'fresh local/session frontier' and 'cleared prior attempt extreme,' overriding established structural friction.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Intent changed from PREPARE_CALL with blocker in prior ticks (e.g., tick 77, 85) to BUY_CALL (direction: CALL) at tick 87.
+  • Diagnostics override reason: 'fresh local/session frontier', 'cleared prior attempt extreme'.
+  • GEX state: OSCILLATING.
+  • Trade history shows CANONICAL FILL BUY CALL 751C at tick 87.
+Next: Verify logic correctly identifies 'material new evidence' to override sustained structural blockers (like GEX_VELOCITY).
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:06 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Hold Intent and Position Management Factors Persist After Position Exit
+The system successfully exited the CALL position at 11:05 AM for a +29.2% profit. However, in the subsequent tick (97), the 'position' data is correctly null, but the 'intent' action remains HOLD with supporting factors related to managing the now closed position, indicating a lag in intent state update.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Trade history at 11:05 AM shows 'THESIS-EXIT 751C @$0.31 SPOT_TARGET_PROFIT' with +29.2% profit ($268.33).
+  • Intent in current tick 97 shows HOLD (direction: CALL). Also says positional side is 'CALL', current '0.31'. But 'position' is null. This is the issue.
+  • The positional data section in current snapshot (tick 97) shows: \"position\":null.
+  • Recent trades show the exit was at tick 96. Current tick is 97. The trade is closed.
+  • The supporting factors in the current intent (HOLD) mention: \"Managing existing CALL thesis\", \"+29.2% option P/L\", etc. This intent appears to be lingering from before the exit was fully processed, as the exit trade *is* listed in recentTrades.
+Next: Investigate why HOLD intent and position-management supporting factors linger after a successful close trade and position data becomes null.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:26 AM] GREEN · APPROVAL · firstsignal-sim-v1.1-20260711
+Diagonal Re-Entry Blocker Overridden by Breakout Evidence
+A re-entry blocker for 'repeated ACCEL' (acceleration) is successfully overridden by the model at tick 117. New 'BUY_CALL' intent is approved based on the stated evidence of 'cleared prior attempt extreme,' overriding established diagonal friction.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 102 intent: PREPARE_CALL, blockers: ['REENTRY_REASSESS_REQUIRED: repeated ACCEL...'].
+  • Trade history shows last exit was tick 96 (pnl 29.16%). Current tick is 117.
+  • Diagnostics reentry discipline: allowed: true, code: 'REENTRY_REASSESS_REQUIRED', repeatedCategory: 'ACCEL', override: 'AI must identify material new evidence...'.
+  • Intent in current tick 117: 'BUY_CALL', blockers: []. Override reason 'cleared prior attempt extreme'.
+Next: Ensure override threshold appropriately challenges re-entry purely for chasing, as stated in trader reasoning.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:37 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Immediate -25% Contract Drawdown on Canonical Entry
+Immediately after entering the canonical CALL fill at tick 127 at a price of 0.20, the positional review in tick 128 reports the current contract price as 0.15, marking an immediate -25.0% drawdown, suggesting severe slippage or pricing discontinuity.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Positional review journal (11:37 AM) explicitly states 'option -25.0%'. Entry: 0.20, Current: 0.15.
+  • Positional data shows entryTick: 127, currentTick: 128 (position held for 1 tick).
+  • Max Adverse Spot in recent priorAttempt dictionary is incorrectly populated with the entry spot description (748.8231805087227) instead of the actual adverse price point (e.g., tick 87-96 data populating a current 128 context). Although this is within priorAttempt block, consistency is key.
+  • More critically, the immediate positional review at tick 128 reports a -25% drawdown on the contract after just one tick, implying significant immediate slippage or mispricing upon canonical fill.
+Next: Investigate contract pricing model or fill simulation logic immediately after entry; also correct the priorAttempt population logic.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:57 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Trader Rationale Conflicts with Objective Price Action During mounting Drawdown
+The trader maintains a HOLD mindset at 11:53 AM, reasoning 'price acceptance above 750.00' and 'breakout context', yet the actual current spot price is 749.87 and contract drawdown has reached -30%. This suggests a critical disconnect between the subjective rationale for holding and objective price action criteria.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Positional review at 11:56 AM (tick 147) reports '-25.0%' option drawdown. Positional review at 11:57 AM (tick 148) reports '-30.0%' option drawdown.
+  • Current contract price reported as 0.14 in positional block and 11:57 AM journal, decaying from 0.15 in prior tick (147). Entry was 0.20 at tick 127. Close to the maxLossPct threshold.
+  • Trader mindset reasoning at 11:53 AM states 'price acceptance above 750.00' and 'retains breakout context'. However, currentSpot is 749.87, which is below the key 750.00 level. This shows a conflicting assessment between the trader logic and actual spot price.
+Next: Evaluate if trader mindset logic appropriately flags when actual spot price invalidates the active thesis, especially during mounting drawdowns near the max loss threshold.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:11 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Hold Intent and Management Factors Persist After Canonical Profit Exit
+The system successfully exited the second CALL position at 12:10 PM for a +10.0% profit. At the subsequent tick 162, the position data is correctly null, but the intent action remains HOLD with supporting factors for managing the closed position, demonstrating a repeat of the intent state update lag regression.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Trade history at 12:10 PM shows 'THESIS-EXIT 752C @$0.22 SPOT_TARGET_PROFIT' with +10.0% profit ($118.83).
+  • Current snapshot positional data at tick 162 (12:11 PM) shows: \"position\":null.
+  • Intent in current tick 162 shows action: HOLD (direction: CALL). Also supporting factors mention 'Managing existing CALL thesis' and '+10.0% option P/L'.
+Next: Investigate intent state update lag following profit-target exit; this repeats an issue seen previously in this build.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:31 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Lagging Intent and Blockers Persist After Position Exit
+After the position profit exit at tick 161, the intent state incorrectly persisted as HOLD in tick 162 with factors related to the closed trade. In subsequent ticks including 181, the intent changed to PREPARE_CALL, but continued to rely on a blocker ('No genuinely new evidence since failed CALL') referencing a prior state, indicating persistent latency in intent model updates.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick 162 intent action HOLD
+  • tick 162 positional context null
+  • current tick 181 intent action PREPARE_CALL
+  • current tick 181 blockers include: 'No genuinely new evidence since failed CALL'
+Next: Investigate the logic update sequence for intent and blockers immediately following position closure to ensure they reflect current, rather than prior-trade, conditions.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:51 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Contradictory 'Failed CALL' Blocker After Profitable Exit
+The model continues to display latency and inconsistency in assigning post-trade blockers. After profitably exiting the last trade at tick 161, blocker reasoning has fluctuated: tick 197 cited an acceleration re-entry constraint, yet ticks 199 through 202 revert to citing 'No genuinely new evidence since failed CALL.' Referencing a 'failed' call fundamentally contradicts the historical data of the prior profitable execution.
+Version assessment: REGRESSION · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick 197 intent.blockers: 'REENTRY_REASSESS_REQUIRED: repeated ACCEL; override requires AI must identify material new evidence...'
+  • tick 199 intent.blockers: 'No genuinely new evidence since failed CALL'
+  • tick 202 intent.blockers: 'No genuinely new evidence since failed CALL'
+Next: Investigate the logic criteria for determining reentry blockers after a successful profit exit. The use of 'failed CALL' when the prior trade was profitable indicates a data retrieval error in the assessment model.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:06 PM] GREEN · APPROVAL · firstsignal-sim-v1.1-20260711
+Stale Blocker Successfully Overridden for Canonical Entry
+The incorrect blocker 'No genuinely new evidence since failed CALL' (noted in ticks 202 to 216) was successfully overridden by the model, clearing the path for the canonical BUY_CALL execution at tick 216. Diagnostic data confirms the override was based on 'fresh local/session frontier' and 'cleared prior attempt extreme' evidence.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick 216 canonical fill BUY_CALL 752C @$0.25
+  • tick 214 intent.blockers: 'No genuinely new evidence since failed CALL'
+  • current tick 217 intent diagnostics reentry freshFrontier: true, clearedPriorAttempt: true
+Next: None required. This confirms the model's ability to logically override incorrect or stale blockers when valid entry criteria are met.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:20 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Hold Intent Persists After Major Vehicle Failure Exit
+The position was exited at 1:19 PM via VEHICLE_FAILURE for a -40.0% loss. However, at tick 231 (1:20 PM), the intent action remains HOLD, sourced from 'OPEN_POSITION' with supporting factors still referencing managing the exiting CALL thesis, indicating a critical regression in intent state update latency following an un-planned exit.
+Version assessment: REGRESSION · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick 231 intent.action: HOLD
+  • tick 231 positional context null
+  • tick 231 intent.source: OPEN_POSITION
+  • tick 231 recent trades: THESIS-EXIT at 1:19 PM
+Next: Immediately review the state synchronization between the trade execution module and the intent state model, specifically for non-standard exit types like VEHICLE_FAILURE, to ensure the intent immediately resets to WAIT or PREPARE upon position closure.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:40 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Reentry Blocked Despite Recognized Override Evidence
+The reentry diagnostics at tick 251 explicitly recognize 'cleared prior attempt extreme' as new evidence, yet the intent remains blocked by 'repeated GEX_VELOCITY,' which requires 'material new evidence' for an override. The model fails to implement its own stated logically valid override, demonstrating inconsistent blocker enforcement.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick 251 intent diagnostics reentry newEvidence: ["cleared prior attempt extreme"]
+  • tick 251 intent blockers: "REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY; override requires AI must identify material new evidence..."
+Next: Review the reentry diagnostic logic. Material new evidence like 'cleared prior attempt extreme' should logically negate a block for 'repeated' constraints per the documented override criteria.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:00 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Repeated Reentry Block Despite Known Override Evidence
+The model continues to block reentry due to 'repeated GEX_VELOCITY,' despite its own diagnostics explicitly recognizing 'cleared prior attempt extreme' as new evidence at tick 271. This demonstrates a repeated failure to apply the logic override when required evidence is present, confirming persistence of the regression identified at tick 251.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick 271 intent diagnostics reentry newEvidence: ["cleared prior attempt extreme"]
+  • tick 271 intent blockers: "REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY..."
+Next: Investigate the reentry heuristic logic immediately. The system recognizes the required override evidence ('cleared prior attempt extreme') but fails to apply the override, leading to persistent, unjustified trade blocking.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:20 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Persistent Reentry Block Despite Detected Override Evidence
+The model continues to block reentry due to 'repeated GEX_VELOCITY', despite explicitly identifying 'cleared prior attempt extreme' as recognized new evidence in its diagnostics at tick 290/291. This persistence confirms the regression where logically valid override criteria are identified but not applied.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 291 Intent: PREPARE_CALL, Blocker: REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY; override requires AI must identify material new evidence...
+  • Diagnostic (Tick 290): `reentry.allowed: false`
+  • Diagnostic (Tick 290): `reentry.newEvidence: ["cleared prior attempt extreme"]`
+  • Prior reports (Tick 251, 271) establish a persistent failure to override when this evidence is present (regression).
+Next: Validate and fix the logic governing the reentry constraint override. If 'cleared prior attempt extreme' is detected as new evidence, the blocker 'repeated GEX_VELOCITY' must be successfully overridden without requiring manual AI intervention.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:40 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Trader Rationale Confirms Material New Evidence, Model Fails to Identify Override
+The model continues to display the reentry blocker requiring 'material new evidence', despite the trader journal prose explicitly detailing significant new evidence, including violent price breaks correcting prior spikes, weakening local demand, and intensifying negative momentum targeting lower structural areas. This indicates a failure of the AI to objectively translate stated market narrative into structured re-entry evidence for the model.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 311 Intent Blocker: No genuinely new evidence since failed CALL (reentry.discipline.override text explicitly states "AI must identify material new evidence...")
+  • Journal 2:20 PM: Violent price break to 751.35 proved weak immediate demand created genuine selling pressure. Local momentum actively negative.
+  • Journal 2:22 PM: Pullback continues to deepen... localized negative pressure is intensifying.
+  • Journal 2:31 PM: Immediate downside resumption confirms weak local demand is driving price lower; target 751.00.
+Next: Validate the criteria used by the AI to identify 'material new evidence' for re-entry overrides. Ensure that significant shifts in local momentum, confirmed downside pressure after unblock, and achievement of targeted support levels (as stated in journalistic evidence) are properly ingested as override evidence.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:00 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Prose Details Maximal Breakdown Risk, Model Diagnostics See No New Evidence
+The model continues to block reentry due to 'repeated GEX_VELOCITY' despite internal journal prose explicitly detailing material new evidence: immediate follow-through to new lows (751.02), intense negative local momentum, and maximal breakdown risk. The AI's structured diagnostics fail to identify this evidence, preventing the required logic override and confirming persistence of the failure identified at tick 311.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Tick 331 Intent Blocker: PREPARE_CALL blocked by "REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY..."
+  • Diagnostic (Tick 330): `reentry.allowed: false`
+  • Diagnostic (Tick 330): `reentry.newEvidence: []` (Empty)
+  • Journal (2:55 PM): Follow-through to new lows (751.02), intense negative momentum.
+  • Journal (2:57 PM): Frozen at 751.00, immediate breach expected, breakdown risk maximized.
+Next: Ensure significant localized price action developments, such as immediate follow-through to new session lows and maximised breakdown risk as documented in the narrative journal, are correctly parsed as structured "new evidence" to trigger logically valid reentry overrides.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:20 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Prose Confirms Material Breakout Evidence, Diagnostics Persistently Fail to Override Reentry Block
+The model persistently blocks reentry via 'repeated GEX_VELOCITY' despite internal journal prose explicitly detailing material new evidence—a violent V-recovery, successful break of prior highs (751.36), and role reversal of resistance to dynamic support. This confirms the persistent failure of AI diagnostics to recognize and map materially new structural evidence to bypass the re-entry blocker, repeating issues seen since tick 251. Additionally, intent state updates show latency, with HOLD persisting immediately after exits.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick:351 intent:PREPARE_CALL blockers:['REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY;...']
+  • tick:350 currentThesis -> priorAttempt: entrySpot:751.03, exitSpot:751.43, pnl:-40, reason:VEHICLE_FAILURE
+  • versionContext.sameBuildFindings key:REENTRY_BLOCKER_IGNORES_NEW_EVIDENCE_BUILD2 (tick 251) et,al.
+  • versionContext.sameBuildFindings key:HOLD_INTENT_LATENCY_AFTER_VEHICLE_FAILURE_BUILD2 (tick 231)
+Next: Prioritize identifying logical inconsistencies where internal metrics (cleared extremes, established supports) recognized in the journal prose do not map correctly to re-entry diagnostic variables like 'freshFrontier' or 'clearedPriorAttempt'. Fix the latency in 'intentChanged' state updates immediately following planned or unplanned exits.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:40 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Re-Entry Diagnostics Blind to Continued Bullish Structure, Blocking Valid PREPARE_CALL Intent
+The model's re-entry block due to 'repeated GEX_VELOCITY' persists despite objective price action continuation and journal prose detailing a 'consolidation holding above 751.00' and 'intensifying bullish pressure.' At tick 371, price printed 751.4 (spy), clearing prior local highs and validating the structural support mentioned in prose. Internal diagnostics for 'freshFrontier' and 'clearedPriorAttempt' are incorrectly false, demonstrating a recurring failure to logically map obvious market evidence into an override condition. This confirms persistence of the regression identified at tick 251 and repeated most recently at 351.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick:371 intent:PREPARE_CALL blockers:['REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY;...']
+  • tick:370 re-entry diagnostics: freshFrontier:false, clearedPriorAttempt:false
+  • tick:370 market: spy:751.28, spx:7540.45
+  • tick:371 market: spy:751.4, spx:7541.49
+  • journal 3:35 PM: "...violent consolidation holds above 751.00; bullish pressure intensifying..."
+  • versionContext.sameBuildFindings key:PERSISTENT_REENTRY_BLOCK_AFTER_V_RECOVERY (tick 351)
+Next: Address the systemic disconnection between model diagnostics (which report no new evidence) and both price action and trader journal narrative, which both confirm material structural shifts (V-recovery, consolidation above old resistance). Re-evaluate the logic that sets 'freshFrontier' and 'clearedPriorAttempt' to true.
+Approval required: NO
+------------------------------------------------------------------------
+
+[4:00 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.1-20260711
+Reentry Blocker Fixed as Diagnostics Recognize Cleared Attempt Extreme
+The persistent regression blocking reentry despite new evidence, extensively reported from ticks 251 through 371, is verified as fixed at tick 390. Reentry diagnostics correctly show 'allowed: true' based on the recognized override evidence 'cleared prior attempt extreme.' The current intent block for 'Market not tradeable' is expected, as the 4:00 PM time indicates market close.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • tick:391 intent:PREPARE_CALL blockers:['Market not tradeable']
+  • tick:390 re-entry diagnostics: allowed:true, clearedPriorAttempt:true, newEvidence:['new extreme beyond prior episode', 'cleared prior attempt extreme']
+  • versionContext.sameBuildFindings key:REENTRY_BLOCK_PERSISTS_THROUGH_CONTINUATION (tick 371)
+Next: Fix verified. The model successfully recognized and applied override criteria based on 'cleared prior attempt extreme'. No further action needed on this specific logic loop. The current session block for 'Market not tradeable' is appropriately active given the 4:00 PM timestamp.
+Approval required: NO
+------------------------------------------------------------------------

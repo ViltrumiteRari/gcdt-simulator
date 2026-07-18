@@ -1,0 +1,54 @@
+{
+  "id": "CAMPAIGN-1784354443463",
+  "name": "Fresh Jul15 10x V20 Clean Contracts Live Top Balance",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-18T06:00:43.463Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15",
+  "failedAt": "2026-07-18T06:02:21.712Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "RUNNING",
+      "tick": 0,
+      "eventCount": 0,
+      "lastProgressAt": 1784354355269,
+      "updatedAt": "2026-07-18T06:02:21.089Z",
+      "provider": {
+        "state": "CONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": true,
+        "connecting": false,
+        "pendingKind": null,
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": true,
+          "connectedAt": 1784354539711,
+          "bootstrapped": true,
+          "state": "ORIGINAL_LIVE",
+          "resumptionHandleAvailable": true,
+          "sessionGeneration": 1,
+          "breakReason": null
+        }
+      },
+      "running": true,
+      "aiFrozen": false,
+      "thinking": false,
+      "buildId": "firstsignal-sim-v1.20-top-live-balance-20260718",
+      "buildSequence": 20,
+      "at": "2026-07-18T06:02:21.086Z"
+    }
+  }
+}

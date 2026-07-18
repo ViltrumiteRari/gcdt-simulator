@@ -1,0 +1,85 @@
+{
+  "generatedAtUtc": "2026-07-12T20:44:10.572Z",
+  "reviews": [
+    {
+      "meetingName": "meeting1_jul12_442pm",
+      "status": "COMPLETED",
+      "replayDate": "2026-07-10",
+      "sessionId": "firstsignal-sim-v1-2026-07-10-1783888409475-vg0yrj",
+      "completedCases": 2,
+      "totalCases": 2,
+      "endedAt": "2026-07-12T20:44:09.550Z",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-10-1783888409475-vg0yrj/meetings/meeting1_jul12_442pm"
+    },
+    {
+      "meetingName": "meeting1_jul12_429am",
+      "status": "COMPLETED",
+      "replayDate": "2026-07-09",
+      "sessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "completedCases": 12,
+      "totalCases": 12,
+      "endedAt": "2026-07-12T08:38:50.575Z",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv/meetings/meeting1_jul12_429am"
+    },
+    {
+      "meetingName": "meeting1_jul12_414am",
+      "status": "COMPLETED",
+      "replayDate": "2026-07-09",
+      "sessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "completedCases": 12,
+      "totalCases": 12,
+      "endedAt": "2026-07-12T08:24:30.324Z",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw/meetings/meeting1_jul12_414am"
+    },
+    {
+      "meetingName": "meeting2_jul12_200am",
+      "status": "COMPLETED",
+      "replayDate": "2026-07-06",
+      "sessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "completedCases": 5,
+      "totalCases": 5,
+      "endedAt": "2026-07-12T06:03:45.315Z",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-06-1783835208829-auz0un/meetings/meeting2_jul12_200am"
+    },
+    {
+      "meetingName": "meeting3_jul12_1202am",
+      "status": "COMPLETED",
+      "replayDate": "2026-07-08",
+      "sessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "completedCases": 12,
+      "totalCases": 12,
+      "endedAt": "2026-07-12T04:11:34.682Z",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e/meetings/meeting3_jul12_1202am"
+    },
+    {
+      "meetingName": "meeting1_jul11_947pm",
+      "status": "FAILED",
+      "replayDate": "2026-07-08",
+      "sessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "completedCases": 0,
+      "totalCases": 0,
+      "endedAt": "2026-07-12T01:47:54.072Z",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e/meetings/meeting1_jul11_947pm"
+    },
+    {
+      "meetingName": "meeting1_jul12_157am",
+      "status": "FAILED",
+      "replayDate": "2026-07-06",
+      "sessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "completedCases": 3,
+      "totalCases": 5,
+      "endedAt": null,
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-06-1783835208829-auz0un/meetings/meeting1_jul12_157am"
+    },
+    {
+      "meetingName": "meeting2_jul11_1132pm",
+      "status": "FAILED",
+      "replayDate": "2026-07-08",
+      "sessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "completedCases": 0,
+      "totalCases": 12,
+      "endedAt": null,
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e/meetings/meeting2_jul11_1132pm"
+    }
+  ]
+}

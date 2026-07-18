@@ -1,0 +1,16 @@
+{
+  "sessionId": "firstsignal-sim-v1-2026-07-08-1784089829330-brgavh",
+  "replayDate": "2026-07-08",
+  "privateReflection": "Coherent short thesis existed but capital was destroyed by trend-chasing entries during whipsaw structural volatility. Corrected resumption logic in mid-session (Trade 5/6) but surrendered gains chasing vertical breakouts (Trade 7/8). Rigidity governed exits defensively, but poor entry selection neutralized parameter protection.",
+  "nextSessionHandoff": "Short-side dominance established but prone to violent structural reversals. Prioritize confirmed resumption after rejection nodes; aggressively avoid chasing local acceleration spikes directly against FEP structure. Entry location is paramount.",
+  "completedAt": "2026-07-15T04:59:50.995Z",
+  "traderContinuity": {
+    "available": true,
+    "connectedAt": 1784091013658,
+    "bootstrapped": true,
+    "state": "RESUMED_ORIGINAL",
+    "resumptionHandleAvailable": true,
+    "sessionGeneration": 3,
+    "breakReason": null
+  }
+}

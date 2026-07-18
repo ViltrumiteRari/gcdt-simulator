@@ -1,0 +1,12 @@
+
+[1:31 PM] YELLOW · DATA · firstsignal-sim-v1.4-20260712
+Stale and Non-Informative Data State Detected
+The simulator has detected stale data, indicated by a 'DATA_STALE_OR_NONINFORMATIVE' state, impacting execution readiness.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Current dataHealth state is 'DATA_STALE_OR_NONINFORMATIVE' at tick 242.
+  • Recent journal shows entry at 1:30 PM: 'DATA_STATE DATA_STALE_OR_NONINFORMATIVE source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:70.'
+  • dataHealth block is explicitly set to stale, nonInformative, with spyFlatTicks:2 and spxFlatTicks:2.
+Next: Investigate the upstream quote source and the data ingestion pipeline to determine why flat ticks are occurring and causing data to become non-informative.
+Approval required: NO
+------------------------------------------------------------------------

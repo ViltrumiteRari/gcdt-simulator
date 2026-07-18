@@ -1,0 +1,22 @@
+{
+  "meetingName": "meeting1_jul12_157am",
+  "status": "FAILED",
+  "error": "TOKEN_ROUTE_OFFLINE:TOKEN_500:{\"error\":\"LIVE_TOKEN_FAILURE\",\"message\":\"fetch failed\"}",
+  "completedCases": [
+    "CASE-1",
+    "CASE-2",
+    "CASE-3"
+  ],
+  "totalCases": 5,
+  "temporal": {
+    "observedAtUtc": "2026-07-12T06:00:02.944693Z",
+    "observedAtLocal": "2026-07-12T02:00:02.944693-04:00",
+    "localDate": "2026-07-12",
+    "replayDate": "2026-07-06",
+    "marketDate": "2026-07-06",
+    "marketTime": null,
+    "marketTime24": null,
+    "chronologicalKey": "2026-07-06T00:00:00|2026-07-12T06:00:02.944693Z",
+    "timestampBackfilled": true
+  }
+}

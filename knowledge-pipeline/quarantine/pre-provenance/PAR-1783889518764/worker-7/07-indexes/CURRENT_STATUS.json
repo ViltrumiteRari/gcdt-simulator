@@ -1,0 +1,21 @@
+{
+  "pipelineVersion": 2,
+  "updatedAtUtc": "2026-07-12T20:57:32.590Z",
+  "supervisorState": "WATCHING_REPLAY",
+  "currentSessionId": "firstsignal-sim-v1-2026-07-07-1783889524308-s8i28t",
+  "currentMeeting": null,
+  "campaign": {
+    "id": "CAMPAIGN-1783889522362",
+    "name": "worker-7 2026-07-07",
+    "status": "RUNNING",
+    "completedRuns": 0,
+    "targetRuns": 1
+  },
+  "counts": {
+    "canonicalFindings": 0,
+    "backlogItems": 0,
+    "blocked": 0,
+    "awaitingApproval": 0,
+    "validated": 0
+  }
+}

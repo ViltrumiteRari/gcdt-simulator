@@ -1,0 +1,120 @@
+
+[9:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Build Startup and Session Warmup Protocol Operates Within Spec
+Normal simulator startup operation is verified at 9:30 AM (tick 1). The intent engine correctly entered WAIT mode with zero readiness, appropriately blocked by standard 'Session warming up' protocol. Market data transmission and health are established, confirming a stable deployment.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:1 marketTime:9:30 AM intent.action:WAIT readiness:0 blockers:[Session warming up] dataHealth.state:DATA_HEALTHY
+Next: No action required; normal startup protocol.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Canonical BUY_CALL State Transition Verified Above Execution Threshold
+Simulator state transition logic is verified at tick 21. The intent action is correctly BUY_CALL, with readiness (83) appropriately crossing the dynamic execution threshold (80). No hard blockers exist, and entry is actively gated by dynamic playbook logic, citing active 'Current leg agrees' and 'Acceleration active' gaps, cohesive with immediate adverse data transmission (TRANSMISSION_DELAYED).
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:21 marketTime:9:50 AM intent.action:BUY_CALL readiness:83 threshold:80 blockers:[] gaps:[Current leg agrees, Acceleration active] diagnostic.brainSide:CALL diagnostic.localSide:WAIT transmission.state:TRANSMISSION_DELAYED transmission.failedTicks:1
+Next: No action required; state transition is coherent.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Readiness Suppressed by Playbook Gaps in PREPARE_CALL State
+Simulator operational stability and risk mitigation are verified at tick 41. The intent state correctly transitioned to PREPARE_CALL, with readiness (69) properly suppressed below the dynamic execution threshold (80). This suppression is appropriately sourced from active 'Current leg agrees', 'Price persistence', and 'Acceleration active' Gaps, strictly enforcing playbook entry constraints despite the absence of rigid blockers.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:41 marketTime:10:10 AM intent.action:PREPARE_CALL readiness:69 dynamicThreshold:80 blockers:[] gaps:[Current leg agrees, Price persistence, Acceleration active] transmission.state:TRANSMISSION_PENDING temporal.chronologicalKey:2026-07-10T10:10:00|2026-07-12T20:45:05.433Z
+Next: No action required; risk controls are functioning.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Playbook Risk Control Stability Verified After Major Price Drop
+Operation of the intent engine's risk protocol is verified at tick 61 after extreme immediate adverse market movement. The state is PREPARE_CALL, with readiness (69) correctly maintained below the execution threshold (80), enforced by dynamic playbook Gaps based on the massive drop (SPX -19.68, SPY -1.64). This confirms stable protocol adherence, preventing execution by blocking readiness during incompatible tactical impulse.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 60 SPX: 7553.74, SPY: 752.59
+  • Tick 61 SPX: 7534.06 (move -19.68), SPY: 750.95 (move -1.64)
+  • Intent Action: PREPARE_CALL, readiness: 69, threshold: 80
+  • diagnostics.dataHealth.state: DATA_HEALTHY
+  • transmission.state: TRANSMISSION_PENDING, transmission spxMove: 0.14, spyMove: 0.00
+Next: Continue to monitor playbook Gap enforcement during high volatility ticks.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Canonical BUY_CALL State Transition Gated by Playbook Logic
+Simulator state transition logic is verified at tick 81. The intent action is correctly BUY_CALL, with readiness (83) appropriately crossing the dynamic execution threshold (80). No hard blockers exist. Immediate entry is actively gated by dynamic playbook logic, citing active 'Current leg agrees' and 'Acceleration active' Gaps, appropriately adhering to playbook logic while data transmission shows positive immediate reversion following the prior extreme drop.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 81 Intent Action: BUY_CALL, readiness: 83, threshold: 80, blockers: []
+  • Intent Gaps: ['Current leg agrees', 'Acceleration active']
+  • Transmission Data (spxMove: 0.19, spyMove: 0.02), transmission.state: TRANSMISSION_PENDING
+  • recentJournal: 10:49 AM TRANSMISSION_PENDING, previously 10:48 AM DELAYED
+Next: Verify execution fill logic in subsequent ticks.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:10 AM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.4-20260712
+Radical Repeat Contradiction: BUY_CALL Intent vs BUY_PUT Mindset Guidance
+A repeated and profound divergence is verified between structured intent generation and direct AI Mindset guidance. At tick 101, structured intent asserts BUY_CALL, yet recent Mindset (10:31 AM) and preemptive Journal logic (10:55 AM) guided intensely toward BUY_PUT, citing 'accel with downside slope' and thesis invalidation. Furthermore, prior events indicate a canonical BUY_CALL was theoretically filled at tick 74, contradiction with current position:null state. The conflicting directional intent and state management indicate fundamental incoherence.
+Version assessment: REGRESSION · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 101 Intent Action: BUY_CALL, readiness: 83, threshold: 80
+  • recentMindset: 10:31 AM GUIDE_PUT 100% cand: 749P @$0.22
+  • recentJournal: 10:55 AM AI_REQUEST_PREEMPTED by BUY_PUT readiness:90% contract:747.5@0.3
+  • current.market (spy: 751.95, spx: 7544.87)
+  • recentEvents: T74 BUY_CALL 755@.23 (Event log in T76 entry of prior reports indicates fill at T74/10:43 AM)
+  • recentEvents T86-T94 PREPARE_CALL, T98 WAIT
+Next: Investigate cohesion between SESSION_AWARE_INTENT output and AI Mindset/Journal prose logic.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:54 AM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.4-20260712
+Persistent AI Mindset Latency Contradicts Active BUY_CALL Intent
+The radical divergence between structured intent generation and explicit AI Mindset guidance persists at tick 145. Structured intent output is BUY_CALL with readiness above the execution threshold, supported by recent journal prose preemptively requesting a CALL entry at 11:50 AM. However, the last generated Mindset entry (10:31 AM) continues to display a stale directional GUIDE_PUT, demonstrating a specific failure of the tactical mindset to keep pace with dynamic model state changes.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 145 Intent Action: BUY_CALL, readiness: 83, threshold: 80
+  • recentJournal: 11:50 AM AI_REQUEST_PREEMPTED by BUY_CALL readiness:86% contract:755@0.16
+  • recentMindset: 10:31 AM GUIDE_PUT (latest entry)
+Next: Investigate failure of AI Mindset to update and align with structured Intent state.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:14 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.4-20260712
+AI Mindset decoupled from Model State: Persists GUIDE_PUT vs active BUY_CALL Intent
+The severe incoherence between structured intent and explicit AI Mindset guidance manifests again at tick 165. The model outputs a canonical BUY_CALL action with active execution readiness (83), yet the latest direct narrative from the Mindset engine (10:31 AM) remains violently committed to a GUIDE_PUT thesis. This persistent latency confirms that the AI narrative generation is functionally decoupled from the numerical model state, repeating the core breakdown reported since tick 101.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 165 Intent Action: BUY_CALL, readiness: 83, threshold: 80
+  • recentMindset: 10:31 AM GUIDE_PUT (latest entry)
+Next: Prioritize fixing the critical disconnect between structured model output and corresponding AI Mindset narrative generation.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:34 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.4-20260712
+CHOP_GATE Narrative present, yet Mindset Persists with stale 10:31 AM PUT guidance
+Structured intent continues as BUY_CALL with readiness above the threshold at tick 185. Recent Journal prose (12:30 PM) indicates 'CHOP_GATE ON', providing new narrative input. Despite this, the Mindset engine fails to generate updated guidance, with the latest entry still stale from 10:31 AM (GUIDE_PUT). This persistently decoupled state confirms functional logic incoherence, repeating the core breakdown identified since tick 101.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 185 Intent Action: BUY_CALL, readiness: 83, threshold: 80
+  • recentJournal: 12:30 PM CHOP_GATE ON — pin 60%, holdSide true
+  • recentMindset: 10:31 AM GUIDE_PUT (latest entry)
+Next: Address the persistent decoupling of structured intent and AI narrative generation; investigate CHOP_GATE impact on Mindset updates.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:54 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.4-20260712
+AI Mindset decoupling persists: stale GUIDE_PUT vs active BUY_CALL Intent
+The functional breakdown between structured intent and AI Mindset narrative persists at tick 205. The model outputs BUY_CALL with execution readiness over threshold, yet the latest generated Mindset (10:31 AM) remains stale and actively guides for PUT action based on old thesis, repeating the decoupling reported since tick 101.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:205 time:12:54 PM intent.action:BUY_CALL readiness:83 threshold:80
+  • tick:205 recentMindset: last entry at 10:31 AM decision:GUIDE_PUT reasoning:...Playbook PUT: accel with downside slope...
+  • tick:205 diagnostics.reentry.newEvidence: [first attempt in this session episode]
+  • priorReports: tick 101, 145, 165, 185 all cite INTENT_MINDSET_DIVERGENCE for this buildId
+Next: Investigate immediate decoupling of AI narrative generator from numerical model state. Narrative has not updated in over 140 ticks despite multiple strategy shifts.
+Approval required: NO
+------------------------------------------------------------------------

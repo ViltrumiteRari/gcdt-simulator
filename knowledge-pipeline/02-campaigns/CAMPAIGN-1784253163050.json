@@ -1,0 +1,15 @@
+{
+  "id": "CAMPAIGN-1784253163050",
+  "name": "Fresh Jul15 inversion run",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-17T01:52:43.050Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": []
+}

@@ -4,8 +4,8 @@ from pathlib import Path
 import pandas as pd
 
 DAY = "2026-07-08"
-DATA = Path(r"D:\FirstSignal_GCDT_Dataset") / DAY / "sim_input"
-OUT = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js")
+DATA = Path(r"D:\FirstSignal_Sim_Dataset") / DAY / "sim_input"
+OUT = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayData.js")
 
 market = pd.read_csv(DATA / "market_timeline.csv")
 gex = pd.read_csv(DATA / "gex_key_levels.csv")

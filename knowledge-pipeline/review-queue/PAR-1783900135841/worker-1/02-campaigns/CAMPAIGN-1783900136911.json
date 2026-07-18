@@ -1,0 +1,15 @@
+{
+  "id": "CAMPAIGN-1783900136911",
+  "name": "worker-1 2026-07-07",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-07"
+  ],
+  "status": "RUNNING",
+  "createdAt": "2026-07-12T23:48:56.911Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-07"
+}

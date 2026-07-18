@@ -1,0 +1,10 @@
+{
+  "meetingName": "meeting1_jul12_442pm",
+  "status": "COMPLETED",
+  "completedCases": [
+    "CASE-1",
+    "CASE-2"
+  ],
+  "totalCases": 2,
+  "endedAt": "2026-07-12T20:44:09.550Z"
+}

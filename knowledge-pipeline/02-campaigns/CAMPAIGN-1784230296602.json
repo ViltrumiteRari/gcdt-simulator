@@ -1,0 +1,53 @@
+{
+  "id": "CAMPAIGN-1784230296602",
+  "name": "Fresh Jul15 rerun",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-16T19:31:36.602Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "failedAt": "2026-07-16T19:43:45.569Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "WAITING_ON_COGNITION",
+      "tick": 7,
+      "eventCount": 7,
+      "lastProgressAt": 1784231025102,
+      "updatedAt": "2026-07-16T19:43:45.102Z",
+      "provider": {
+        "state": "CONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": true,
+        "connecting": false,
+        "pendingKind": "observation",
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": true,
+          "connectedAt": 1784231019437,
+          "bootstrapped": true,
+          "state": "ORIGINAL_LIVE",
+          "resumptionHandleAvailable": true,
+          "sessionGeneration": 1,
+          "breakReason": null
+        }
+      },
+      "running": true,
+      "aiFrozen": true,
+      "thinking": true,
+      "buildId": "firstsignal-sim-v1.12-canonical-entry-authorization-20260715",
+      "buildSequence": 13,
+      "at": "2026-07-16T19:43:45.101Z"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "status": "COMPLETED",
+  "meetingName": "salvaged-july-7-assessment",
+  "meetingFolder": "C:\\Users\\adahy\\Desktop\\GCDT\\gcdt-v26-airgap\\knowledge-pipeline\\review-queue\\PAR-1783891674087\\worker-1\\01-sessions\\2026-07-12\\firstsignal-sim-v1-2026-07-07-1783891677038-key8pz\\meetings\\salvaged-july-7-assessment",
+  "summary": {
+    "completedCases": [
+      "CASE-1",
+      "CASE-2",
+      "CASE-3",
+      "CASE-4",
+      "CASE-5",
+      "CASE-6",
+      "CASE-7",
+      "CASE-8",
+      "CASE-9",
+      "CASE-10"
+    ],
+    "totalCases": 10
+  },
+  "completedAt": "2026-07-12T22:05:47.912Z"
+}

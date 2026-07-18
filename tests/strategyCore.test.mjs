@@ -88,14 +88,22 @@ assert.match(agentMain, /snapshot\.sessionId !== currentSessionId/);
 assert.match(agentMain, /snapshot\.tick - lastAnalyzedTick >= 20/);
 assert.match(agentMain, /COOLDOWN: GEMINI RATE LIMIT/);
 assert.match(agentMain, /function completeSession/);
-assert.match(agentMain, /state: 'COMPLETED'/);
+assert.match(agentMain, /state: meta\.reflectionComplete \? 'AWAITING_REVIEW_MEETING' : 'COMPLETED'/);
 assert.match(agentMain, /if \(!currentSessionId\) resetSession\(null\)/);
 const viteConfig = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8');
 assert.match(viteConfig, /firstsignal-local-live-token/);
 assert.match(viteConfig, /authTokens\.create/);
+assert.match(viteConfig, /\/api\/trader-learning/);
+assert.match(viteConfig, /FIXED_PENDING_VALIDATION/);
+assert.match(app, /VALIDATED CROSS-SESSION OPERATING MEMORY/);
+assert.match(app, /loadTraderLearning/);
+assert.match(app, /aiSessionMemoryR\.current,traderLearning,setLiveThought/);
 assert.match(app, /bullishCounterLeg/);
 assert.match(app, /canonicalDirectionReady/);
-assert.match(app, /const gaps=marketFactors\.filter/);
+assert.match(app, /const gaps=\[\.\.\.new Set\(marketFactors\.filter/);
+assert.match(app, /const localAgreement=localSide!=="WAIT"&&localSide===side/);
+assert.match(app, /const maxLossExit=optPnl<=-\(p\.maxLossPct\?\?14\)/);
+assert.match(app, /MAX_LOSS_LIMIT/);
 assert.doesNotMatch(app, /for\(const f of marketFactors\)if\(!f\.passed\)blockers\.push/);
 assert.doesNotMatch(app, /if\(activeBearRegime&&!provenPinContext\)side="PUT"/);
 assert.match(app, /const fep=x\.gammaFlip/);
@@ -167,21 +175,21 @@ const drawdownGated = applyMetacognitiveGates({action:'BUY_PUT',direction:'PUT',
 assert.equal(drawdownGated.action, 'PREPARE_PUT');
 assert.ok(drawdownGated.blockers.includes('DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE'));
 assert.doesNotMatch(app, /EXECUTION PRESUMPTION/);
-assert.match(app, /eligibility proposal, not an order/);
+assert.match(app, /matching trade is mandatory unless you can truthfully select one enumerated veto_reason/);
 assert.match(app, /METACOGNITIVE_GATE/);
 assert.match(app, /DATA_STATE/);
 assert.match(app, /TRANSMISSION_STATE/);
 assert.match(app, /spyInvalidation/);
 assert.match(app, /spxConfirmation/);
 
-assert.match(app, /SESSION_CLOSING_REFLECTION/);
+assert.match(app, /SAME_TRADER_CLOSING_REFLECTION_REQUIRED/);
 assert.match(app, /DRAWDOWN_REVIEW_ACTIVE/);
 assert.match(app, /ACCOUNTABLE FORECAST RULE/);
 assert.match(app, /computeGexImpulse/);
 assert.match(app, /buildTradeDiagnostics/);
 
 assert.match(app, /setTimeout\(\(\)=>saveSessionRef\.current\?\.\(\),0\)/);
-assert.match(app, /SESSION_CLOSING_REFLECTION/);
+assert.match(app, /SAME_TRADER_CLOSING_REFLECTION_REQUIRED/);
 assert.match(app, /PRIVATE_SESSION_REFLECTION/);
 assert.match(app, /NEXT_SESSION_HANDOFF/);
 assert.match(app, /saveSessionRef\.current=saveSession/);
@@ -199,7 +207,7 @@ assert.doesNotMatch(app.match(/function interpolateSPX[\s\S]*?\n}/)?.[0]||'', /s
 
 assert.match(builder, /load_dedicated_spot/);
 assert.match(builder, /spot_intraday_5m\.csv/);
-assert.match(builder, /longest_flat > 30/);
+assert.match(builder, /run_len >= 30/);
 const { REAL_REPLAY_CATALOG: replayCatalog } = await import('../src/realReplayData.js');
 const july9 = replayCatalog['2026-07-09'];
 assert.equal(july9.coverage.spotSource, 'DEDICATED_INTRADAY_5M_CAUSAL');
@@ -211,17 +219,17 @@ console.log('FirstSignal strategy acceptance tests passed');
 
 
 
-// FirstSignal Sim V1 migration assertions
+// FirstSignal Sim v1 migration assertions
 assert.match(app, /const PRODUCT_NAME = "FirstSignal Sim"/);
-assert.match(app, /const PRODUCT_VERSION = "V1"/);
-assert.match(app, /firstsignal-sim-v1\.3-20260712/);
+assert.match(app, /const PRODUCT_VERSION = "v1"/);
+assert.match(app, /firstsignal-sim-v1\.4-20260712/);
 assert.match(app, /clock12=/);
 assert.match(app, /1M PATH-FILLED/);
 assert.match(app, /productVersion:PRODUCT_VERSION/);
 assert.match(agentMain, /versionMemoryPath/);
 assert.match(agentMain, /sessionFolder\(\)/);
 assert.match(agentMain, /Version assessment:/);
-assert.match(agentMain, /FirstSignal Sim V1 Agent Reports/);
+assert.match(agentMain, /FirstSignal Sim v1 Agent Reports/);
 
 const meetingMain = fs.readFileSync(new URL('../electron/main.cjs', import.meta.url), 'utf8');
 const meetingModel = fs.readFileSync(new URL('../electron/meeting-model.cjs', import.meta.url), 'utf8');

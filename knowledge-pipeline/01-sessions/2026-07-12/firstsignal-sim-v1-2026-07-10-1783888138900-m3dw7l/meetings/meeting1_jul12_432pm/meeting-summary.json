@@ -1,0 +1,9 @@
+{
+  "meetingName": "meeting1_jul12_432pm",
+  "status": "STOPPED",
+  "error": "MEETING_STOPPED",
+  "completedCases": [
+    "CASE-1"
+  ],
+  "totalCases": 2
+}

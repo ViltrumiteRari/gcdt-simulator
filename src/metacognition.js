@@ -7,6 +7,8 @@ export function createMetacognitionState() {
     forecasts: [],
     activeForecastId: null,
     signalTrust: {},
+    expectationFailures: { CALL: 0, PUT: 0 },
+    inversion: { side: null, transfer: 0, sourceSide: null, reason: null, updatedTick: null },
     drawdownReview: { active: false, activatedAt: null, completedAt: null, reflection: '' },
     endSession: null,
   };
@@ -114,6 +116,36 @@ export function scoreForecast(forecast, market, tick) {
   };
 }
 
+export function updateExpectationFailureState(state = {}, forecast, transmission = {}) {
+  if (!forecast || forecast.status === 'ACTIVE') return state;
+  const next = { ...state, expectationFailures: { CALL: 0, PUT: 0, ...(state.expectationFailures || {}) }, inversion: { side: null, transfer: 0, sourceSide: null, reason: null, updatedTick: null, ...(state.inversion || {}) } };
+  const side = forecast.side;
+  const opposite = side === 'CALL' ? 'PUT' : side === 'PUT' ? 'CALL' : null;
+  if (!side || !opposite) return next;
+  if (forecast.status === 'SUCCESS') {
+    next.expectationFailures[side] = 0;
+    if (next.inversion.sourceSide === side) next.inversion = { side: null, transfer: 0, sourceSide: null, reason: null, updatedTick: forecast.resolvedTick ?? null };
+    return next;
+  }
+  if (forecast.status === 'PARTIAL') {
+    next.expectationFailures[side] = Math.max(0, (next.expectationFailures[side] || 0) - 1);
+    return next;
+  }
+  const streak = (next.expectationFailures[side] || 0) + 1;
+  next.expectationFailures[side] = streak;
+  const transmissionFailed = transmission?.state === 'TRANSMISSION_FAILED' || transmission?.failedTicks >= 3;
+  const adverse = Number(forecast.progress || 0) < -0.08;
+  const transfer = clamp(10 + streak * 8 + (transmissionFailed ? 8 : 0) + (adverse ? 6 : 0), 0, 38);
+  next.inversion = {
+    side: opposite,
+    transfer,
+    sourceSide: side,
+    reason: `${forecast.status}${transmissionFailed ? '+TRANSMISSION_FAILED' : ''}${adverse ? '+ADVERSE_RESPONSE' : ''}`,
+    updatedTick: forecast.resolvedTick ?? null,
+  };
+  return next;
+}
+
 export function applyForecastTrust(signalTrust, forecast) {
   if (!forecast || forecast.status === 'ACTIVE') return signalTrust || {};
   const next = { ...(signalTrust || {}) };
@@ -154,9 +186,14 @@ export function analyzeDataHealth(history = [], market = {}, chain = null) {
   const calls = chain?.calls || market?.optionChain?.calls || [];
   const puts = chain?.puts || market?.optionChain?.puts || [];
   const chainRows = calls.length + puts.length;
-  const stale = spyFlatTicks >= 8 || (spyMeaningfulAge != null && spyMeaningfulAge >= 10) || chainRows === 0;
-  const nonInformative = stale || (spyFlatTicks >= 5 && spxFlatTicks >= 5) || (forwardFilled && spyFlatTicks >= 4);
-  return { state: stale ? 'DATA_STALE_OR_NONINFORMATIVE' : nonInformative ? 'DATA_LOW_INFORMATION' : 'DATA_HEALTHY', stale, nonInformative, spyFlatTicks, spxFlatTicks, spyMeaningfulAge, spxMeaningfulAge, source, forwardFilled, chainRows };
+  const sourceIntervalSeconds = Number(market?.sourceIntervalSeconds || 20);
+  const playbackIntervalSeconds = Number(market?.playbackIntervalSeconds || 20);
+  const expectedHoldTicks = Math.max(1, Math.ceil(sourceIntervalSeconds / playbackIntervalSeconds));
+  const flatStaleThreshold = Math.max(8, expectedHoldTicks + 3);
+  const meaningfulStaleThreshold = Math.max(10, expectedHoldTicks + 4);
+  const stale = spyFlatTicks >= flatStaleThreshold || (spyMeaningfulAge != null && spyMeaningfulAge >= meaningfulStaleThreshold) || chainRows === 0;
+  const nonInformative = stale || (spyFlatTicks >= Math.max(5, expectedHoldTicks) && spxFlatTicks >= Math.max(5, expectedHoldTicks)) || (forwardFilled && spyFlatTicks >= flatStaleThreshold);
+  return { state: stale ? 'DATA_STALE_OR_NONINFORMATIVE' : nonInformative ? 'DATA_LOW_INFORMATION' : 'DATA_HEALTHY', stale, nonInformative, spyFlatTicks, spxFlatTicks, spyMeaningfulAge, spxMeaningfulAge, source, forwardFilled, chainRows, sourceIntervalSeconds, playbackIntervalSeconds, expectedHoldTicks };
 }
 
 export function updateTransmissionState(previous = {}, history = [], market = {}, activeForecast = null) {
@@ -186,6 +223,7 @@ export function applyMetacognitiveGates(intent, context = {}) {
   const transmission = context.transmission || {};
   const activeForecast = context.activeForecast;
   const drawdownActive = !!context.drawdownActive;
+  const recoveryQualified = !!context.recoveryQualified;
   const trustPenalty = Math.max(0, ...(context.signalKeys || []).map(k => Math.max(0, -(context.signalTrust?.[k]?.score || 0)) * 4));
   next.modelConfidence = clamp(Math.round((Number(next.confidence) || 0) - trustPenalty), 0, 95);
   next.ruleCompleteness = Number(next.setupQuality) || 0;
@@ -196,10 +234,10 @@ export function applyMetacognitiveGates(intent, context = {}) {
   if (transmission.state === 'TRANSMISSION_FAILED') next.blockers.push('SIGNAL_TO_PRICE_TRANSMISSION_FAILED');
   if (activeForecast?.status === 'ACTIVE' && activeForecast.side && next.direction && activeForecast.side !== next.direction) next.blockers.push('UNRESOLVED_OPPOSITE_FORECAST');
   if (drawdownActive) {
-    next.blockers.push('DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE');
-    next.executionReadiness = Math.min(Number(next.executionReadiness) || 0, 69);
+    next.blockers.push(recoveryQualified ? 'DRAWDOWN_RECOVERY_MODE' : 'DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE');
+    if (!recoveryQualified) next.executionReadiness = Math.min(Number(next.executionReadiness) || 0, 69);
   }
-  if (next.blockers.some(x => /DATA_STALE|TRANSMISSION_FAILED|UNRESOLVED_OPPOSITE|DRAWDOWN_REVIEW/.test(x))) {
+  if (next.blockers.some(x => /DATA_STALE|TRANSMISSION_FAILED|UNRESOLVED_OPPOSITE|DRAWDOWN_REVIEW_REQUIRES/.test(x))) {
     if (String(next.action || '').startsWith('BUY_')) next.action = next.direction ? `PREPARE_${next.direction}` : 'WAIT';
     next.executionReadiness = Math.min(Number(next.executionReadiness) || 0, 69);
   }

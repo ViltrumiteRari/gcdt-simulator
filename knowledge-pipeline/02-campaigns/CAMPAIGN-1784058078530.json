@@ -1,0 +1,16 @@
+{
+  "id": "CAMPAIGN-1784058078530",
+  "name": "Jul8 clean observer off",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-08"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-14T19:41:18.530Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-08"
+}

@@ -1,0 +1,243 @@
+
+[9:30 AM] GREEN · HEALTHY · firstsignal-sim-v1.4-20260712
+Build 1.4 Healthy Startup and Warming Up
+The simulation began correctly at 9:30 AM with the intent engine in WAIT mode and entry blocked by the expected 'Session warming up' protocol. This confirms normal startup operation for the build.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 1
+  • Time: 9:30 AM
+  • Action: WAIT
+  • Blocker: Session warming up
+Next: None, continue monitoring.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss State Reset Verified Stable
+Following a MAX_LOSS_LIMIT trade exit at tick 20 (9:49 AM), the intent engine correctly transitioned to WAIT mode with zero readiness at tick 21. The applied blocker 'POSITION_CLOSED_MAX_LOSS_LIMIT' is functionally correct. This verifies stable state management immediately following a forced loss exit.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 21
+  • Time: 9:50 AM
+  • Action: WAIT
+  • Blocker: POSITION_CLOSED_MAX_LOSS_LIMIT
+  • Recent trades: Exited 756C at 9:49 AM for -16.0% PnL (MAX_LOSS_LIMIT)
+Next: None. Continue monitoring re-entry logic.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Correct Post-Loss Re-Entry Discipline Verified
+Following the MAX_LOSS_LIMIT exit at tick 20, the intent state correctly updated to block re-entry. In the current snapshot (tick 41), the PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.' The re-entry cooldown period (20 ticks) has expired, yet the system appropriately continues to require materially new structured evidence before pre-positioning, confirming stable performance logic.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 41
+  • Time: 10:10 AM
+  • Action: PREPARE_CALL
+  • Blocker: No genuinely new evidence since failed CALL
+  • Recent trades: Loss on 756C at 9:49 AM (MAX_LOSS_LIMIT)
+  • Reentry diagnostics: allowed: false, ticksSince: 20, cooldownNeeded: 0, cooldownPeriodExpired: true
+  • Transmission: PENDING, spxMove: 0.01, spyMove: -0.004
+Next: None, continue monitoring for materially new evidence.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable at Tick 61
+Loss discipline logic remains stable and correctly enforced at tick 61. Following the prior MAX_LOSS_LIMIT exit at tick 20, the model correctly requires materially new structured evidence before pre-positioning, successfully adhering to playbook discipline despite the expiry of the re-entry cooldown period.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 61 snapshot confirms PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.'
+  • RecentTrades show a forced exit via MAX_LOSS_LIMIT at tick 20.
+  • Diagnostics explicitly note cool down needed is 0 yet allowed is false, appropriately requiring material new evidence to re-qualify the thesis, adhering to playbook discipline protocols.
+Next: None, continuation of stable performance logic verified.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable at Tick 81
+Loss discipline logic remains stable and correctly enforced at tick 81. Following the prior MAX_LOSS_LIMIT exit at tick 20, the model correctly requires materially new structured evidence before pre-positioning, successfully adhering to playbook discipline despite the expiry of the re-entry cooldown period (60 ticks since exit).
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 81 snapshot confirms PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.'
+  • RecentTrades show a forced exit via MAX_LOSS_LIMIT at tick 20.
+  • Diagnostics explicitly note cool down needed is 0, yet allowed is false, appropriately requiring material new evidence to re-qualify the thesis.
+Next: None, continuation of stable performance logic verified.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable at Tick 101
+Loss discipline logic remains stable and correctly enforced at tick 101. Following the MAX_LOSS_LIMIT exit at tick 20, the model continues to require materially new structured evidence before pre-positioning, successfully adhering to playbook discipline protocols despite the expiry of the re-entry cooldown period.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 101 snapshot confirms PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.'
+  • RecentTrades show a forced exit via MAX_LOSS_LIMIT at tick 20.
+  • Diagnostics explicitly note cooldown period is expired (80 ticks since exit), yet 'allowed' is false and 'newEvidence' is empty, correctly requiring material new structured evidence to re-qualify.
+Next: None, continuation of stable performance logic verified.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable at Tick 121
+Loss discipline logic remains stable and correctly enforced at tick 121. Following the MAX_LOSS_LIMIT exit at tick 20, the model continues to appropriately require materially new structured evidence before pre-positioning, successfully adhering to playbook discipline protocols despite the re-entry cooldown period being expired for 80 ticks.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 121 snapshot confirms PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.'
+  • RecentTrades show a forced exit via MAX_LOSS_LIMIT at tick 20.
+  • Diagnostics explicitly note cooldown period is expired (100 ticks since exit), yet 'allowed' is false and 'newEvidence' is empty, correctly requiring material new structured evidence to re-qualify the thesis.
+Next: None, continuation of stable performance logic verified.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable at Tick 141
+Loss discipline logic remains stable and correctly enforced at tick 141. Following the MAX_LOSS_LIMIT exit at tick 20, the model continues to appropriately require materially new structured evidence before pre-positioning, successfully adhering to playbook discipline protocols despite the re-entry cooldown period being expired for 100 ticks.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 141 snapshot confirms PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.'
+  • RecentTrades show a forced exit via MAX_LOSS_LIMIT at tick 20.
+  • Diagnostics explicitly note cooldown period is expired (120 ticks since exit), yet 'allowed' is false and 'newEvidence' is empty, correctly requiring material new structured evidence to re-qualify the thesis.
+Next: None, continuation of stable performance logic verified.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:10 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable at Tick 161
+Loss discipline logic remains stable and correctly enforced at tick 161. Following the MAX_LOSS_LIMIT exit at tick 20, the model continues to appropriately require materially new structured evidence before pre-positioning, successfully adhering to playbook discipline protocols despite the re-entry cooldown period being expired for 120 ticks.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 161 snapshot confirms PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.'
+  • RecentTrades show a forced exit via MAX_LOSS_LIMIT at tick 20.
+  • Diagnostics explicitly note cooldown period is expired (140 ticks since exit), 'allowed' is false, and 'newEvidence' is empty, correctly requiring material new structured evidence to re-qualify the thesis.
+Next: None, continuation of stable performance logic verified.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:30 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Verification Stable at Tick 181
+Re-entry discipline logic following a loss remains stable and correctly enforced at tick 181. Despite the re-entry cooldown expiring 160 ticks ago and the intention engine displaying PREPARE_CALL, the system appropriately forces a WAIT state via the 'No genuinely new evidence' blocker. Dynamic mindset data confirms a canonical entry readiness was vetoed to prevent repetition of the prior failure scenario, adhering strictly to playbook discipline protocols.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 181 showing PREPARE_CALL blocked by: No genuinely new evidence since failed CALL
+  • Trade history shows MAX_LOSS_LIMIT exit on CALL at tick 20
+  • Reentry diagnostics: ticksSince 160, cooldownNeeded 0, matureEpisode false
+  • Mindset journal explicitly vetoes valid CANONICAL BUY_CALL readiness at tick 12:18 PM on 'episode novelty', citing identical structural situation to prior failure.
+  • Prior findings in current build (ticks 41, 61, 81, 101, 121, 141, 161) consistently document stable enforcement of this discipline logic.
+Next: Maintain continuous monitoring of re-entry discipline stability across diverse loss scenarios and structural relocations.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:20 PM] GREEN · POST_LOSS_DISCIPLINE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stable Following Consecutive CALL Failures
+Stable enforcement of post-loss disciplinary protocol is verified at tick 231. Following a MAX_LOSS_LIMIT exit at tick 187, the PREPARE_CALL intent is correctly blocked by 'No genuinely new evidence since failed CALL,' appropriately suppressing readiness below the threshold. The system continues to strictly force a WAIT state despite execution readiness criteria being met, correctly demanding materially new structured evidence before pre-positioning.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Recent trade entry at 12:33 PM (Tick 184) resulted in a -20.0% loss at 12:36 PM (Tick 187) via MAX_LOSS_LIMIT.
+  • Following loss, current intent at tick 231 (1:20 PM) is PREPARE_CALL, readiness 69, which is suppressed below threshold 80.
+  • Applied blocker at tick 231 is 'No genuinely new evidence since failed CALL'.
+  • Re-entry diagnostics confirm re-entry cooldown is not needed ('cooldownNeeded: 0').
+  • Blocker correctly forces a WAIT state despite valid canonical direction readiness, strictly adhering to post-loss discipline protocols in the absence of materially new structured evidence.
+Next: Continue to monitor re-entry logic cohesion and stability in subsequent ticks to ensure the discipline lock persists until defined override criteria are structurally met.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:40 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Logical Episode Switch to PUT Disengages Stale CALL Post-Loss Lock
+Coherent logical strategy adaptation is verified at tick 251. Following the consecutive CALL failures and subsequent discipline lock, the Market Brain successfully detected a shift in market structure, and the intent engine correctly transitioned to a PREPARE_PUT action under a new episode key ('PUT|PIN_RANGE|BELOW_CORE'). The previous CALL-based discipline lock is appropriately cleared, and the new PUT intent is actively and correctly suppressing readiness below the execution threshold due to identified Price Persistence and Acceleration gaps.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Market Brain shifted to PUT (59%) at 1:38 PM (Tick 249 Journal).
+  • Intent engine transitioned to PREPARE_PUT at tick 250, cited as 'first attempt in this session episode'.
+  • Current tick 251 shows intent direction is PUT with readiness 62, suppressed by Gaps including 'Price persistence' and 'Acceleration active'.
+  • Prior post-loss re-entry text lock on CALL ('No genuinely new evidence since failed CALL') is appropriately cleared as the strategy logically switches episode and direction based on current data.
+Next: Continue monitoring the new PUT episode. Validate that the readiness suppression logic effectively prevents execution until required Price persistence and Acceleration active gaps are resolved.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:00 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Valid Post-Loss Blocker Override as Model Resumes CALL Intent
+Stable transition and disciplinary logic override are validated at tick 271. Following the brief logical switch to PUT and subsequent disengagement, the intent engine returned to PREPARE_CALL. Model diagnostics correctly recognized 'new extreme beyond prior episode' and 'cleared prior attempt extreme' as materiel new evidence to override the stale 'No genuinely new evidence' lock from the 12:36 PM loss. Entry is currently appropriately blocked by active playbook gaps for Price persistence and Acceleration.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Recent PUT episode (tick 251-266) was disengaged. Market Brain shifted back to CALL (69%) by 1:59 PM (Tick 270 Journal).
+  • Intent at tick 271 (2:00 PM) is PREPARE_CALL, readiness 69, on contract 755C.
+  • Readiness is suppressed below threshold 80 by Gaps: 'Current leg agrees', 'Price persistence', 'Acceleration active'.
+  • Post-loss re-entry discipline (from 12:36 PM loss) is actively evaluated. Reentry diagnostics explicitly validate override condition based on 'new extreme beyond prior episode' and 'cleared prior attempt extreme' evidence, resulting in override: null.
+  • System appropriately disengages the previous 'No genuinely new evidence' blocker, relying on current playbook gaps to prevent premature execution.
+Next: Monitor the current CALL pre-positioning. Validate that the readiness suppression gaps ('Price persistence', 'Acceleration active') structurally resolve before execution, or that readiness is vetoed if price action fails to manifest the expected structural move.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:20 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Pre-Positioning Readiness Stable Against Adverse Transmission
+Simulator operational stability is verified at tick 291. The PREPARE_CALL intent properly remains in a pre-positioning WAIT state, with readiness (69) correctly suppressed below the dynamic threshold (80). This suppression is appropriately sourced from active 'Price persistence' and 'Acceleration active' Gaps, consistent with immediate adverse price transmission, adhering strictly to playbook risk protocols while the post-loss veto remains logically overridden.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Model continues PREPARE_CALL intent at tick 291 (2:20 PM).
+  • Readiness (69) remains below dynamic threshold (80).
+  • Veto protocol based on 12:36 PM loss remains disengaged via validated evidence override ('clearedPriorAttempt: true').
+  • Current entry suppression is correctly attributed to playbook Gaps: 'Price persistence' and 'Acceleration active'.
+  • Transmission data shows immediate adverse moves (spxMove: -0.05, spyMove: -0.006), validating active Gap logic.
+Next: Maintain observation of intent engine state. Verify that suppression Gaps resolve only under appropriate market expansion conditions defined in the playbook.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:40 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Stable Coherent Switch to PUT Intent Supressed by Playbook Gaps
+Stable strategic adaptation verified at tick 311. The intent engine successfully transitioned to PREPARE_PUT under a new discrete episode key, responding coherently to a shift in market brain direction. Disciplinary locks from prior CALL losses are correctly disengaged for this new direction. Entry is currently properly suppressed by active playbook gaps for 'Current leg agrees', 'Price persistence', and 'Acceleration active', supported by adverse transmission data.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Market Brain transitioned and intent switched to PREPARE_PUT by tick 311 (2:40 PM).
+  • Episode Key is 'PUT|PIN_RANGE|BELOW_CORE'. Re-entry is allowed as the 'first attempt in this session episode'.
+  • Readiness (62) is suppressed below threshold (92) by Gaps: 'Current leg agrees', 'Price persistence', and 'Acceleration active'.
+  • Transmission data validates active gaps with adverse moves (spxMove: -0.10, spyMove: -0.008), confirming execution is appropriately blocked.
+Next: Monitor logic cohesion as the new PUT episode develops. Ensure that the 'Current leg agrees' output factually aligns with price action and directional momentum before readiness is unfrozen.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:00 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Playbook Gap logic Blocks Entry During Tactical Non-Confirmation
+Simulator operational stability is verified at tick 331. The PREPARE_PUT intent correctly remains in a pre-positioning WAIT state. Readiness (62) is properly suppressed below the dynamic threshold (80), sourced from active playbook Gaps for leg agreement, persistence, response quality, and acceleration. Transmission data confirms immediate adverse moves, validating playbook risk protocol adherence by blocking execution during incompatible tactical conditions.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Market Brain maintains PUT intent (Brain Confidence: 52) at tick 331 (3:00 PM).
+  • Readiness (62) remains correctly suppressed below dynamic threshold (80).
+  • Current entry suppression is attributed to playbook Gaps: 'Current leg agrees', 'Price persistence', 'Response quality', and 'Acceleration active'.
+  • Transmission data validates active gaps with adverse moves against PUT direction (spxMove: -0.05, spyMove: -0.001), confirming execution is appropriately blocked by playbook logic.
+Next: Maintain observation. Verify that readiness suppression Gaps resolution and execution unfreezing strictly align with structured price/momentum confirmation per playbook rules.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:20 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Playbook Gap Logic Blocks Entry Readiness During Active Chop Constraint
+Pre-positioning stability and risk mitigation protocols are verified at tick 351. With the intent action in WAIT, the overall readiness (11) is correctly suppressed below the dynamic threshold (80), appropriately citing multiple playbook gaps. Dynamic diagnostic data shows immediate adverse SPX/SPY moves, validating the risk protocol enforcement that prevents execution, supported by journal data confirming active chop constraints.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:351 marketTime:3:20 PM action:WAIT readiness:11 threshold:80 blockers:[No valid contract] gaps:[Market brain WAIT, Current leg agrees, Directional edge, Price persistence, FEP / flip location, Response quality, Acceleration active] diagnostic.localSide:WAIT market.spx:7575.68 spxMove:-0.06824716286155308
+  • recentJournal:[t:3:20 PM entry:CHOP_GATE ON — pin 30%, failed crosses 3, holdSide true, wallExpand false.]
+Next: No action required; operations are within specification.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:40 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Execution Prevented by Stable Playbook Gaps During Unfavorable Tactical Momentum
+Operational stability of the intent engine's risk mitigation is verified at tick 371. The state is PREPARE_PUT with current readiness (56) correctly suppressed below the dynamic execution threshold (92). This suppression is appropriately sourced from active 'Current leg agrees', 'Price persistence', 'Response quality', and 'Acceleration active' playbook Gaps, cohesive with positive short-term transmission price data that tactically contradicts the PUT directional premise.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:371 marketTime:3:40 PM intent.action:PREPARE_PUT readiness:56 threshold:92 gaps:[Current leg agrees, Price persistence, Response quality, Acceleration active] transmission.spxMove:0.10338431601849152 transmission.spyMove:0.007432859321511387 diagnostics.brainSide:PUT diagnostics.localSide:WAIT
+  • recentJournal:[t:3:39 PM entry:TRANSMISSION_STATE TRANSMISSION_PENDING SPX:0.10 SPY:0.01 failedTicks:0.]
+Next: No action required; operations are within specification.
+Approval required: NO
+------------------------------------------------------------------------
+
+[4:00 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Market Close Protocol Stability Verified at Session End
+Correct system protocol adherence is verified at tick 391 (4:00 PM). The generic blocker 'Market not tradeable' is appropriately applied, successfully reducing entry readiness to zero as the session hits 4:00 PM, maintaining stable risk management at market close.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • tick:391 marketTime:4:00 PM intent.action:PREPARE_CALL readiness:0 blockers:[Market not tradeable] temporal.chronologicalKey:2026-07-10T16:00:00|2026-07-12T20:42:10.742Z
+  • inspection.recentEvents.[last].temporal.chronologicalKey:2026-07-10T16:00:00|2026-07-12T20:42:10.742Z
+Next: No action required; system closing logic is operational.
+Approval required: NO
+------------------------------------------------------------------------

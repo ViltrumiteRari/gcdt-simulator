@@ -1,0 +1,16 @@
+{
+  "id": "CAMPAIGN-1784255929624",
+  "name": "Fresh Jul15 preserved-thesis final launch",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-17T02:38:49.624Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15"
+}

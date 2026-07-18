@@ -1,0 +1,10 @@
+{
+  "campaignId": "PAR-1783891674087",
+  "workerId": "worker-1",
+  "replayDate": "2026-07-07",
+  "sourceSessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+  "eventCount": 405,
+  "status": "PROMOTED_PENDING_REVIEW",
+  "salvageStatus": "SALVAGED_EVIDENCE_ONLY",
+  "promotedAt": "2026-07-12T21:57:59.750Z"
+}

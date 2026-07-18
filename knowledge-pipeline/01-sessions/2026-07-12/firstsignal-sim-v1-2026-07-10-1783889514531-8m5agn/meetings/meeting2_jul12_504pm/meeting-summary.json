@@ -1,0 +1,9 @@
+{
+  "meetingName": "meeting2_jul12_504pm",
+  "status": "FAILED",
+  "error": "TOKEN_ROUTE_OFFLINE:fetch failed",
+  "completedCases": [
+    "CASE-1"
+  ],
+  "totalCases": 5
+}

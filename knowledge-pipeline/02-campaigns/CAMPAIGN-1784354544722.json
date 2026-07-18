@@ -1,0 +1,54 @@
+{
+  "id": "CAMPAIGN-1784354544722",
+  "name": "Fresh Jul15 10x V20 Final Clean UI",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-18T06:02:24.722Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15",
+  "failedAt": "2026-07-18T06:22:04.433Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "RUNNING",
+      "tick": 0,
+      "eventCount": 0,
+      "lastProgressAt": 1784355071744,
+      "updatedAt": "2026-07-18T06:22:03.693Z",
+      "provider": {
+        "state": "CONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": true,
+        "connecting": false,
+        "pendingKind": null,
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": true,
+          "connectedAt": 1784355722399,
+          "bootstrapped": true,
+          "state": "ORIGINAL_LIVE",
+          "resumptionHandleAvailable": true,
+          "sessionGeneration": 1,
+          "breakReason": null
+        }
+      },
+      "running": true,
+      "aiFrozen": false,
+      "thinking": false,
+      "buildId": "firstsignal-sim-v1.21-preserve-completed-session-view-20260718",
+      "buildSequence": 21,
+      "at": "2026-07-18T06:22:03.690Z"
+    }
+  }
+}

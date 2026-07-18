@@ -1,0 +1,30 @@
+
+[9:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Build Startup and Session Warmup Protocol Operates Within Spec
+Normal simulator startup operation is verified at 9:30 AM (tick 1). The intent engine correctly entered WAIT mode with zero readiness, appropriately blocked by the standard 'Session warming up' protocol. Market data transmission is established, confirming a stable deployment.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Session startup at tick 1, 9:30 AM. Intent action is WAIT. Readiness is 0. Active blocker is 'Session warming up'. market.spy: 752.58, market.spx: 7553.48.
+Next: Continue monitoring session progression and playbook execution past warm-up period.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Canonical BUY_CALL State Transition Verified Above Execution Threshold
+Simulator state transition logic is verified at tick 21. The intent action is correctly BUY_CALL, with readiness (83) appropriately crossing the dynamic execution threshold (80). No hard blockers exist. Entry is actively gated by dynamic playbook logic, citing active 'Current leg agrees' and 'Acceleration active' gaps, cohesive with immediate adverse data transmission data (TRANSMISSION_DELAYED).
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 21, 9:50 AM. Intent action is BUY_CALL. Readiness is 83, threshold is 80. Data transmission state is TRANSMISSION_DELAYED with 1 failed tick. Recent journal at 9:49 AM reports delayed transmission with SPX/SPY moves, but diagnostics show reentry.allowed:true and playbook logic actively gating entry with gaps: 'Current leg agrees', 'Acceleration active'.
+Next: Continue monitoring execution logic for correct adherence to dynamic playbook constraints when execution readiness threshold is met under delayed transmission conditions.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Readiness Suppressed by Playbook Gaps in PREPARE_CALL State
+Simulator operational stability and risk mitigation are verified at tick 41. The intent state correctly transitioned to PREPARE_CALL, with readiness (69) properly suppressed below the dynamic execution threshold (80). This suppression is appropriately sourced from active 'Current leg agrees', 'Price persistence', and 'Acceleration active' Gaps, strictly enforcing playbook entry constraints despite the absence of rigid blockers.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 41, 10:10 AM. Intent state is PREPARE_CALL. Readiness is 69, below the 80 threshold. Data transmission is TRANSMISSION_PENDING. Entry is suppressed by active playbook gaps: 'Current leg agrees', 'Price persistence', 'Acceleration active'.
+Next: Continue monitoring system stability and dynamic gap application to ensure execution remains suppressed while tactical criteria are not met.
+Approval required: NO
+------------------------------------------------------------------------

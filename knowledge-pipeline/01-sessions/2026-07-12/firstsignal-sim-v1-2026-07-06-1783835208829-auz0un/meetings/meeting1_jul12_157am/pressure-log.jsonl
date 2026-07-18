@@ -1,0 +1,10 @@
+{"at":"2026-07-12T05:57:54.663Z","role":"OBSERVER","attempt":1,"promptBytes":15391,"elapsedMs":8602,"status":"OK"}
+{"at":"2026-07-12T05:58:07.565Z","role":"TRADER","attempt":1,"promptBytes":17606,"elapsedMs":11825,"status":"OK"}
+{"at":"2026-07-12T05:58:14.113Z","role":"OBSERVER","attempt":1,"promptBytes":18868,"elapsedMs":5326,"status":"OK"}
+{"at":"2026-07-12T05:58:38.045Z","role":"OBSERVER","attempt":1,"promptBytes":15614,"elapsedMs":7944,"status":"OK"}
+{"at":"2026-07-12T05:58:49.082Z","role":"TRADER","attempt":1,"promptBytes":17461,"elapsedMs":9486,"status":"OK"}
+{"at":"2026-07-12T05:58:58.110Z","role":"OBSERVER","attempt":1,"promptBytes":20540,"elapsedMs":7588,"status":"OK"}
+{"at":"2026-07-12T05:59:23.382Z","role":"OBSERVER","attempt":1,"promptBytes":17573,"elapsedMs":9111,"status":"OK"}
+{"at":"2026-07-12T05:59:32.675Z","role":"TRADER","attempt":1,"promptBytes":20222,"elapsedMs":7529,"status":"OK"}
+{"at":"2026-07-12T05:59:40.386Z","role":"OBSERVER","attempt":1,"promptBytes":21164,"elapsedMs":6312,"status":"OK"}
+{"at":"2026-07-12T06:00:02.944Z","role":"OBSERVER","attempt":1,"promptBytes":18005,"status":"ERROR","error":"TOKEN_ROUTE_OFFLINE:TOKEN_500:{\"error\":\"LIVE_TOKEN_FAILURE\",\"message\":\"fetch failed\"}"}

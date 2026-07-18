@@ -1,0 +1,83 @@
+
+[9:30 AM] GREEN · HEALTHY · firstsignal-sim-v1.4-20260712
+Build 1.4 Healthy Startup and Warming Up
+The simulation began correctly at 9:30 AM with the intent engine in WAIT mode and entry blocked by the expected 'Session warming up' protocol. This confirms normal startup operation for the new build.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick 1, 9:30 AM simulation start. Intent action is WAIT. Readiness is 0. Blocker listed is 'Session warming up'.
+Next: Continue monitoring session initialization sequence.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Correct Post-Loss Re-Entry Discipline Stable
+Following a MAX_LOSS_LIMIT exit on a CALL trade at tick 19, the intent state correctly updated to block immediate re-entry. In the current snapshot (tick 41), the system remains blocked with 'No genuinely new evidence since failed CALL,' appropriately adhering to playbook discipline protocols despite the re-entry cooldown period having expired, confirming stable performance logic.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 19, Time: 9:48 AM, Exit Reason: MAX_LOSS_LIMIT, Entry Price: 0.26, Exit Price: 0.19, P&L: -26.9%
+  • Tick: 41, Time: 10:10 AM, Intent Action: PREPARE_CALL, Intent Source: SESSION_AWARE_INTENT
+  • Current Blocker: No genuinely new evidence since failed CALL
+  • Current Diagnostics reentry.matureEpisode: false
+  • Current diagnostics.reentry.discipline.allowed: true
+  • Current Diagnostics re-entry coolDownNeeded: 0, ticksSince: 21
+Next: Continue monitoring re-entry blocker behavior to ensure overrides are only applied when 'material new evidence' is confirmed.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Re-Entry Discipline Stability Verified
+The re-entry logic remains stable and correctly enforced at tick 61. Following the MAX_LOSS_LIMIT exit at tick 19, the PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.' The re-entry cool-down has expired (41 ticks since), yet the model correctly requires materially new structured evidence before pre-positioning, confirming stable performance logic as previously noted at tick 41.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 19, Exit Reason: MAX_LOSS_LIMIT, P&L: -26.9%
+  • Tick: 61, Time: 10:30 AM, Intent Action: PREPARE_CALL
+  • Current Blocker: No genuinely new evidence since failed CALL
+  • Current diagnostics.reentry.discipline.allowed: true
+  • Current Diagnostics re-entry cooldown ticksSince: 41
+Next: Continue to enforce re-entry logic based on structured evidence recognition, preventing discretionary overrides without material new evidence.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:50 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Post-Loss Discipline Stability Confirmed via Evidence Lock
+The loss-discipline logic remains stable and enforced at tick 81. Following the MAX_LOSS_LIMIT exit at tick 19, the PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.' Although the re-entry cool-down has been expired for 61 ticks and positive transmission metrics exist, the model correctly requires materially new structured evidence to re-qualify, confirming stable performance logic as reported previously.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 19, Exit Reason: MAX_LOSS_LIMIT, P&L: -26.9%
+  • Tick: 81, Time: 10:50 AM, Intent Action: PREPARE_CALL
+  • Current Blocker: No genuinely new evidence since failed CALL
+  • Current diagnostics cooldown ticksSince: 61
+  • Transmission Metrics: spxMove: 0.185, spyMove: 0.020
+Next: Maintain structured evidence requirements for re-entry validation, ensuring that directional conviction alone does not bypass established loss discipline.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.4-20260712
+Loss Discipline Logic Stability Verified Again
+The loss-discipline logic remains correctly enforced at tick 101. Following the MAX_LOSS_LIMIT exit at tick 19, the PREPARE_CALL intent remains blocked by 'No genuinely new evidence since failed CALL.' Despite the reentry cool-down period being expired for 81 ticks and positive transmission price data being present, the model appropriately requires materially new structured evidence before authorizing a new entry, confirming stable performance logic as previously reported.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 19, Exit Reason: MAX_LOSS_LIMIT, P&L: -26.9%
+  • Tick: 101, Time: 11:10 AM, Intent Action: PREPARE_CALL
+  • Current Blocker: No genuinely new evidence since failed CALL
+  • Current diagnostics cooldown ticksSince: 81
+  • Transmission Metrics: spxMove: 0.464, spyMove: 0.040
+  • Prior Finding key: POST_LOSS_REENTRY_BLOCK_STABLE_T81
+Next: Maintain structured evidence logic for reentry qualification to ensure discipline protocol cohesion.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:30 AM] GREEN · EXPERIMENT · firstsignal-sim-v1.4-20260712
+Valid Blocker Override on Structural Evidence Confirmation
+The persistent post-loss re-entry blocker 'No genuinely new evidence since failed CALL,' reported consistently in this build, was successfully overridden at tick 120 to execute a canonical BUY_CALL. Model diagnostics correctly identified 'new extreme beyond prior episode' and 'cleared prior attempt extreme' as material new evidence. This aligns cleanly with trader mindset narrative detailing a unique 'structural relocation' distinct from the previous failed mean-reversion attempt, confirming stable and intelligent disciplinary logic cohesion.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.4-20260712
+Evidence:
+  • Tick: 120, Time: 11:29 AM, Action: BUY_CALL, contract strike: 755, price: 0.26
+  • Tick: 121, Current Position present
+  • Current reentry.newEvidence: ['new extreme beyond prior episode', 'cleared prior attempt extreme']
+  • Current reentry.clearedPriorAttempt: true
+  • Trader Journal 11:29 AM details new structural context: 'relocation rather than a mean-reverting pin'
+  • Prior disciplinary blocker 'No genuinely new evidence...' noted from ticks 41 to 101
+Next: Continue to require explicit validation of materially new structural or frontier evidence to override disciplinary cool-down and memory blockers.
+Approval required: NO
+------------------------------------------------------------------------

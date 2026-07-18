@@ -1,0 +1,14 @@
+{
+  "campaignId": "PAR-1783900135841",
+  "workerId": "worker-1",
+  "replayDate": "2026-07-07",
+  "sourceSessionId": "firstsignal-sim-v1-2026-07-07-1783900137711-6ko47i",
+  "eventCount": 405,
+  "status": "PROMOTED_PENDING_REVIEW",
+  "traderSource": "CONTINUITY_BROKEN",
+  "originalTraderPort": 8801,
+  "reflectionArtifact": "trader-closing-reflection.json",
+  "promotedAt": "2026-07-13T00:10:41.8730005Z",
+  "continuityState": "CONTINUITY_BROKEN",
+  "continuityBreakReason": "LIVE_SESSION_ENDED_WITHOUT_SAVED_RESUMPTION_HANDLE"
+}

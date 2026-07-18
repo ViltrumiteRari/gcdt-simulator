@@ -1,9 +1,9 @@
-﻿# FirstSignal Sim V1 Air-Gap Architecture
+# FirstSignal Sim v1 Air-Gap Architecture
 
 ## Preserved baseline
 - Google Doc / GitHub v25 build: `v25-execution-presumption-20260706`
 - Legacy frozen copy: `C:\Users\adahy\Desktop\GCDT\archive\gcdt-v25-original`
-- Current working copy (legacy filesystem path retained to avoid breaking tooling): `C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap`
+- Current working copy (legacy filesystem path retained to avoid breaking tooling): `C:\Users\adahy\Desktop\FirstSignal Sim v1`
 
 ## Time policy
 - Default 0DTE trade cutoff and forced liquidation: **3:45 PM ET**
@@ -11,7 +11,7 @@
 - Experimental post-cutoff trading must be explicitly enabled.
 
 ## Run
-Launch FirstSignal Sim V1 with the current local stack launcher.
+Launch FirstSignal Sim v1 with the current local stack launcher.
 
 Frontend: http://127.0.0.1:5173
 API: http://127.0.0.1:8765/api/health

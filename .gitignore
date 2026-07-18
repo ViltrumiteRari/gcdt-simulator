@@ -13,3 +13,24 @@ Thumbs.db
 .vercel
 .env*
 .vite/
+runtime/
+logs/
+*.bak
+*.bak-*
+*.before_*
+*.pre-*
+*.tmp
+
+# Local recovery and one-off migration helpers are kept on the workstation,
+# but are not part of the publishable FirstSignal Sim source tree.
+_AI_READ_THIS_FIRST_BACKUP_RECOVERY.md
+scripts/add-*.py
+scripts/fix-*.py
+scripts/patch-*.py
+tools/add_*.py
+tools/apply-*.cjs
+tools/correct-*.py
+tools/final-*.py
+tools/fix-*.cjs
+tools/patch*.cjs
+tools/patch*.py

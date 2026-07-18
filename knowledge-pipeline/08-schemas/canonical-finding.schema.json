@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "firstsignal://schemas/canonical-finding-v1",
+  "title": "FirstSignal Canonical Finding",
+  "type": "object",
+  "required": ["rootCauseKey", "lifecycleStatus", "observations"],
+  "properties": {
+    "rootCauseKey": { "type": "string" },
+    "title": { "type": "string" },
+    "category": { "type": "string" },
+    "lifecycleStatus": {
+      "enum": ["RAW_OBSERVATION", "REVIEWED_PENDING_ADJUDICATION", "VALIDATED", "PARTIALLY_VALIDATED", "REJECTED", "FIXED_PENDING_VALIDATION", "FIX_VERIFIED", "SUPERSEDED"]
+    },
+    "occurrenceCount": { "type": "integer", "minimum": 0 },
+    "observations": { "type": "array", "items": { "type": "object" } },
+    "reviews": { "type": "array", "items": { "type": "object" } },
+    "fixes": { "type": "array", "items": { "type": "object" } },
+    "validations": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": true
+}

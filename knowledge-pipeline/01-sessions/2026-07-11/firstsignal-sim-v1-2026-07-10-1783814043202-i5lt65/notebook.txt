@@ -1,0 +1,20 @@
+
+[9:30 AM] YELLOW · DATA · firstsignal-sim-v1.1-20260711
+Unknown Data and Transmission State on Session Start
+Simulator starts with Unknown data/transmission state.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • Snapshot tick: 1 at 9:30 AM shows dataHealth: "UNKNOWN", transmission: "UNKNOWN", marketSource: "UNKNOWN" with quoteSource as "REAL_TRADE_OHLCV_WITH_PATH_FILL".
+Next: Investigate why the simulator starts with Unknown data health and transmission state, even when quote source is set. Verify if this persists beyond the first few ticks.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:50 AM] RED · BUG · firstsignal-sim-v1.1-20260711
+Intent Action Contradicts Underlying AI State
+Current Intent action "BUY_CALL" contradicts underlying AI "WAIT" state resulting from model failure.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.1-20260711
+Evidence:
+  • At Tick 21 (9:50 AM), current intent action is "BUY_CALL" with confidence 81. However, recentMindset at 9:49 AM indicates "AI response failure" and a decision of "WAIT". recentJournal concurrently logs "AI_RESPONSE_FAILURE Failed to fetch" at 9:49 AM and a final decision of "WAIT". This shows a contradiction between the top-level intent and the underlying AI/Model state.
+Next: Resolve the contradiction where top-level intent presents a BUY action while the mindset and AI decision stream show a WAIT state due to AI response failure. The system must not present a BUY intent if underlying logic dictates a WAIT.
+Approval required: YES
+------------------------------------------------------------------------

@@ -54,8 +54,8 @@ async function createRunner(hooks) {
 
   const model = new GeminiLiveModel();
   const agent = new Agent({
-    name: 'FirstSignal Sim V1 QA Agent',
-    instructions: 'Continuously supervise FirstSignal Sim V1. Always inspect live context and versionContext before recording a finding. Never trade or modify code. Do not treat directional switching as a defect merely because CALL and PUT preparation changes; judge whether the evidence, execution, risk controls, and outcome support the behavior. Never treat trader prose as ground truth without checking structured evidence. If a finding only existed on an older build, verify it on the current build before repeating it. Use FIX_VERIFIED when a newer build demonstrates the prior issue is resolved, REGRESSION when it returns, SAME_BUILD_REPEAT only for materially new evidence on the same build, and NEW_FINDING otherwise. GREEN may be logged. YELLOW may recommend isolated investigation. RED requires explicit approval.',
+    name: 'FirstSignal Sim v1 QA Agent',
+    instructions: 'Continuously supervise FirstSignal Sim v1. Always inspect live context and versionContext before recording a finding. Never trade or modify code. Do not treat directional switching as a defect merely because CALL and PUT preparation changes; judge whether the evidence, execution, risk controls, and outcome support the behavior. Never treat trader prose as ground truth without checking structured evidence. If a finding only existed on an older build, verify it on the current build before repeating it. Use FIX_VERIFIED when a newer build demonstrates the prior issue is resolved, REGRESSION when it returns, SAME_BUILD_REPEAT only for materially new evidence on the same build, and NEW_FINDING otherwise. GREEN may be logged. YELLOW may recommend isolated investigation. RED requires explicit approval.',
     model,
     tools: [inspectTool, recordTool],
   });

@@ -5,7 +5,7 @@ import pandas as pd
 HERE=Path(__file__).resolve().parent
 SPEC=importlib.util.spec_from_file_location('builder',HERE/'build_real_replay_v2.py')
 b=importlib.util.module_from_spec(SPEC);SPEC.loader.exec_module(b)
-ROOT=Path(r'D:\FirstSignal_GCDT_Dataset'); DAY='2026-07-08'
+ROOT=Path(r'D:\FirstSignal_Sim_Dataset'); DAY='2026-07-08'
 b.DAY=DAY
 src=pd.read_csv(ROOT/DAY/'options_historical_quantdata'/'contract_price_time'/'regular_0930_1615_contract_ohlcv.csv')
 src=src[src.ticker=='SPY'].copy();src['captured_at']=pd.to_datetime(src.captured_at)

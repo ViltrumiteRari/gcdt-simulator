@@ -1,0 +1,54 @@
+{
+  "id": "CAMPAIGN-1784352257928",
+  "name": "Fresh Jul15 10x V19 Live Contracts Two Leg Risk",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-18T05:24:17.928Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15",
+  "failedAt": "2026-07-18T05:24:24.457Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "RUNNING",
+      "tick": 1,
+      "eventCount": 1,
+      "lastProgressAt": 1784352263446,
+      "updatedAt": "2026-07-18T05:24:23.446Z",
+      "provider": {
+        "state": "CONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": true,
+        "connecting": false,
+        "pendingKind": "observation",
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": true,
+          "connectedAt": 1784352259620,
+          "bootstrapped": true,
+          "state": "ORIGINAL_LIVE",
+          "resumptionHandleAvailable": true,
+          "sessionGeneration": 1,
+          "breakReason": null
+        }
+      },
+      "running": true,
+      "aiFrozen": false,
+      "thinking": false,
+      "buildId": "firstsignal-sim-v1.19-live-contracts-two-leg-risk-20260718",
+      "buildSequence": 19,
+      "at": "2026-07-18T05:24:23.436Z"
+    }
+  }
+}

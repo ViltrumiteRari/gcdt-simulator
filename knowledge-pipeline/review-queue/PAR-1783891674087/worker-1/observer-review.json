@@ -1,0 +1,268 @@
+{
+  "status": "OBSERVER_REVIEWED",
+  "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+  "reportCount": 12,
+  "completedAt": "2026-07-12T21:58:36.203Z",
+  "reports": [
+    {
+      "category": "PERFORMANCE",
+      "finding_key": "GEX_NULL_AT_OPEN",
+      "title": "Initial GEX fields null at session start",
+      "approval_required": false,
+      "level": "GREEN",
+      "summary": "GEX data fields (gexSpy, gexSpx) are null at the initial session tick.",
+      "version_assessment": "NEW_FINDING",
+      "suggested_action": "Monitor subsequent ticks to verify GEX data populates correctly after session start. No system change required based on current evidence.",
+      "evidence": [
+        "Tick 1 at 9:30 AM shows gexSpy:null and gexSpx:null",
+        "Data availability is listed as unknown or not yet populated at session open."
+      ],
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "confidence": 1,
+      "t": "9:30 AM",
+      "tick": 1,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "approval_required": false,
+      "title": "Persistent null GEX data after session start",
+      "finding_key": "GEX_NULL_PERSISTENT",
+      "category": "DATA",
+      "summary": "GEX data fields (gexSpy, gexSpx) remain null 40 minutes into the trading session.",
+      "level": "YELLOW",
+      "version_assessment": "NEW_FINDING",
+      "suggested_action": "Investigate the GEX data feed source for the replay date 2026-07-07 to determine if null values are expected or indicative of a data ingestion issue.",
+      "evidence": [
+        "Tick 41 at 10:10 AM shows gexSpy:null and gexSpx:null",
+        "GEX data fields remain unpopulated 40 minutes into the session."
+      ],
+      "confidence": 1,
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "t": "10:10 AM",
+      "tick": 41,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "category": "TRADER_BEHAVIOR",
+      "approval_required": false,
+      "finding_key": "TRADER_REASONING_CONTRADICTS_DATA",
+      "title": "Trader reasoning relies on null GEX data",
+      "version_assessment": "NEW_FINDING",
+      "level": "RED",
+      "summary": "Trader's decision reasoning references GEX data, but the market data snapshot shows GEX values are null.",
+      "evidence": [
+        "Tick 81 market data shows gexSpy:null and gexSpx:null",
+        "10:45 AM journal entry and mindset reference 'weak/negative GEX upside expansion' in reasoning."
+      ],
+      "suggested_action": "Determine why the trader's reasoning refers to GEX data ('weak/negative GEX') when the system's market data fields for GEX are currently null, indicating a potential disconnect between data presented and data utilized.",
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "confidence": 1,
+      "t": "10:50 AM",
+      "tick": 81,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "level": "RED",
+      "summary": "The trader's decision reasoning repeatedly references GEX data, yet the market data snapshot confirms GEX values remain null.",
+      "version_assessment": "SAME_BUILD_REPEAT",
+      "category": "TRADER_BEHAVIOR",
+      "approval_required": false,
+      "title": "Continued trader reliance on null GEX data",
+      "finding_key": "TRADER_REASONING_CONTRADICTS_DATA_REPEAT",
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "confidence": 1,
+      "suggested_action": "Investigate potential hallucination or use of stale/incorrect GEX data source by the trading model. Reasoning continues to rely on GEX context ('weak/negative GEX') while system data shows GEX as null.",
+      "evidence": [
+        "Tick 121 at 11:30 AM shows gexSpy:null and gexSpx:null.",
+        "11:25 AM mindset reasoning references 'weak/negative GEX upside expansion'.",
+        "11:29 AM mindset reasoning references 'weak/negative GEX upside expansion'."
+      ],
+      "t": "11:30 AM",
+      "tick": 121,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "suggested_action": "Escalate the persistent lack of GEX data. Although the trader is no longer referencing GEX in recent mindset logs, the fundamental data stream context for this session is severely broken. GEX ingestion must be fixed for this replay date.",
+      "evidence": [
+        "Tick 161 at 12:10 PM shows gexSpy:null and gexSpx:null.",
+        "The session has been active for over 2.5 hours and GEX fields remain unpopulated."
+      ],
+      "confidence": 1,
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "approval_required": false,
+      "finding_key": "GEX_NULL_PROLONGED",
+      "title": "Prolonged absence of GEX data fields",
+      "category": "DATA",
+      "summary": "GEX data fields (gexSpy, gexSpx) remain null for the duration of the session observed so far (2h 40m).",
+      "level": "YELLOW",
+      "version_assessment": "SAME_BUILD_REPEAT",
+      "t": "12:10 PM",
+      "tick": 161,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "confidence": 1,
+      "evidence": [
+        "Tick 201 at 12:50 PM shows gexSpy:null and gexSpx:null.",
+        "Transmission state is currently RELATIONSHIP_UNRELIABLE.",
+        "The GEX data fields have remained null for the entire session observed (3 hours and 20 minutes)."
+      ],
+      "suggested_action": "Fix the data ingestion process for the 2026-07-07 replay date to ensure GEX data is available. This critical data stream is absent for the entire simulated session.",
+      "version_assessment": "SAME_BUILD_REPEAT",
+      "level": "YELLOW",
+      "summary": "GEX data fields (gexSpy, gexSpx) have remained null throughout the entire trading session (3h 20m).",
+      "category": "DATA",
+      "title": "Complete and persistent absence of GEX data",
+      "finding_key": "GEX_NULL_SESSION_TOTAL",
+      "approval_required": false,
+      "t": "12:50 PM",
+      "tick": 201,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "finding_key": "build-1.4-data-feed-instability",
+      "level": "YELLOW",
+      "summary": "The transmission state fluctuates between DELAYED and RELATIONSHIP_UNRELIABLE within two ticks, indicating feed instability despite 'Healthy' internal data state.",
+      "title": "Intermittent Transmission Feed Instability",
+      "evidence": [
+        "Journal entry 1:28 PM: TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.32 SPY:-0.04 failedTicks:1.",
+        "Journal entry 1:29 PM: TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.10 SPY:-0.01 failedTicks:0.",
+        "Snapshot Transmission state: RELATIONSHIP_UNRELIABLE"
+      ],
+      "approval_required": false,
+      "confidence": 95,
+      "category": "BUG",
+      "suggested_action": "Investigate data ingestion and transmission logic between ticks 239 and 241 to identify cause of intermittent RELIABLE/UNRELIABLE status changes and packet delay.",
+      "version_assessment": "NEW_FINDING",
+      "t": "1:30 PM",
+      "tick": 241,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "finding_key": "build-1.4-data-feed-instability",
+      "level": "YELLOW",
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "approval_required": false,
+      "evidence": [
+        "Journal entry 2:05 PM: TRANSMISSION_STATE TRANSMISSION_CONFIRMED ...",
+        "Journal entry 2:08 PM: TRANSMISSION_STATE TRANSMISSION_DELAYED SPX:-0.39 SPY:-0.03 failedTicks:1.",
+        "Journal entry 2:09 PM: TRANSMISSION_STATE RELATIONSHIP_UNRELIABLE SPX:-0.12 SPY:-0.01 failedTicks:0.",
+        "Snapshot Transmission state at 2:10 PM: RELATIONSHIP_UNRELIABLE"
+      ],
+      "summary": "Data feed transmission state continues to exhibit instability, fluctuating between CONFIRMED, DELAYED, and UNRELIABLE states over short periods.",
+      "title": "Persistent Transmission Feed Instability",
+      "category": "BUG",
+      "suggested_action": "Continue investigation of data ingestion and transmission logic; state continues to flip between CONFIRMED, DELAYED, and UNRELIABLE. Previous suggested action (tick 241) remains pertinent.",
+      "confidence": 95,
+      "version_assessment": "SAME_BUILD_REPEAT",
+      "t": "2:10 PM",
+      "tick": 281,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "finding_key": "build-1.4-gex-data-appearance",
+      "level": "GREEN",
+      "summary": "GEX data for SPY and SPX became available at tick 321 (2:50 PM), explicitly noted as 'GEX insertion' in the trader mindset journal and resulting in a shift to PREPARE_CALL.",
+      "title": "Mid-Session GEX Data Ingestion",
+      "approval_required": false,
+      "evidence": [
+        "Market data at 2:10 PM (tick 281): gexSpy:null, gexSpx:null, quoteSource:REAL_TRADE_OHLCV_WITH_PATH_FILL",
+        "Market data at 2:50 PM (tick 321): gexSpy:5380516830, gexSpx:-17124008636, quoteSource:REAL_QUOTE_PLUS_REAL_TRADE_OHLCV",
+        "Mindset reasoning at 2:47 PM: '... + GEX insertion favors mean reversion.'"
+      ],
+      "confidence": 90,
+      "suggested_action": "None; verify this activation aligns with expected simulation behavior for the scenario/campaign designed to introduce GEX data mid-session.",
+      "category": "DATA",
+      "version_assessment": "NEW_FINDING",
+      "t": "2:50 PM",
+      "tick": 321,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "version_assessment": "NEW_FINDING",
+      "confidence": 80,
+      "category": "TRADER_BEHAVIOR",
+      "suggested_action": "Investigate logic inconsistency between the final mindset decision ('WAIT' at 3:29 PM) and the snapshot intent ('PREPARE_CALL' at 3:30 PM). Also note the contradiction at 3:25 PM between decision 'GUIDE_PUT' and intent 'PREPARE_CALL'.",
+      "summary": "The snapshot `intent` (PREPARE_CALL) conflicts with the final mindset entry `decision` (WAIT at 3:29 PM). A prior entry at 3:25 PM also showed `decision` GUIDE_PUT while the intent text mentioned PREPARE_CALL.",
+      "title": "Decision and Intent Conflict",
+      "evidence": [
+        "Recent Journal 3:25 PM: mindset 'deterministic guide GEX_EXPANSION', decision 'GUIDE_PUT', intent 71% PREPARE_CALL.",
+        "Recent Journal 3:29 PM: decision 'WAIT'.",
+        "Snapshot Intent 3:30 PM: action 'PREPARE_CALL', direction 'CALL'."
+      ],
+      "approval_required": false,
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "level": "YELLOW",
+      "finding_key": "build-1.4-intent-decision-conflict",
+      "t": "3:30 PM",
+      "tick": 361,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "approval_required": false,
+      "evidence": [
+        "Recent Journal 4:05 PM: decision 'WAIT'.",
+        "Recent Mindset 4:05 PM: local scan reasoning '... WAIT'.",
+        "Snapshot Intent 4:10 PM: action 'PREPARE_PUT', direction 'PUT', readiness 0, blockers: ['Market not tradeable']."
+      ],
+      "summary": "Snapshot `intent` action PREPARE_PUT contradicts the final mindset `decision` of WAIT at 4:05 PM, reproducing the conflict between intent and decision logic seen in the previous snapshot.",
+      "title": "Persistent Intent and Decision Logical Conflict",
+      "finding_key": "build-1.4-intent-decision-conflict",
+      "level": "YELLOW",
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "version_assessment": "SAME_BUILD_REPEAT",
+      "category": "TRADER_BEHAVIOR",
+      "suggested_action": "Investigate why the post-close snapshot intent is PREPARE_PUT when the final mindset decision was WAIT. This suggests the intent field may not be resetting or updating correctly in sync with the mindset decision tree.",
+      "confidence": 90,
+      "t": "4:10 PM",
+      "tick": 401,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    },
+    {
+      "approval_required": false,
+      "evidence": [
+        "Recent Mindset 4:11 PM: decision 'WAIT'.",
+        "Snapshot Intent 4:14 PM: action 'PREPARE_PUT', direction 'PUT', readiness 0, blockers: ['Market not tradeable', 'No valid contract']."
+      ],
+      "summary": "Final post-market snapshot continues to exhibit conflict; `intent` action PREPARE_PUT contradicts the final mindset `decision` of WAIT at 4:11 PM.",
+      "title": "Persistent Intent and Decision Logical Conflict",
+      "level": "YELLOW",
+      "finding_key": "build-1.4-intent-decision-conflict",
+      "related_build_id": "firstsignal-sim-v1.4-20260712",
+      "version_assessment": "SAME_BUILD_REPEAT",
+      "suggested_action": "Previous suggestion remains pertinent: investigate why snapshot intent fails to correctly reflect final mindset decision tree output (WAIT), persisting through post-market close.",
+      "category": "TRADER_BEHAVIOR",
+      "confidence": 95,
+      "t": "4:14 PM",
+      "tick": 405,
+      "sessionId": "firstsignal-sim-v1-2026-07-07-1783891677038-key8pz",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "reviewMode": "POSTHOC_SALVAGE"
+    }
+  ]
+}

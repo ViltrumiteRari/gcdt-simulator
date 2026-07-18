@@ -1,0 +1,13 @@
+{
+  "meetingName": "meeting1_jul12_432pm",
+  "state": "STOPPED",
+  "currentCase": 2,
+  "phase": "OBSERVER_MEMO",
+  "completedCases": [
+    "CASE-1"
+  ],
+  "startedAt": "2026-07-12T20:32:15.690Z",
+  "resumeAfter": "2026-07-12T20:34:01.877Z",
+  "error": "MEETING_STOPPED",
+  "endedAt": "2026-07-12T20:33:01.882Z"
+}

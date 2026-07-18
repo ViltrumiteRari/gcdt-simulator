@@ -1,0 +1,17 @@
+{
+  "confidence": 1,
+  "status": "CASE_COMPLETE",
+  "claims_needing_verification": [
+    "Root cause of persistent NULL GEX values in data snapshots throughout session.",
+    "Mechanism behind immediate MAX_LOSS_LIMIT exits (-58% and -31% losses) on favorable/flat spot movement, isolating synthetic spread vs reproduction pricing calculation error."
+  ],
+  "verdict": "PARTIALLY_VALIDATED",
+  "memo": "FINAL SUPERVISOR SUMMARY:\nThis Developmental Review validates major system instabilities causing catastrophic session performance. The Trader adhered rigidly to canonical model authority, despite severe, persistent data defects where GEX inputs were NULL across multiple cases (1, 2, 3, 7). The reasoning narrative generated fabricated visual data states to justify entries.\n\nA repeated execution causal pattern was detected: consecutive immediate MAX_LOSS_LIMIT exits within one minute of contract fill, driven purely by option pricing dynamics (synthetic spread widening or IV collapse) rather than directional movement.\n\nStrategy variance is ruled out; outcomes stemmed from data and execution defects. Trader behavior showed a lack of data integrity auditing before canonical signal execution.\n\nPROPOSAL SUMMARY:\n\nRULE_CHANGES: Implement direct programmatic block preventing GEX-dependent playbooks from entering authoritative states if `gexSpy` or `gexSpx` is NULL. Add canonical stop cooldown forcing 15-minute wait after consecutive <60s losses.\n\nPROMPT_CHANGES: Enforce explicit validation of empirical data states in reasoning prompts to prevent narrative hallucination when inputs are missing. Deweight readiness confidence when near structural walls.\n\nENGINEERING_FIXES: Immediate fix required for GEX feed ingestion. Repair simulated option pricer to prevent instantaneous drawdown upon synthetic spread initialization.\n\nEXPERIMENTS: Test Market Brain behavior via replay with GEX data manually suppressed to ensure signal suppression.",
+  "root_cause_key": "DATA_GEX_NULL_PRICING_MODEL_COLLAPSE",
+  "questions": [
+    "What specific metric or mental forward-fill caused mental projection of GEX walls 'adjusting slightly up' when inputs were NULL?"
+  ],
+  "lifecycle_recommendation": "URGENT: Block promotion of sim-v1.4, fix option pricing stop logic, and repair GEX ingestion.",
+  "generatedAt": "2026-07-13T09:43:12.012Z",
+  "traderContinuityUsed": true
+}

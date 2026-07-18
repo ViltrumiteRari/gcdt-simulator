@@ -1,0 +1,113 @@
+{
+  "generatedAtUtc": "2026-07-15T04:59:51.005Z",
+  "sessions": [
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-08-1784089829330-brgavh",
+      "replayDate": "2026-07-08",
+      "startedAt": "2026-07-15T04:59:11.632Z",
+      "completedAt": "2026-07-15T04:59:50.995Z",
+      "buildId": "firstsignal-sim-v1.11-sync-reflection-risk-20260714",
+      "buildSequence": 12,
+      "eventCount": 405,
+      "reportCount": 0,
+      "status": "AWAITING_REVIEW_MEETING",
+      "path": "01-sessions/2026-07-15/firstsignal-sim-v1-2026-07-08-1784089829330-brgavh"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn",
+      "replayDate": "2026-07-10",
+      "startedAt": "2026-07-12T20:51:54.534Z",
+      "completedAt": "2026-07-12T21:00:55.830Z",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "buildSequence": 5,
+      "eventCount": 404,
+      "reportCount": 8,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-10-1783888409475-vg0yrj",
+      "replayDate": "2026-07-10",
+      "startedAt": "2026-07-12T20:33:29.477Z",
+      "completedAt": "2026-07-12T20:42:30.788Z",
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "buildSequence": 5,
+      "eventCount": 403,
+      "reportCount": 19,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-10-1783888409475-vg0yrj"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-09-1783816326144-wokzrs",
+      "replayDate": "2026-07-09",
+      "startedAt": "2026-07-12T00:32:06.146Z",
+      "completedAt": "2026-07-12T18:34:16.512288Z",
+      "buildId": "firstsignal-sim-v1.1-20260711",
+      "buildSequence": 2,
+      "eventCount": 0,
+      "reportCount": 24,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783816326144-wokzrs"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "replayDate": "2026-07-08",
+      "startedAt": "2026-07-12T01:16:49.055Z",
+      "completedAt": "2026-07-12T18:34:16.511283Z",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "buildSequence": 3,
+      "eventCount": 402,
+      "reportCount": 25,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "replayDate": "2026-07-06",
+      "startedAt": "2026-07-12T05:46:48.831Z",
+      "completedAt": "2026-07-12T18:34:16.466597Z",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "buildSequence": 4,
+      "eventCount": 154,
+      "reportCount": 8,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-06-1783835208829-auz0un"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "replayDate": "2026-07-09",
+      "startedAt": "2026-07-12T08:24:31.796Z",
+      "completedAt": "2026-07-12T08:38:50.575000Z",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "buildSequence": 4,
+      "eventCount": 403,
+      "reportCount": 15,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "replayDate": "2026-07-09",
+      "startedAt": "2026-07-12T07:38:04.017Z",
+      "completedAt": "2026-07-12T08:24:30.324000Z",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "buildSequence": 4,
+      "eventCount": 403,
+      "reportCount": 23,
+      "status": "COMPLETED",
+      "path": "01-sessions/2026-07-12/firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw"
+    },
+    {
+      "sessionId": "firstsignal-sim-v1-2026-07-10-1783814043202-i5lt65",
+      "replayDate": "2026-07-10",
+      "startedAt": "2026-07-11T23:54:03.204Z",
+      "completedAt": null,
+      "buildId": "firstsignal-sim-v1.1-20260711",
+      "buildSequence": 2,
+      "eventCount": 21,
+      "reportCount": 2,
+      "status": "ANALYZING",
+      "path": "01-sessions/2026-07-11/firstsignal-sim-v1-2026-07-10-1783814043202-i5lt65"
+    }
+  ]
+}

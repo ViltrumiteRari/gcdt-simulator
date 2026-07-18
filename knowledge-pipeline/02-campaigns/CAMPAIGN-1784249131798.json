@@ -1,0 +1,15 @@
+{
+  "id": "CAMPAIGN-1784249131798",
+  "name": "Fresh Jul15 run",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-17T00:45:31.8068275Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": []
+}

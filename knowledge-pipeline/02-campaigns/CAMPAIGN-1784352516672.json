@@ -1,0 +1,16 @@
+{
+  "id": "CAMPAIGN-1784352516672",
+  "name": "Fresh Jul15 10x V19 User Run",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-18T05:28:36.672Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15"
+}

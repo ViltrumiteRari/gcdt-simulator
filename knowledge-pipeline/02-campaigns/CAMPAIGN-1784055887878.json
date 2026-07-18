@@ -1,0 +1,16 @@
+{
+  "id": "CAMPAIGN-1784055887878",
+  "name": "Jul 8 singular compounding build11",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-08"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-14T19:04:47.878Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-08"
+}

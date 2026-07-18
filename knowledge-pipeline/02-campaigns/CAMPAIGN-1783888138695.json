@@ -1,0 +1,38 @@
+{
+  "id": "CAMPAIGN-1783888138695",
+  "name": "July 10 to July 6 - 2 per day - 3x",
+  "targetRuns": 10,
+  "completedRuns": 1,
+  "replayDates": [
+    "2026-07-10",
+    "2026-07-10",
+    "2026-07-09",
+    "2026-07-09",
+    "2026-07-08",
+    "2026-07-08",
+    "2026-07-07",
+    "2026-07-07",
+    "2026-07-06",
+    "2026-07-06"
+  ],
+  "status": "RUNNING",
+  "createdAt": "2026-07-12T20:28:58.695Z",
+  "runs": [
+    {
+      "index": 1,
+      "sessionId": "firstsignal-sim-v1-2026-07-10-1783888409475-vg0yrj",
+      "replayDate": "2026-07-10",
+      "meeting": "meeting1_jul12_442pm",
+      "itemIds": [
+        "ENG-A9CBC556C1",
+        "ENG-3C83E3B688"
+      ],
+      "completedAt": "2026-07-12T20:44:10.571Z"
+    }
+  ],
+  "processedSessionIds": [
+    "firstsignal-sim-v1-2026-07-10-1783888409475-vg0yrj"
+  ],
+  "proposals": [],
+  "currentReplayDate": "2026-07-10"
+}

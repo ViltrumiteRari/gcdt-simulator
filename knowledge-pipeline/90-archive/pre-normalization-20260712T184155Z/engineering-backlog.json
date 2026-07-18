@@ -1,0 +1,792 @@
+{
+  "pipelineVersion": 2,
+  "updatedAt": "2026-07-12T18:41:52.252Z",
+  "items": [
+    {
+      "id": "ENG-5344DF2C64",
+      "findingKey": "BULLISH_INTENT_BEARISH_GUIDE_MISMATCH",
+      "title": "Critical Contradiction: Mindset Engine Guides CALL Execution While Intent Remains Bearish For PUT",
+      "category": "EXPERIMENT",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The system displays radically contradictory intent. The MINDSET engine is actively guiding toward a CALL execution based on bullish narrative, yet the overall Intent state remains PREPARE_PUT with bearish justification, indicating a complete failure of internal logic coherence.",
+      "proposedAction": "Critical review of intent engine logic. Model is guiding toward directional CALL execution (deterministic guide GEX_EXPANSION) while simultaneously projecting standard bearish supporting factors and intent (PREPARE_PUT), creating contradictory signal output. This is a severe logical regression.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "BULLISH_INTENT_BEARISH_GUIDE_MISMATCH",
+      "sourceFindingKeys": [
+        "BULLISH_INTENT_BEARISH_GUIDE_MISMATCH"
+      ],
+      "sourceItemIds": [
+        "ENG-5344DF2C64"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-6510044CAD",
+      "findingKey": "CRITICAL_DATA_MISMATCH_INTENT_VS_POSITION",
+      "title": "Intent Engine Using Stale Price and Inaccurate P&L Diagnostics",
+      "category": "PERFORMANCE",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "There is a critical data mismatch at Tick 109. The active position legitimately shows the 736P at 0.32 (from 0.22 entry). However, the generated intent state relies on an incorrect contract price of 0.37, derived an inaccurate '+68.2%' P&L, and contradictory reports attribution as 'flat: true'. This indicates the intent model is operating on stale or corrupt price data.",
+      "proposedAction": "Investigate the sync between the position manager and the intent engine. The intent engine is referencing an incorrect contract price (0.37) and incorrect P/L (68.2%) while simultaneously declaring the trade 'flat', all of which contradict the actual position price (0.32) and substantial real gain.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "CRITICAL_DATA_MISMATCH_INTENT_VS_POSITION",
+      "sourceFindingKeys": [
+        "CRITICAL_DATA_MISMATCH_INTENT_VS_POSITION"
+      ],
+      "sourceItemIds": [
+        "ENG-6510044CAD"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-30683D2A24",
+      "findingKey": "INTENT_ENGINE_GEX_FLIP_IGNORANCE",
+      "title": "Intent Engine Ignores Thesis Invalidation Caused by Positive GEX Swap",
+      "category": "PERFORMANCE",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The Intent Engine persists with PREPARE_PUT, citing \"continuing structure\" and claiming the \"Current leg agrees,\" despite immediate journal evidence at 12:55 PM explicitly stating that the downside thesis is fully invalidated because the GEX swapped to positive. This indicates a profound disconnect between dynamic structural data and intent generation.",
+      "proposedAction": "Correct the intent engine's logic to acknowledge definitive structural shifts, such as GEX flipping positive, to prevent the maintenance of a fundamentally invalidated short-side bias.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "INTENT_ENGINE_GEX_FLIP_IGNORANCE",
+      "sourceFindingKeys": [
+        "INTENT_ENGINE_GEX_FLIP_IGNORANCE"
+      ],
+      "sourceItemIds": [
+        "ENG-30683D2A24"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-11AD1D2B94",
+      "findingKey": "INTENT_ENGINE_NARRATIVE_CONTRADICTION_FLOW",
+      "title": "Intent Engine Persists with Stale Bearish Factors Despite AI Narrative of Strong Upward Flow",
+      "category": "PERFORMANCE",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The intent engine displays severe incoherence. It justifies a PREPARE_PUT intent based on 'continuing structure' and claims 'Current leg agrees,' while the AI journal prose simultaneously details active upward flow, re-expanding positive leads, and targeted higher prices, meaning the immediate leg does not agree with a PUT thesis.",
+      "proposedAction": "Investigate intent engine supporting factor mapping. Supporting factors like 'Current leg agrees' must reflect the immediate price action described in the AI narrative, rather than persisting with stale bearish descriptors during active counter-trend flow.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "INTENT_ENGINE_NARRATIVE_CONTRADICTION_FLOW",
+      "sourceFindingKeys": [
+        "INTENT_ENGINE_NARRATIVE_CONTRADICTION_FLOW"
+      ],
+      "sourceItemIds": [
+        "ENG-11AD1D2B94"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-55F8A0150A",
+      "findingKey": "INTENT_NARRATIVE_COHERENCE_FAILURE_STASIS",
+      "title": "Intent Engine Claims Leg Agreement Despite AI Recognition of Sluggish Stasis and Timing Failure",
+      "category": "PERFORMANCE",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The intent engine exhibits severe incoherence between structured factors and recognized narrative. It justifies a PREPARE_PUT action claiming \"Current leg agrees,\" while the simultaneous AI journal entry at 2:17 PM reports that the \"Violent trigger through 745.0 is still missing\" and that the tactical timing has failed due to sluggishness. The current leg explicitly does not agree with a valid entry thesis.",
+      "proposedAction": "Force the intent engine to acknowledge stasis and lack of immediate confirmation, aligning its \"Current leg agrees\" assessment with the AI journal's definition of timing failure.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "INTENT_NARRATIVE_COHERENCE_FAILURE_STASIS",
+      "sourceFindingKeys": [
+        "INTENT_NARRATIVE_COHERENCE_FAILURE_STASIS"
+      ],
+      "sourceItemIds": [
+        "ENG-55F8A0150A"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-5FFFA1B592",
+      "findingKey": "INTENT_NARRATIVE_CONTRADICTION_MOMENTUM",
+      "title": "Intent Engine Asserts Leg Agreement Despite AI Narrative Detailing Lack of Momentum",
+      "category": "PERFORMANCE",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The intent engine reports that 'Current leg agrees' to support PREPARE_PUT, directly contradicting the AI's journaled narrative which explicitly confirms that required momentum was entirely absent and timing risk failed, presenting a severe internal logic mismatch.",
+      "proposedAction": "Investigate the logic responsible for mapping 'Current leg agrees' factor in the Intent engine to ensure consistency with recognized narrative impulse and momentum criteria.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "INTENT_NARRATIVE_CONTRADICTION_MOMENTUM",
+      "sourceFindingKeys": [
+        "INTENT_NARRATIVE_CONTRADICTION_MOMENTUM"
+      ],
+      "sourceItemIds": [
+        "ENG-5FFFA1B592"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-172D5C9C2E",
+      "findingKey": "INTENT_NARRATIVE_CONTRADICTION_MOMENTUM_STALL",
+      "title": "Severe Logic Mismatch: Intent Asserts Leg Agreement Despite AI Narrative Detailing Thesis Failure and Necessary Exit",
+      "category": "PERFORMANCE",
+      "severity": "RED",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The intent engine justifies PREPARE_PUT claiming 'Current leg agrees', radically contradicting simultaneous AI journal entries that detail price upticks, extreme pinning risk, and that the thesis is 'dead' requiring 'immediate exit'. This continues the severe logic mismatch regression reported at tick 329.",
+      "proposedAction": "Investigate the Intent engine logic to resolve the severe incoherence where structured factors claim leg agreement, directly contradicting simultaneous AI journal entries detailing timing failures, dead thesis premises, and necessary exit planning.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "RED",
+      "status": "BLOCKED_PENDING_EXPLICIT_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "INTENT_NARRATIVE_CONTRADICTION_MOMENTUM_STALL",
+      "sourceFindingKeys": [
+        "INTENT_NARRATIVE_CONTRADICTION_MOMENTUM_STALL"
+      ],
+      "sourceItemIds": [
+        "ENG-172D5C9C2E"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-DCF10ECEA1",
+      "findingKey": "INTENT_GAP_DEDUPLICATION",
+      "rootCauseKey": "INTENT_GAP_DEDUPLICATION",
+      "sourceFindingKeys": [
+        "DUPLICATE_INTENT_GAPS",
+        "DUPLICATE_INTENT_GAPS_PERSIST.288"
+      ],
+      "occurrenceCount": 4,
+      "title": "Persistent Slackness: Duplicate Entries Continue in Intent Gaps Array",
+      "category": "TRADER_BEHAVIOR",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "sourceMeeting": "meeting1_jul12_429am",
+      "diagnosis": "The structured 'gaps' list within the intent data persistently contains duplicate entries, repeating the defect identified at tick 248. While functionally appropriate for blocking entry, the duplication indicates unmitigated sloppiness in the state data generation logic.",
+      "proposedAction": "Implement distinct item logic or use a data structure that enforces uniqueness (e.g., a set) when populating the 'gaps' array in the Intent model to fix sloppiness in state generation.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "SUPERSEDED_BY_V1_4_FIX",
+      "lifecycleStatus": "REVIEWED_PENDING_ADJUDICATION",
+      "reviewConclusion": "FACTS:\nThe primary finding summary for QA-1783844866402 reports that at tick 288, the structured intent data 'gaps' array listed duplicate entries: [\"Price persistence\", Acceleration active\", \"Price persistence\", \"Acceleration active\"]. The context data provided for tick 288 JSON contradicts this description, showing the gaps as [\"Price persistence\", \"Acceleration active\"].\n\nINTERPRETATION:\nEvidence points to a definitive conflict between textual reporting of the system state and actual data capture of the system state. Either data generation for narrative summaries is logically distinct from state capture, or one data source is corrupt. Functional outcome appears unaffected based on both versions containing the blocking rationale preventing entry. However, state data consistency is critically broken.\n\nUNCERTAINTY:\nThe actual content of the gaps array at tick 288 is unverifiable given the explicit contradiction in provided evidence. It is unknown if remediation for the original tick 248 issue was attempted.\n\nOBSERVER REFLECTION:\nThe situation remains materially unchanged from the initial observation: data redundancy is present in written summaries but not in direct telemetry JSON for the specified tick. The unresolved core issue is determining which representation is factually accurate to original system state. A human code review of the Intent engine gap collection logic and data pipeline reporting to QA systems is necessary to establish standard data integrity.",
+      "createdAt": "2026-07-12T08:38:52.651Z",
+      "updatedAt": "2026-07-12T18:38:51.917Z"
+    },
+    {
+      "id": "ENG-773CC10DEC",
+      "findingKey": "AI_PROSE_DIAGNOSTIC_COHERENCE_FAILURE_V1_3_SNAPSHO",
+      "title": "AI Narrative Describes High Conviction Logic Override, Diagnostics Fails to Update Reentry State",
+      "category": "BUG",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "The AI journal explicitly details material new evidence and a 'high-conviction setup forming' for a BUY_CALL, yet the structured reentry diagnostics remain blocked by 'repeated GEX_VELOCITY' with no stated evidence. This indicates a critical breakdown and regression where the model fails to apply its logical override criteria based on recognized narrative, repeating failures reported in previous build sequences.",
+      "proposedAction": "Investigate failure of AI prose analysis to logically map described high-conviction momentum evidence into structured reentry diagnostics.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "AI_PROSE_DIAGNOSTIC_COHERENCE_FAILURE_V1_3_SNAPSHO",
+      "sourceFindingKeys": [
+        "AI_PROSE_DIAGNOSTIC_COHERENCE_FAILURE_V1_3_SNAPSHOT61"
+      ],
+      "sourceItemIds": [
+        "ENG-77FEE15BCB"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-34DD928120",
+      "findingKey": "CONTRADICTORY_SUPPORT_GAP_FACTORS",
+      "title": "Structured Intent Criteria Contain Logical Contradiction Between Supporting Factors and Gaps",
+      "category": "BUG",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "A logical contradiction exists within the structured data at tick 261. 'Price persistence' is simultaneously listed as an active 'Gap' (preventing execution) and as NOT listed in the 'SupportingFactors' (consistent), however comparing to tick 241, where it was verified as fixed, it seems the factors logic is inconsistent. Furthermore, previous bug reports (ticks 161, 181, 201) regarding 'Current leg agrees' persist, indicating disjointed structured logic generation. Therefore, the highest value observation is the internal contradiction in data structure between supporting factors and gaps definitions.",
+      "proposedAction": "Investigate the logic that defines structured supporting factors and gaps to ensure a condition cannot simultaneously exist in both lists.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "CONTRADICTORY_SUPPORT_GAP_FACTORS",
+      "sourceFindingKeys": [
+        "CONTRADICTORY_SUPPORT_GAP_FACTORS_T261"
+      ],
+      "sourceItemIds": [
+        "ENG-E3485747CA"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-461930C09F",
+      "findingKey": "PERSISTENT_LEG_MOMENTUM_CONTRADICTION",
+      "title": "Persistent Contradiction: Intent Engine Claims 'Leg Agreement' During Price Stasis",
+      "category": "BUG",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "The structured intent engine reports 'Current leg agrees' as a supporting factor for CALL, directly contradicting simultaneous AI journal prose describing price as 'static'. Price stasis also confirms the persistence of the 'Price persistence' gap. This demonstrates persistent incoherence where structured support criteria become disjointed from the recognized market narrative, repeating logic breakdowns previously reported.",
+      "proposedAction": "Review intent model logic mapping specifically regarding stationary price and how 'leg agreement' and 'persistence gaps' are generated.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "PERSISTENT_LEG_MOMENTUM_CONTRADICTION",
+      "sourceFindingKeys": [
+        "PERSISTENT_LEG_MOMENTUM_CONTRADICTION_T281"
+      ],
+      "sourceItemIds": [
+        "ENG-B1AA20D57D"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-CE0CC88BCA",
+      "findingKey": "POSITION_LOSS_LIMIT_ENFORCEMENT",
+      "title": "Intent Action 'HOLD' Persists After Major Vehicle Failure Profit Exit",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "sourceMeeting": "meeting2_jul12_200am",
+      "diagnosis": "The position was exited via VEHICLE_FAILURE at 10:18 AM for a significant -38.5% loss. However, at tick 50 (10:19 AM), the intent action remains HOLD, sourced from 'OPEN_POSITION', with supporting factors referencing managing the non-existent entry. This reproduces the critical regression of intent state latency following un-planned exits.",
+      "proposedAction": "Investigate and fix persistent intent state logic latency immediately following a VEHICLE_FAILURE exit.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "SUPERSEDED_BY_V1_4_FIX",
+      "createdAt": "2026-07-12T06:03:49.974Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "POSITION_LOSS_LIMIT_ENFORCEMENT",
+      "sourceFindingKeys": [
+        "HOLD_INTENT_LATENCY_VEHICLE_FAILURE_V1_3_SNAPSHOT3",
+        "INTENT_EXIT_EXECUTION_LATENCY_AFTER_VEHICLE_FAILURE_V1_3",
+        "INTENT_LATENCY_FIX_VERIFIED_VEHICLE_FAILURE_V1_3"
+      ],
+      "sourceItemIds": [
+        "ENG-3DF40D86F4",
+        "ENG-521C3D5720",
+        "ENG-6742BF042D"
+      ],
+      "occurrenceCount": 3,
+      "lifecycleStatus": "FIXED_PENDING_VALIDATION",
+      "supersededByBuildId": "firstsignal-sim-v1.4-20260712"
+    },
+    {
+      "id": "ENG-1ED72644F1",
+      "findingKey": "REENTRY_EVIDENCE_MAPPING",
+      "title": "Reentry Diagnostics Fail to Recognize Cleared extremes with Price Objective Surplus",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "sourceMeeting": "meeting2_jul12_200am",
+      "diagnosis": "Reentry is blocked because diagnostics claim \"clearedPriorAttempt\" and \"freshFrontier\" are false. However, current SPY price (749.65) objectively exceeds the prior attempt entry spot (749.50) and previous local high (749.55). This indicates a repeated regression where logical override criteria are incorrectly false despite supportive market data, reproducing failures seen in previous builds despite earlier verification of fix at tick 43. Note drawback block is correctly active.",
+      "proposedAction": "Repair re-entry data mapping logic to correctly recognized cleared extremes when market price surpasses prior attempt points.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T06:03:49.974Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "REENTRY_EVIDENCE_MAPPING",
+      "sourceFindingKeys": [
+        "REENTRY_DIAGNOSTICS_FAILED_DATA_MAPPING_SNAPSHOT70",
+        "REENTRY_EVIDENCE_MAPPING_STABLE_T301",
+        "REENTRY_FIX_VERIFIED_DATA_MAPPING_V1_3"
+      ],
+      "sourceItemIds": [
+        "ENG-5962C1A6DE",
+        "ENG-5F1DC3CF72",
+        "ENG-F40E9B13D9"
+      ],
+      "occurrenceCount": 3
+    },
+    {
+      "id": "ENG-172F5A2F73",
+      "findingKey": "INTENT_EXIT_MANAGEMENT_LATENCY_V1_3_SNAPSHO",
+      "title": "Persistent Open-Position Logic Following Vehicle Failure",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "sourceMeeting": "meeting2_jul12_200am",
+      "diagnosis": "The system continues to reproduce the critical logic regression where open-position exit management persists after a trade is closed. At tick 110, the AI journal references managing an exit and describes the position as 'highly favorable,' yet the structured position state has been null since the vehicle failure at tick 50 (10:18 AM). This reproduces INTENT_EXIT_EXECUTION_LATENCY_AFTER_VEHICLE_FAILURE_V1_3 reported at tick 90.",
+      "proposedAction": "Fix the high-priority latency causing open-position 'HOLD' and 'EXIT_MANAGEMENT' logic to persist in the structured intent models long after an unplanned exit.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T06:03:49.974Z",
+      "updatedAt": "2026-07-12T06:03:49.974Z",
+      "rootCauseKey": "INTENT_EXIT_MANAGEMENT_LATENCY_V1_3_SNAPSHO",
+      "sourceFindingKeys": [
+        "INTENT_EXIT_MANAGEMENT_LATENCY_V1_3_SNAPSHOT110"
+      ],
+      "sourceItemIds": [
+        "ENG-3970711F1F"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-33B2DBD019",
+      "findingKey": "INTENT_STATE_LATENCY_AFTER_SPOT_INVALIDATION_V1",
+      "title": "Hold Intent Latency After Position Exit via Spot Invalidation",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-06-1783835208829-auz0un",
+      "sourceMeeting": "meeting2_jul12_200am",
+      "diagnosis": "The position was exited via SPOT_INVALIDATION at 9:55 AM. However, at tick 27 (9:56 AM), the intent action incorrectly remains HOLD, sourced from 'OPEN_POSITION', with factors still referencing managing the exited CALL thesis. This indicates persistent latency in intent state update immediately following a structured exit.",
+      "proposedAction": "Investigate intent engine logic to ensure state reset immediately follows exit confirmation.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T06:03:49.974Z",
+      "updatedAt": "2026-07-12T06:03:49.974Z",
+      "rootCauseKey": "INTENT_STATE_LATENCY_AFTER_SPOT_INVALIDATION_V1",
+      "sourceFindingKeys": [
+        "INTENT_STATE_LATENCY_AFTER_SPOT_INVALIDATION_V1_3"
+      ],
+      "sourceItemIds": [
+        "ENG-B08DFCF7AB"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-4322262CE2",
+      "findingKey": "AI_RESPONSE_TIMEOUT_FALLBACK_ACTIVE",
+      "title": "AI Model Timeout Forces Fallback HOLD Decision on Open Position",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The current position mindset indicates an 'AI response failure' with the reasoning 'GEMINI_LIVE_TIMEOUT,' resulting in a FALLBACK decision to HOLD. This demonstrates a failure in active model management due to external model latency, preventing fresh tactical assessments for the open position at tick 63.",
+      "proposedAction": "Investigate the cause of the AI response timeout to ensure consistent active management.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "AI_RESPONSE_TIMEOUT_FALLBACK_ACTIVE",
+      "sourceFindingKeys": [
+        "AI_RESPONSE_TIMEOUT_FALLBACK_ACTIVE"
+      ],
+      "sourceItemIds": [
+        "ENG-4322262CE2"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-FCC918718C",
+      "findingKey": "OPEN_POSITION_PNL_SYNC",
+      "title": "Inaccurate Flat P&L State Reported Despite Active Trade Gain",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "At Tick 89, the intent state incorrectly reports '+0.0% option P/L' and lists the attribution status as 'flat: true'. The active 736P position was entered at 0.22 and is currently priced at 0.25, representing a 13.6% gain, contradicting the reported diagnostic data.",
+      "proposedAction": "Investigate the P&L calculation logic within the intent state. Ensure the 'option P/L' and 'flat' status accurately reflect the current option price vs. entry price, rather than potentially using stale reference prices or flawed capping logic.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "OPEN_POSITION_PNL_SYNC",
+      "sourceFindingKeys": [
+        "INACCURATE_PNL_REPORTING_IN_HOLD_INTENT"
+      ],
+      "sourceItemIds": [
+        "ENG-672D00D10E"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-B922E476A7",
+      "findingKey": "POSITION_LOSS_LIMIT_ENFORCEMENT",
+      "title": "Extension PUT Exits via Vehicle Failure for Significant Loss",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The simulator experienced a 'VEHICLE_FAILURE' exit at 11:37 AM on the extension PUT trade, resulting in a -40.9% ($-753) loss. This occurred as immediate local upward flow generated substantial adverse movement against the continuation thesis. This reflects strategy variance and a failure of the aggressive entry timing in this specific episode, not a simulator bug.",
+      "proposedAction": "Analyze the trade timing against the localized upward pressure noted in the journal to determine if entering directly into dynamic divergence, despite the broader bearish structure, constitutes excessive 'chase' risk for the simulator's logic configuration.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "SUPERSEDED_BY_V1_4_FIX",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "POSITION_LOSS_LIMIT_ENFORCEMENT",
+      "sourceFindingKeys": [
+        "VEHICLE_FAILURE_EXIT_RECURRENCE"
+      ],
+      "sourceItemIds": [
+        "ENG-CF20353A19"
+      ],
+      "occurrenceCount": 1,
+      "lifecycleStatus": "FIXED_PENDING_VALIDATION",
+      "supersededByBuildId": "firstsignal-sim-v1.4-20260712"
+    },
+    {
+      "id": "ENG-1499135C3A",
+      "findingKey": "REENTRY_EVIDENCE_MAPPING",
+      "title": "AI Narrative Detail Confirms New Evidence, structured Diagnostics Fail to Trigger Reentry Override",
+      "category": "PERFORMANCE",
+      "severity": "YELLOW",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The reentry block persists despite the AI journal detailing material new evidence, indicating a failure to map prose narrative into structured diagnostics.",
+      "proposedAction": "Investigate the AI model's structured output generation to ensure material evidence detailed in the journal prose is correctly mapped to reenry diagnostic fields (freshFrontier, clearedPriorAttempt).",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "YELLOW",
+      "status": "READY_FOR_APPROVAL",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "REENTRY_EVIDENCE_MAPPING",
+      "sourceFindingKeys": [
+        "AI_PROSE_DIAGNOSTIC_FAILURE_PUT_REENTRY_SNAPSHOT249",
+        "AI_PROSE_DIAGNOSTIC_FAILURE_PUT_REENTRY_SNAPSHOT269",
+        "AI_PROSE_DIAGNOSTIC_FAILURE_PUT_REENTRY_SNAPSHOT309",
+        "AI_PROSE_DIAGNOSTIC_MISMATCH_REENTRY"
+      ],
+      "sourceItemIds": [
+        "ENG-2CD5CE29AD",
+        "ENG-A09239353D",
+        "ENG-C88866591C",
+        "ENG-CCFA8C568A"
+      ],
+      "occurrenceCount": 4
+    },
+    {
+      "id": "ENG-66B3BFF126",
+      "findingKey": "INTENT_PRICE_PERSISTENCE",
+      "rootCauseKey": "INTENT_PRICE_PERSISTENCE",
+      "sourceFindingKeys": [
+        "CONTRADICTORY_PERSISTENCE_GAP_LOGIC",
+        "INTENT_PERSISTENCE_COHERENCE_RESTORED_POSITIVE",
+        "INTENT_PRICE_PERSISTENCE_COHERENCE_T241"
+      ],
+      "occurrenceCount": 5,
+      "title": "Fix Verified: Intent Engine Persistence Logic Aligned with Positive Price Action",
+      "category": "TRADER_BEHAVIOR",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "sourceMeeting": "meeting1_jul12_429am",
+      "diagnosis": "Internal logic cohesion is verified as restored at tick 228. The structured intent data correctly lists 'Price persistence' as a 'Gap' while positively aligned transmission metrics exist, showing stable linkage between structured criteria and real-time data, resolving the regression reported at tick 208.",
+      "proposedAction": "Verify logic in subsequent snapshots. Coherence is currently restored, with gaps and transmission data logically aligned.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "READY_FOR_APPROVAL",
+      "lifecycleStatus": "REVIEWED_PENDING_ADJUDICATION",
+      "reviewConclusion": "This deliberation audits Case-5 regarding the verification of intent persistence logic coherence at Tick 228.\n\n### Reflection on verified logic\nStructured telemetry confirms coherence between the internal diagnostics layer and the intent engine execution gaps. Between Ticks 226 and 227, diagnostics.persistence dropped from 1 to 0. Simultaneously, 'Price persistence' shifted from a supportingFactor to listed gaps, demonstrably lowering readiness and blocking entry despite positive market transmission. The structured linkage verified at Tick 228 confirms the engine accurately enforces defensive constraints signaled by internal analytics.\n\n### Unresolved issues and required inspection\nWhile the mechanism enforcing the gap holds, the logic calculating the gap remains ambiguous. Telemetry shows sustained positive moves through Ticks 227-229, yet diagnostics.persistence remained 0. Furthermore, the Acceleration active metric exhibited high volatility—shifting from Gap (Tick 225/226) to Supporting (227) back to Gap (228)—without visible catalyst.\n\nHuman inspection should verify the operational definition of persistence to rule out over-sensitivity or data staleness. A code inspection of the diagnostic module is needed to understand the oscillation of the Acceleration active status.",
+      "createdAt": "2026-07-12T08:38:52.651Z",
+      "updatedAt": "2026-07-12T18:38:51.917Z"
+    },
+    {
+      "id": "ENG-085747497A",
+      "findingKey": "INTENT_CURRENT_LEG_AGREEMENT",
+      "rootCauseKey": "INTENT_CURRENT_LEG_AGREEMENT",
+      "sourceFindingKeys": [
+        "INTENT_LEG_AGREEMENT_COHERENT_T61",
+        "INTENT_LEG_AGREEMENT_CONTRADICTION_T41",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_T201",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_T321",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_T341",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_T361",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_T381",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_T401",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_V1_3",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_V1_3_T161",
+        "INTENT_LEG_AGREEMENT_INCOHERENCE_V1_3_T181",
+        "LEG_AGREEMENT_CONTRADICTION_NEGATIVE_FLOW",
+        "LEG_AGREEMENT_CONTRADICTION_NEGATIVE_FLOW_PERSIST_T308",
+        "LEG_AGREEMENT_FIX_VERIFIED_T348",
+        "LEG_AGREEMENT_MINDSET_PUT_CONTRADICTION_T21"
+      ],
+      "occurrenceCount": 21,
+      "title": "Fix Verified: Intent Engine Cohesion Restored; 'Leg Agreement' Supported by Positive Price Action",
+      "category": "TRADER_BEHAVIOR",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "sourceMeeting": "meeting1_jul12_429am",
+      "diagnosis": "Structured logic cohesion is verified as restored at tick 348. The 'Current leg agrees' supporting factor is now correctly cohesive with transmission price data (spxMove: 4.91, spyMove: 0.44) and the bullish CALL intent, resolving the persistent logic disjointedness previously reported.",
+      "proposedAction": "None required.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "SUPERSEDED_BY_V1_4_FIX",
+      "lifecycleStatus": "REVIEWED_PENDING_ADJUDICATION",
+      "reviewConclusion": "Deliberation on 'LEG_AGREEMENT_FIX_VERIFIED_T348' in CASE-10.\n\n**Confirmed Facts:**\nThe system records logic cohesion restoration for the 'Current leg agrees' supporting factor at tick 348 (3:17 PM). Audit of the tick data confirms that at tick 348, the `intent` was BUY_CALL, 'Current leg agrees' was listed as a `supportingFactor`, and `transmission` data showed strong positive market moves (spxMove: 4.91, spyMove: 0.44) with 'TRANSMISSION_CONFIRMED' status. Data at tick 347 similarly shows cohesion (BUY_CALL with spxMove 4.28 confirmed).\n\n**Interpretation of System Reasoning:**\nThe recorded verification relies on the fact that at tick 348, the textual supporting logic physically aligns with the transmitted price data, supporting the bullish CALL intent. This alignment is presented as evidence that the logic disjointedness previously reported as regressions is resolved.\n\n**Uncertainty and Objection:**\nDespite the cohesion at tick 348, evidence within the immediate window raises concern. At ticks 345 and 346, the 'Current leg agrees' factor was active while `transmission` moves were pending and minimal (spxMove 0.22 and 0.07, respectively). This indicates that the triggering conditions for 'Current leg agrees' might trigger even when price data is negligible and unconfirmed, suggesting persistent over-sensitivity in the supporting logic.\n\n**Final Reflection:**\nThe system is correct in identifying cohesion during the strong move at 3:17 PM. However, the consistent appearance of the factor during insignificant moves indicates a potential ambiguity in the fix's logic that warrants closer inspection and refinement.",
+      "createdAt": "2026-07-12T08:38:52.651Z",
+      "updatedAt": "2026-07-12T18:38:51.917Z"
+    },
+    {
+      "id": "ENG-3EB6029521",
+      "findingKey": "INTENT_READINESS_GAPS_STABLE",
+      "rootCauseKey": "INTENT_READINESS_GAPS_STABLE",
+      "sourceFindingKeys": [
+        "INTENT_READINESS_GAPS_STABLE_T368"
+      ],
+      "occurrenceCount": 2,
+      "title": "Playbook Constraint Stability Verified: Readiness Suppressed by Active Gaps",
+      "category": "PERFORMANCE",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "sourceMeeting": "meeting1_jul12_429am",
+      "diagnosis": "Simulator operational stability is verified at tick 368. Intent readiness (77) remains properly suppressed below the dynamic threshold (92) by the correctly identified 'Price persistence' and 'Acceleration active' Gaps, appropriately adhering to playbook constraints despite positive transmission data.",
+      "proposedAction": "None required.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "lifecycleStatus": "REVIEWED_PENDING_ADJUDICATION",
+      "reviewConclusion": "Observer Final Reflection on CASE-11 (Tick 368):\n\nOperation verified. The core system behavior—suppressing entry readiness below the dynamic threshold due to playbook Gaps ('Price persistence', 'Acceleration active') despite strong positive data transmission—is confirmed stable.\n\nCurrent Status:\nThe uncertainty noted in the prior observer memo regarding the 'Acceleration active' flip has been factually contextualized.\n\nConfirmed Fact:\nBetween Tick 367 and Tick 368, the accelerator value decreased from 2.8869 to 2.6675. Contemporaneously, the 'Acceleration active' metric transitioned from being listed within supporting factors to being classified as an inhibiting Gap, suppressing readiness.\n\nUnresolved & Recommendations for Audit:\nWhile the shift in flag status correlates with a slight decrease in the accelerator value, the precise logic boundary determining this flip remains opaque. The session logs lack definitive parameters.\n\nSuggested Code Inspection Areas:\n1. inspect the precise threshold or dynamic comparison logic responsible for changing 'Acceleration active' from a supporting factor to an inhibiting gap.\n2. Verify the formula governing 'Price persistence' calculation to understand why it remained at 0 despite price momentum.",
+      "createdAt": "2026-07-12T08:38:52.651Z",
+      "updatedAt": "2026-07-12T18:38:51.917Z"
+    },
+    {
+      "id": "ENG-485A35D583",
+      "findingKey": "MARKET_CLOSE_BLOCKER_STABLE",
+      "rootCauseKey": "MARKET_CLOSE_BLOCKER_STABLE",
+      "sourceFindingKeys": [
+        "MARKET_CLOSE_BLOCKER_STABLE_T388"
+      ],
+      "occurrenceCount": 2,
+      "title": "Close Compatibility Stability Verified: Market Not Tradeable Blocker Blocks Entry Before Close",
+      "category": "APPROVAL",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783844671795-bcaulv",
+      "sourceMeeting": "meeting1_jul12_429am",
+      "diagnosis": "Correct system protocol adherence is verified at tick 388 (3:57 PM). Despite strong positive price action, the generic blocker 'Market not tradeable' is appropriately applied, successfully reducing entry readiness to zero as the session approaches market close, maintaining risk management stability.",
+      "proposedAction": "None required.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "lifecycleStatus": "REVIEWED_PENDING_ADJUDICATION",
+      "reviewConclusion": "### Confirmed Facts\nData for the final four minutes of the session (ticks 385–391) demonstrates a strong 'PREPARE_CALL' intent, supported by robust market edge metrics and a 'setupQuality' that diagnostically peaked at 100 near 3:57 PM. However, 'executionReadiness' was consistently maintained at 0 strictly due to the presence of the system blocker: ['Market not tradeable']. No trade was entered during this high-signal, end-of-session push.\n\n### Interpretation and Trader Response Review\nThe system successfully prioritized operational stability over chase-risk into the closing bell. The trader's memo logically analyzes this, correctly identifying that high model confidence was contained by operational risk control. The data confirms the trader strictly adhered to the design protocol; there is no evidence of manual attempts to force an override. The inaction prevented exposure to settlement risks on zero-day contracts.\n\n### Uncertainty and Required Checks\nWhat remains unresolved is the specific trigger definition for the ['Market not tradeable'] blocker. The precise algorithmic conditions (time threshold, volume metrics, or implied volatility limits) that active this protective state are not discernible from the provided trace evidence. A human or code inspection should be routed to verify the exact rules controlling the activation of this market-close restriction logic.",
+      "createdAt": "2026-07-12T08:38:52.651Z",
+      "updatedAt": "2026-07-12T18:38:51.917Z"
+    },
+    {
+      "id": "ENG-7818996339",
+      "findingKey": "POST_EXIT_STATE_RESET",
+      "title": "Intent State Latency Fix Verified Post-Exit",
+      "category": "HEALTHY",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "Following the thesis exit at tick 9, the intent state correctly and immediately transitioned from HOLD to WAIT at tick 10 (9:39 AM), with readiness resetting to zero and the expected post-exit blocker applied. This verifies the fix for the critical open-position logic latency regression seen in prior builds and earlier in this build sequence.",
+      "proposedAction": "Continue verifying intent state update integrity upon subsequent entries and exits.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "POST_EXIT_STATE_RESET",
+      "sourceFindingKeys": [
+        "INTENT_FIX_VERIFIED_POST_EXIT_RESET_V1_3"
+      ],
+      "sourceItemIds": [
+        "ENG-D22F69D45F"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-643768C4B2",
+      "findingKey": "REENTRY_OVERRIDE_COHESION_VERIFIED_V1_3",
+      "title": "Fix Verified: Reentry Logic Override Function Properly Dynamic and Cohesive with AI Narrative",
+      "category": "PERFORMANCE",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "The reentry logic override function is verified as fixed. At tick 101, the AI journal details an imminent explosive upward resolution, and structured reentry diagnostics cohesively match this narrative by showing 'allowed: true' based on recognized material new evidence ('new extreme beyond prior episode'). This verifies that logical override criteria are correctly identified and applied.",
+      "proposedAction": "Fix verified. No suggested action needed for this function. Reentry diagnostics appropriately map AI text reflection and market data to logic states.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "REENTRY_OVERRIDE_COHESION_VERIFIED_V1_3",
+      "sourceFindingKeys": [
+        "REENTRY_OVERRIDE_COHESION_VERIFIED_V1_3_T101"
+      ],
+      "sourceItemIds": [
+        "ENG-F5672A21CE"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-82949852D8",
+      "findingKey": "REENTRY_OVERRIDE_STABILITY_VERIFIED_V1_3",
+      "title": "Fix Verified: Reentry Override Logic Remains Stable and Coherent Through Continuation",
+      "category": "PERFORMANCE",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "The fix for the reentry logic override function is confirmed as stable and coherent. At tick 121, both the AI journal narrative and structured reentry diagnostics properly recognize material new evidence to maintain an 'allowed' status, despite dynamic blockers like drawdown review being present. This demonstrates sustained logical consistency.",
+      "proposedAction": "Fix verified. Reentry functions show stable cohesion with market data and narrative logic across multiple snapshots.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "REENTRY_OVERRIDE_STABILITY_VERIFIED_V1_3",
+      "sourceFindingKeys": [
+        "REENTRY_OVERRIDE_STABILITY_VERIFIED_V1_3_T121"
+      ],
+      "sourceItemIds": [
+        "ENG-9CEA88155E"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-8F385F3026",
+      "findingKey": "REENTRY_STABLE_THROUGH_DRAWDOWN_BLOCKER",
+      "title": "Fix Verified: Reentry Logic Remains Stable and Coherent Under Drawdown Review Blocker",
+      "category": "PERFORMANCE",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.3-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-09-1783841884007-izl0gw",
+      "sourceMeeting": "meeting1_jul12_414am",
+      "diagnosis": "The fix for reentry override logic stability is confirmed as stable at tick 221. Despite the presence of a dynamic blocker ('DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE') resulting from the prior trade loss, the system's re-entry diagnostics consistently identify material new evidence ('cleared prior attempt extreme'). This correctly maintains 'allowed: true' status, allowing valid intent preparation while respecting risk guardrails.",
+      "proposedAction": "None. System performance is optimal in this scenario.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.3-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "createdAt": "2026-07-12T08:24:30.891Z",
+      "updatedAt": "2026-07-12T08:24:30.891Z",
+      "rootCauseKey": "REENTRY_STABLE_THROUGH_DRAWDOWN_BLOCKER",
+      "sourceFindingKeys": [
+        "REENTRY_STABLE_THROUGH_DRAWDOWN_BLOCKER_T221"
+      ],
+      "sourceItemIds": [
+        "ENG-96248B415F"
+      ],
+      "occurrenceCount": 1
+    },
+    {
+      "id": "ENG-0B7C7DE299",
+      "findingKey": "INTENT_ENGINE_COHERENCE_RESTORED",
+      "title": "Internal Coherence Fixed: Mindset and Intent Align on CALL Action",
+      "category": "APPROVAL",
+      "severity": "GREEN",
+      "buildId": "firstsignal-sim-v1.2-20260712",
+      "sourceSessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+      "sourceMeeting": "meeting3_jul12_1202am",
+      "diagnosis": "The critical logic incoherence previously reported, where the Mindset engine guided CALL execution while the Intent persisted with a stale bearish PUT thesis, is verified as fixed. Current intent and mindset states are both aligned on a BUY_CALL action with no blockers, showing restored system cohesion.",
+      "proposedAction": "Acknowledge the restoration of internal logical coherence between the Mindset and Intent engines. Continue monitoring for stability.",
+      "experiment": "Reproduce on the same replay/build boundary, change one variable only, then compare the finding key and outcome against firstsignal-sim-v1.2-20260712.",
+      "notebookQuestions": [],
+      "claimsToVerify": [],
+      "approvalLevel": "GREEN",
+      "status": "PREPARED_NO_CODE_CHANGE",
+      "createdAt": "2026-07-12T05:10:53.630Z",
+      "updatedAt": "2026-07-12T05:10:53.630Z",
+      "rootCauseKey": "INTENT_ENGINE_COHERENCE_RESTORED",
+      "sourceFindingKeys": [
+        "INTENT_ENGINE_COHERENCE_RESTORED"
+      ],
+      "sourceItemIds": [
+        "ENG-0B7C7DE299"
+      ],
+      "occurrenceCount": 1
+    }
+  ]
+}

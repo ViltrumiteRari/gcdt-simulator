@@ -1,5 +1,5 @@
 {
-  "name": "firstsignal-sim-v1",
+  "name": "firstsignal-sim",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -17,14 +17,18 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node tools/export_replay_assets.mjs && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "agent:desktop": "electron electron/main.cjs",
     "agent:desktop:dev": "set FIRSTSIGNAL_URL=http://127.0.0.1:5173/index.html&& electron electron/main.cjs",
     "build:replays": "py -3.14 tools/build_replay_catalog.py",
+    "knowledge:index": "node tools/rebuild_knowledge_indexes.mjs",
     "start:local": "scripts\\\\start-local.cmd",
-    "test": "node tests/strategyCore.test.mjs"
+    "test": "node tests/strategyCore.test.mjs",
+    "replays:prepare": "python tools/prepare_replay_cache.py --all",
+    "predev": "npm run replays:prepare",
+    "prebuild": "node tools/prepare_replays_if_local.cjs"
   },
   "type": "module",
-  "productName": "FirstSignal Sim V1"
+  "productName": "FirstSignal Sim v1"
 }

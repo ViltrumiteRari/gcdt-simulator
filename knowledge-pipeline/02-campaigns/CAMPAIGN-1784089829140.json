@@ -1,0 +1,54 @@
+{
+  "id": "CAMPAIGN-1784089829140",
+  "name": "Jul8 compounding build12 rerun",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-08"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-15T04:30:29.140Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-08",
+  "failedAt": "2026-07-16T06:26:54.307Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "RUNNING",
+      "tick": 0,
+      "eventCount": 0,
+      "lastProgressAt": 1784142192376,
+      "updatedAt": "2026-07-16T06:26:52.702Z",
+      "provider": {
+        "state": "CONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": true,
+        "connecting": false,
+        "pendingKind": null,
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": true,
+          "connectedAt": 1784183211177,
+          "bootstrapped": true,
+          "state": "ORIGINAL_LIVE",
+          "resumptionHandleAvailable": true,
+          "sessionGeneration": 1,
+          "breakReason": null
+        }
+      },
+      "running": true,
+      "aiFrozen": false,
+      "thinking": false,
+      "buildId": "firstsignal-sim-v1.12-canonical-entry-authorization-20260715",
+      "buildSequence": 13,
+      "at": "2026-07-16T06:26:52.701Z"
+    }
+  }
+}

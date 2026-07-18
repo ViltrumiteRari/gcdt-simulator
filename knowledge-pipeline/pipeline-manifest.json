@@ -1,0 +1,23 @@
+{
+  "pipelineVersion": 2,
+  "createdAtUtc": "2026-07-12T18:23:33.785319+00:00",
+  "projectRoot": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1",
+  "pipelineRoot": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\knowledge-pipeline",
+  "legacySource": "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports",
+  "legacySourcePreserved": true,
+  "migratedPaths": [
+    "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports\\2026-07-11",
+    "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports\\2026-07-12",
+    "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports\\version-memory.json",
+    "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports\\engineering-backlog.json",
+    "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports\\durable-findings.json",
+    "C:\\Users\\adahy\\Documents\\FirstSignal Sim v1 Agent Reports\\supervisor-state.json"
+  ],
+  "routing": [
+    "session event -> raw session evidence",
+    "observer report -> raw observation",
+    "review meeting -> adjudication evidence",
+    "canonical finding -> approval/fix/validation lifecycle",
+    "validated finding -> version memory and future-agent context"
+  ]
+}

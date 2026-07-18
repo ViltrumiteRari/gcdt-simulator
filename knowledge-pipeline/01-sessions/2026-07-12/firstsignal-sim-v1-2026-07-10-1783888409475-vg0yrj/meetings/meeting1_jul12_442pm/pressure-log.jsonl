@@ -1,0 +1,6 @@
+{"at":"2026-07-12T20:42:43.585Z","role":"OBSERVER","attempt":1,"promptBytes":32944,"elapsedMs":7026,"status":"OK"}
+{"at":"2026-07-12T20:42:53.927Z","role":"TRADER","attempt":1,"promptBytes":34936,"elapsedMs":9252,"status":"OK"}
+{"at":"2026-07-12T20:43:03.428Z","role":"OBSERVER","attempt":1,"promptBytes":36889,"elapsedMs":8465,"status":"OK"}
+{"at":"2026-07-12T20:43:28.995Z","role":"OBSERVER","attempt":1,"promptBytes":46067,"elapsedMs":9578,"status":"OK"}
+{"at":"2026-07-12T20:43:43.503Z","role":"TRADER","attempt":1,"promptBytes":48787,"elapsedMs":13441,"status":"OK"}
+{"at":"2026-07-12T20:43:54.543Z","role":"OBSERVER","attempt":1,"promptBytes":50216,"elapsedMs":9891,"status":"OK"}

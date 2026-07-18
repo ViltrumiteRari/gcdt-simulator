@@ -8,10 +8,11 @@ import numpy as np
 import pandas as pd
 
 DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"]
-ROOT = Path(r"D:\FirstSignal_GCDT_Dataset")
-OUT = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayData.js")
-OUT_JUL10 = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\realReplayDataJul10.js")
-FALLBACK_CATALOG = Path(r"C:\Users\adahy\Desktop\GCDT\gcdt-v26-airgap\src\replayCatalog.js")
+SOURCE_INTERVAL_SECONDS = {"2026-07-13":300,"2026-07-14":300,"2026-07-15":20,"2026-07-16":20}
+ROOT = Path(r"D:\FirstSignal_Sim_Dataset")
+OUT = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayData.js")
+OUT_JUL10 = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayDataJul10.js")
+FALLBACK_CATALOG = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\replayCatalog.js")
 RISK_FREE = 0.045
 DAY = DAYS[-1]
 DATA = ROOT / DAY / "sim_input"
@@ -85,14 +86,14 @@ def causal_ffill_frame(frame, columns, target_index):
 def load_market():
     market = pd.read_csv(DATA / "market_timeline.csv")
     market["captured_at"] = pd.to_datetime(market["captured_at"], format="mixed")
-    minute_index = pd.date_range(f"{DAY} 09:30:00", f"{DAY} 16:15:00", freq="1min")
+    minute_index = pd.date_range(f"{DAY} 09:30:00", f"{DAY} 16:15:00", freq="20s")
     out = {}
     first_native_spot = {}
     for ticker in ("SPY", "SPX"):
-        frame = market[(market["ticker"] == ticker) & (market["source"].isin(["gex_exposure", "spot", "market_context"]))].copy()
+        frame = market[(market["ticker"] == ticker) & (market["source"].isin(["gexstream_native_20s", "gex_exposure", "spot", "market_context"]))].copy()
         native_spot_rows = frame[pd.to_numeric(frame["spot"], errors="coerce").notna()]
         first_native_spot[ticker] = native_spot_rows["captured_at"].min() if not native_spot_rows.empty else None
-        priority = {"gex_exposure": 0, "spot": 1, "market_context": 2}
+        priority = {"gexstream_native_20s": 0, "gex_exposure": 1, "spot": 2, "market_context": 3}
         frame["_priority"] = frame["source"].map(priority).fillna(9)
         frame = frame.sort_values(["captured_at", "_priority"]).drop_duplicates("captured_at", keep="first")
         # Reject stale intraminute spot injections when reliable 5-minute anchors exist.
@@ -117,6 +118,35 @@ def load_market():
         frame = frame.reindex(frame.index.union(minute_index)).sort_index()
         frame[numeric] = causal_ffill_frame(frame, numeric, minute_index)
         out[ticker] = frame.loc[minute_index].reset_index(names="captured_at")
+
+    # Repair impossible exact-flat SPX runs without using future SPX observations.
+    # Preserve each run's first SPX anchor and transmit contemporaneous SPY returns until
+    # native SPX begins changing again. This is causal at every replay tick.
+    spx_values = pd.to_numeric(out["SPX"]["spot"], errors="coerce").copy()
+    spy_values = pd.to_numeric(out["SPY"]["spot"], errors="coerce").copy()
+    out["SPX"]["spot_repair"] = "NATIVE"
+    i = 0
+    while i < len(spx_values):
+        j = i + 1
+        while j < len(spx_values) and np.isfinite(spx_values.iloc[j]) and np.isfinite(spx_values.iloc[i]) and abs(float(spx_values.iloc[j])-float(spx_values.iloc[i])) < 1e-9:
+            j += 1
+        run_len = j - i
+        if run_len >= 30 and np.isfinite(spy_values.iloc[i]) and spy_values.iloc[i] != 0 and spy_values.iloc[i:j].nunique(dropna=True) >= 8:
+            anchor_spx = float(spx_values.iloc[i]); anchor_spy = float(spy_values.iloc[i])
+            spy_return = spy_values.iloc[i:j] / anchor_spy - 1.0
+            spy_gex = pd.to_numeric(out["SPY"]["net_exposure"], errors="coerce")
+            spx_gex = pd.to_numeric(out["SPX"]["net_exposure"], errors="coerce")
+            spy_scale = spy_gex.abs().expanding(min_periods=1).median().replace(0, np.nan).ffill().fillna(1.0)
+            spx_scale = spx_gex.abs().expanding(min_periods=1).median().replace(0, np.nan).ffill().fillna(1.0)
+            spy_regime = np.tanh(spy_gex.iloc[i:j] / spy_scale.iloc[i:j])
+            spx_regime = np.tanh(spx_gex.iloc[i:j] / spx_scale.iloc[i:j])
+            gex_divergence = ((spy_regime - spx_regime).abs() / 2.0).clip(0.0, 1.0)
+            gex_damping = (1.0 - 0.30 * gex_divergence).clip(0.70, 1.0)
+            derived = anchor_spx * (1.0 + spy_return * gex_damping)
+            out["SPX"].loc[i:j-1, "spot"] = derived.to_numpy()
+            out["SPX"].loc[i:j-1, "spot_repair"] = "CAUSAL_SPY_RETURN_GEX_DAMPED_BRIDGE"
+            spx_values.iloc[i:j] = derived.to_numpy()
+        i = j
 
     # Repair stale captured spot values with the independent option-chain underlying path.
     # July 9's GEX/spot endpoint repeated one stale spot after noon even while the chain's
@@ -190,6 +220,12 @@ def latest_levels(gex, ticker, ts, spot):
     rows["net_exposure"] = pd.to_numeric(rows["net_exposure"], errors="coerce").fillna(0)
     rows["strike"] = pd.to_numeric(rows["strike"], errors="coerce")
     rows = rows.dropna(subset=["strike"])
+    # Normalize isolated SPX-style strike scaling accidentally mixed into SPY data.
+    if ticker == "SPY":
+        for _ in range(2):
+            bad = rows["strike"] > max(1500.0, spot * 3.0)
+            rows.loc[bad, "strike"] = rows.loc[bad, "strike"] / 10.0
+        rows = rows[(rows["strike"] >= spot - 40) & (rows["strike"] <= spot + 40)]
     levels = rows.groupby("strike", as_index=False)["net_exposure"].sum().sort_values("strike")
     vals = levels[["strike", "net_exposure"]].to_numpy(float)
     crossings = []
@@ -201,8 +237,50 @@ def latest_levels(gex, ticker, ts, spot):
         elif y0 * y1 < 0:
             crossings.append(x0 + (x1 - x0) * (-y0) / (y1 - y0))
     gamma_flip = float(min(crossings, key=lambda x: abs(x - spot))) if crossings else float(levels.loc[levels["net_exposure"].abs().idxmin(), "strike"])
-    return gamma_flip, float(levels.loc[levels["net_exposure"].idxmax(), "strike"]), float(levels.loc[levels["net_exposure"].idxmin(), "strike"]), "STRIKE_GEX_ZERO_CROSSING" if crossings else "NEAREST_ZERO_GEX_STRIKE"
+    # Walls are side-specific concentration levels, not unrestricted extrema.
+    # Prefer positive exposure at/above spot for the call wall and negative exposure
+    # at/below spot for the put wall. This prevents semantically inverted walls.
+    calls = levels[(levels["strike"] >= spot) & (levels["net_exposure"] > 0)]
+    puts = levels[(levels["strike"] <= spot) & (levels["net_exposure"] < 0)]
+    call_wall = float(calls.loc[calls["net_exposure"].idxmax(), "strike"]) if not calls.empty else float(levels.loc[levels["net_exposure"].idxmax(), "strike"])
+    put_wall = float(puts.loc[puts["net_exposure"].idxmin(), "strike"]) if not puts.empty else float(levels.loc[levels["net_exposure"].idxmin(), "strike"])
+    if call_wall < put_wall:
+        call_wall = float(levels[levels["strike"] >= spot]["strike"].min()) if not levels[levels["strike"] >= spot].empty else float(math.ceil(spot))
+        put_wall = float(levels[levels["strike"] <= spot]["strike"].max()) if not levels[levels["strike"] <= spot].empty else float(math.floor(spot))
+    return gamma_flip, call_wall, put_wall, "STRIKE_GEX_ZERO_CROSSING" if crossings else "NEAREST_ZERO_GEX_STRIKE"
 
+
+def repair_reference_walls(day, snapshots):
+    if day != "2026-07-15":
+        for x in snapshots:
+            x["wallSource"] = "FULL_STRIKE_NET_GEX"
+            x["wallConfidence"] = "HIGH" if day == "2026-07-16" else "NATIVE_INTERVAL"
+        return snapshots
+    p = ROOT / day / "SPY" / "exposure" / "strike_exposure_long.csv"
+    if not p.exists(): return snapshots
+    rich = pd.read_csv(p); rich["captured_at"] = pd.to_datetime(rich["captured_at"], errors="coerce")
+    for c in ("strike","call_exposure","put_exposure","spot"):
+        rich[c] = pd.to_numeric(rich[c], errors="coerce")
+    rich = rich.dropna(subset=["captured_at","strike","spot"])
+    bad = rich["strike"] > rich["spot"] * 3; rich.loc[bad,"strike"] /= 10
+    refs=[]
+    for ts,g in rich.groupby("captured_at"):
+        refs.append((ts,float(g.loc[g.call_exposure.idxmax(),"strike"]),float(g.loc[g.put_exposure.idxmin(),"strike"])))
+    if not refs: return snapshots
+    ref=pd.DataFrame(refs,columns=["ts","call","put"]).sort_values("ts")
+    call_modes=list(ref.call.value_counts().index[:4]); put_modes=list(ref.put.value_counts().index[:4])
+    for x in snapshots:
+        ts=pd.Timestamp(f'{day} {x["time"]}'); prior=ref[ref.ts<=ts]
+        if not prior.empty:
+            call=float(prior.iloc[-1].call); put=float(prior.iloc[-1].put); source="RICH_STRIKE_SURFACE_CAUSAL"
+        else: call=call_modes[0]; put=put_modes[0]; source="RICH_STRIKE_SURFACE_REFERENCE"
+        if ts>ref.ts.max():
+            above=[v for v in call_modes if v>=x["spySpot"]+0.20]; call=min(above) if above else max(call_modes)
+            below=[v for v in put_modes if v<=x["spySpot"]-0.20]; put=max(below) if below else min(put_modes)
+            source="EARLY_RICH_SURFACE_REFERENCE"
+        x["callWall"],x["putWall"]=float(call),float(put)
+        x["wallSource"],x["wallConfidence"]=source,"HIGH" if ts<=ref.ts.max() else "MEDIUM"
+    return snapshots
 
 def read_trade_history(day):
     base = ROOT / day / "options_historical_quantdata" / "contract_price_time"
@@ -414,14 +492,31 @@ def build_day(day):
     dedicated_spy = load_dedicated_spot(DAY, "SPY", minute_index)
     dedicated_spx = load_dedicated_spot(DAY, "SPX", minute_index)
     if dedicated_spy is not None:
-        market["SPY"].loc[:, "spot"] = dedicated_spy.to_numpy()
+        valid = dedicated_spy.notna().to_numpy()
+        market["SPY"].loc[valid, "spot"] = dedicated_spy.loc[valid].to_numpy()
     elif has_trade_history:
         synced = trade_history.groupby("captured_at")["underlying_close"].median().sort_index()
         synced, _ = causal_project_series(synced, minute_index, slope_cap=0.5, max_age_minutes=5)
         valid = synced.notna().to_numpy()
         market["SPY"].loc[valid, "spot"] = synced.loc[valid].to_numpy()
     if dedicated_spx is not None:
-        market["SPX"].loc[:, "spot"] = dedicated_spx.to_numpy()
+        valid = dedicated_spx.notna().to_numpy()
+        market["SPX"].loc[valid, "spot"] = dedicated_spx.loc[valid].to_numpy()
+    for ticker in ('SPY', 'SPX'):
+        market[ticker]['spot'] = pd.to_numeric(market[ticker]['spot'], errors='coerce')
+        if market[ticker]['spot'].isna().any():
+            raw_market = pd.read_csv(DATA / 'market_timeline.csv')
+            raw_market['captured_at'] = pd.to_datetime(raw_market['captured_at'], errors='coerce')
+            raw_spot = raw_market[(raw_market['ticker'] == ticker)].copy()
+            raw_spot['spot'] = pd.to_numeric(raw_spot['spot'], errors='coerce')
+            raw_series = raw_spot.dropna(subset=['captured_at','spot']).sort_values('captured_at').drop_duplicates('captured_at', keep='last').set_index('captured_at')['spot']
+            projected, _ = causal_project_series(raw_series, minute_index, slope_cap=5.0 if ticker == 'SPX' else 0.5, max_age_minutes=20)
+            missing = market[ticker]['spot'].isna().to_numpy() & projected.notna().to_numpy()
+            market[ticker].loc[missing, 'spot'] = projected.loc[missing].to_numpy()
+        market[ticker]['spot'] = market[ticker]['spot'].ffill()
+        if market[ticker]['spot'].isna().any():
+            bad = market[ticker].loc[market[ticker]['spot'].isna(), 'captured_at'].astype(str).tolist()[:5]
+            raise RuntimeError(f'{DAY} {ticker} has unresolved causal spot gaps at {bad}')
     has_real_quotes = not real_chain.empty
     first_real = trade_history["captured_at"].min() if has_trade_history else (real_chain["captured_at"].min() if has_real_quotes else None)
     calibration_day, anchor = calibration_anchor(DAY, real_chain)
@@ -472,19 +567,26 @@ def build_day(day):
             quote_source = "SYNTHETIC_CALIBRATED" if has_real_quotes else "SYNTHETIC_CROSS_DAY_CALIBRATED"
             chain_rows = synth_rows(anchor, ts, spot, quote_source)
         iv_values = [q["iv"] for q in chain_rows if q.get("iv") is not None]
-        snapshots.append({"time": ts.strftime("%H:%M"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_CAUSAL_PROJECTION", "fepSource": fep_source, "orderFlow": order_flow.get(ts.floor("min")), "chain": chain_rows})
+        snapshots.append({"time": ts.strftime("%H:%M:%S"), "spySpot": spot, "spxSpot": float(spx["spot"]), "netGex": float(spy["net_exposure"]), "netGexSpx": float(spx["net_exposure"]), "callDom": float(spy["call_dominance_pct"]) / 100.0, "callDomSpx": float(spx["call_dominance_pct"]) / 100.0, "gammaFlip": gamma_flip, "callWall": call_wall, "putWall": put_wall, "iv": float(np.median(iv_values)) if iv_values else 0.20, "quoteSource": quote_source, "calibrationSourceDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "marketSource": "NATIVE_OBSERVED_PLUS_CAUSAL_PROJECTION", "fepSource": fep_source, "orderFlow": order_flow.get(ts.floor("min")), "chain": chain_rows})
+    snapshots = repair_reference_walls(DAY, snapshots)
     # A real replay must never silently carry one underlying price through a large part of the day.
-    longest_flat = 1
-    current_flat = 1
-    for prev, cur in zip(snapshots, snapshots[1:]):
-        if abs(float(cur["spySpot"]) - float(prev["spySpot"])) < 1e-9:
-            current_flat += 1
-            longest_flat = max(longest_flat, current_flat)
-        else:
-            current_flat = 1
-    if has_trade_history and longest_flat > 30:
-        raise RuntimeError(f"{DAY} replay has {longest_flat} consecutive frozen SPY minutes; inspect full-day option/spot inputs")
-    return {"date": DAY, "label": f"{DAY} | Unified native SPY/SPX | 1-minute replay", "dayType": "REAL DATA REPLAY", "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC"), "longestFlatSpyMinutes": longest_flat, "spotSource": "DEDICATED_INTRADAY_5M_CAUSAL" if dedicated_spy is not None else "CONTRACT_OR_MARKET_TIMELINE_CAUSAL", "lookaheadSafe": True}, "snapshots": snapshots}
+    def longest_spot_flat(key):
+        best = current = 1
+        for prev, cur in zip(snapshots, snapshots[1:]):
+            if abs(float(cur[key]) - float(prev[key])) < 1e-9:
+                current += 1; best = max(best, current)
+            else:
+                current = 1
+        return best
+    longest_flat = longest_spot_flat("spySpot")
+    longest_flat_spx = longest_spot_flat("spxSpot")
+    if has_trade_history and longest_flat > 90:
+        raise RuntimeError(f"{DAY} replay has {longest_flat} consecutive frozen SPY 20-second ticks; inspect full-day option/spot inputs")
+    if longest_flat_spx > 90:
+        raise RuntimeError(f"{DAY} replay has {longest_flat_spx} consecutive frozen SPX 20-second ticks; repair or reject the SPX path")
+    playback_seconds = 20 if len(snapshots) >= 1000 else 60
+    source_seconds = SOURCE_INTERVAL_SECONDS.get(DAY, 300)
+    return {"date": DAY, "label": f"{DAY} | Unified native SPY/SPX | {playback_seconds}-second playback | {source_seconds//60 if source_seconds>=60 else source_seconds}{'m source' if source_seconds>=60 else 's source'}", "dayType": "REAL DATA REPLAY", "playbackIntervalSeconds": playback_seconds, "sourceIntervalSeconds": source_seconds, "nativeSourceCadence": source_seconds == playback_seconds, "coverage": {"realChainStart": first_real.strftime("%H:%M") if first_real is not None else None, "optionCalibrationDay": DAY if (has_trade_history or has_real_quotes) else calibration_day, "optionSource": "REAL_TRADE_OHLCV" if has_trade_history else ("REAL_QUOTE" if has_real_quotes else "SYNTHETIC"), "sourceIntervalSeconds": source_seconds, "playbackIntervalSeconds": playback_seconds, "longestFlatSpyTicks": longest_flat, "spotSource": "DEDICATED_INTRADAY_5M_CAUSAL" if dedicated_spy is not None else "CONTRACT_OR_MARKET_TIMELINE_CAUSAL", "lookaheadSafe": True}, "snapshots": snapshots}
 
 
 def main():

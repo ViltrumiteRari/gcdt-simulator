@@ -1,0 +1,76 @@
+{
+  "sessionId": "firstsignal-sim-v1-2026-07-15-1784239487476-t59ofx",
+  "replayDate": "2026-07-15",
+  "privateReflection": "Session outcome resulted from repeated failure of breakout resumption logic, hitting max loss limits on five of six attempts, specifically trades [T1], [T3], [T4], [T5], and [T6]. The canonical acceleration setup underperformed significantly in this specific intraday regime. The sole winning trade, [T2], demonstrated optimal capture of a counter-trend capitulation bounce. Process lesson: Canonical acceleration triggers may require higher filter thresholds in compressed, choppy high-velocity regimes, whereas structural support bounces offered improved risk/reward capture under stress. Internal summary WAIT overrides prevented capital engagement during the overwhelming late-day trend extension, preserving the final reduced balance.",
+  "nextSessionHandoff": "Late day structural relocation context holds definitive bullish authoritative lead, completely resolving the earlier bearish regime. Supportive descriptive GEX exploded to a historic extreme (+15.3B), providing maximal structural support. Price established acceptance at the high-velocity frontier of 754.14 baseline. Aggressive buyer leadership was fiercely affirmed, concluding positively with extreme dominance. Mandatory flat summaries ended the session; next session should classify continuation conditional onlifting mandates.",
+  "referencedTradeIds": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6"
+  ],
+  "factualClaims": [
+    {
+      "claim": "Executed 6 total trades, with 1 win and 5 losses.",
+      "evidence_trade_ids": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6"
+      ]
+    },
+    {
+      "claim": "Opening trade [T1] resulted in a -20.8% loss.",
+      "evidence_trade_ids": [
+        "T1"
+      ]
+    },
+    {
+      "claim": "Captured a +36.8% gain on trade [T2].",
+      "evidence_trade_ids": [
+        "T2"
+      ]
+    },
+    {
+      "claim": "Consecutive breakout attempts [T3] and [T4] failed, hitting maximum loss limits.",
+      "evidence_trade_ids": [
+        "T3",
+        "T4"
+      ]
+    },
+    {
+      "evidence_trade_ids": [
+        "T5",
+        "T6"
+      ],
+      "claim": "Final trades [T5] and [T6] hit max loss logic during rotational volatility."
+    }
+  ],
+  "validation": {
+    "status": "PASSED",
+    "validatedAt": "2026-07-16T22:24:35.551Z",
+    "canonicalTradeIds": [
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6"
+    ]
+  },
+  "traderContinuity": {
+    "available": true,
+    "connectedAt": 1784240668047,
+    "bootstrapped": true,
+    "state": "RESUMED_ORIGINAL",
+    "resumptionHandleAvailable": true,
+    "sessionGeneration": 5,
+    "breakReason": "CLOSING_RETRY_1"
+  },
+  "state": "CAPTURED_BEFORE_FINALIZATION",
+  "savedAt": "2026-07-16T22:24:35.551Z"
+}

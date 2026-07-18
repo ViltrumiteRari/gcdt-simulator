@@ -1,0 +1,168 @@
+
+[9:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Simulator Session Starts Successfully with Expected Warming Up State
+At tick 1 (9:30 AM), the simulator successfully initiated in WAIT mode with the expected 'Session warming up' blocker. No previous version context applies as this is the start of a new playback session.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Session start at 9:30 AM (tick 1) shows Intent: WAIT, Readiness: 0, with blocker: Session warming up.
+  • Build Version: V1, Build ID: firstsignal-sim-v1.3-20260712.
+Next: Continue monitoring session progress.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:50 AM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Persistent Issue: Bullish 'Leg Agreement' Factor Contradicts Active Guidance for PUT and Bearish Narrative
+The structured Intent engine incorrectly cites 'Current leg agrees' at tick 21. This bullish factor directly contradicts recent Playbook guidance for 'GUIDE_PUT' at 9:48 AM and AI prose detailing momentum stalling. This mismatch confirms persistent logical disjointedness between structured factors and current mindset, as previously reported in this session.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 21 (9:50 AM), Intent Supporting Factors lists 'Current leg agrees', while Intent Diagnostics show brainSide 'WAIT' and localSide 'WAIT'. Conversely, the Mindset Guidance at 9:48 AM is 'GUIDE_PUT' based on 'GEX downside expansion'. Additionally, the AI Journal at 9:44 AM notes that 'momentum stalls' and the upward thesis is 'weakening'.
+Next: Investigate incoherence between the structured Intent engine's 'Current leg agrees' factor and the opposing PUT direction guided by the Mindset engine.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:10 AM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Cites 'Leg Agreement' Despite Negative Price Action
+The structured Intent Engine asserts 'Current leg agrees' to support a bullish CALL intent at tick 41, directly contradicting dynamic transmission data which show negative market moves. This confirms the persistent logic failure reported in previous snapshots (ticks 21, etc.) where structured criteria are not cohesive with real-time price action.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 41 (10:10 AM), the structured Intent Engine cites 'Current leg agrees' as a supporting factor for PREPARE_CALL. Conversely, Transmission data shows immediate negative movement (SPX -0.428, SPY -0.043) and the internal diagnostic 'localSide' is 'WAIT'.
+Next: Fix the logical linkage in the Intent Engine so that 'Current leg agrees' only appears when immediate market movement aligns with the intent direction.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:30 AM] GREEN · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Fix Verified: Intent Engine Cohesion Restored; 'Leg Agreement' Supported by Price Action
+Structured logic cohesion is verified as restored at tick 61. The 'Current leg agrees' supporting factor is now correctly cohesive with transmission price data (spxMove: 0.75) and Market Brain diagnostics (CALL), resolving the persistent logic disjointedness reported in previous snapshots (ticks 21, 41).
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 61, structured Intent Engine cites 'Current leg agrees' as a supporting factor for CALL. Transmission data shows spxMove: 0.75 and spyMove: 0.06, and diagnostics show brainSide: CALL, aligned with the CALL intent.
+Next: Acknowledge the restored cohesion between structured criteria and market data.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:44 AM] GREEN · EXPERIMENT · firstsignal-sim-v1.3-20260712
+Canonical CALL Entry Executed and Reported Correctly
+The simulator successfully executed and reported a canonical BUY_CALL entry for the 751 strike at $0.23 at 10:43 AM (tick 74), confirming correct trade execution logic in this scenario.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 75 (10:44 AM), the simulator shows a canonical FILL BUY CALL 751C @$0.23 was executed at 10:43 AM (tick 74). The current intent remains BUY_CALL. The journal also confirms entry execution at 10:43 AM.
+Next: Acknowledge and proceed with post-entry monitoring.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:04 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Transmission Failure Correctly Detected and Blocked within Open Position Intent
+Correct system performance verified at tick 95. Transmission failure (5 ticks) was successfully detected, and the generic blocker 'SIGNAL_TO_PRICE_TRANSMISSION_FAILED' was correctly applied to the open position intent, ensuring risk protocol adherence.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 95 (11:04 AM), Transmission Diagnostics denote 'state: TRANSMISSION_FAILED' with 'failedTicks: 5'. The Intent structure applies the corresponding blocker 'SIGNAL_TO_PRICE_TRANSMISSION_FAILED' to the HOLD action. The AI Journal at 11:03 AM confirms 5 failed ticks.
+Next: Acknowledge correct detection and blocking logic; continue monitoring for persistence.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:57 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Structured Intent Logic Contradiction: Price Persistence Gap Mismatch
+Structured intent data displays logical inconsistency. While 'Price persistence' is correctly listed as a 'Gap' preventing execution (given the negative immediate market move), the factor generation logic remains unstable, contradicting earlier session stability and creating disjointed internal state reasoning.
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 208, output lists 'Price persistence' as an active execution 'Gap' preventing trade readiness.
+  • Simultaneously, 'SupportingFactors' does not list 'Price persistence', which is logically consistent with it being a Gap.
+  • However, transmission data shows spxMove: -0.0657 and spyMove: -0.0461, indicating a lack of persistence, which justifies the Gap but contradicts previous verification of this logical linkage.
+Next: Evaluate the logic used to generate supporting factors and execution gaps. The simultaneous listing of 'Price persistence' as a gap while actual price movement is negative suggests the structured condition logic is not cohesive with the immediate market data, and prior fix verifications on this factor are unstable.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:17 PM] GREEN · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Fix Verified: Intent Engine Persistence Logic Aligned with Positive Price Action
+Internal logic cohesion is verified as restored at tick 228. The structured intent data correctly lists 'Price persistence' as a 'Gap' while positively aligned transmission metrics exist, showing stable linkage between structured criteria and real-time data, resolving the regression reported at tick 208.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 228, output lists 'Price persistence' as an active execution 'Gap'.
+  • Simultaneously, transmission metrics confirm positive market movement (spxMove: 3.428, spyMove: 0.136), yet 'Price persistence' is listed as NOT supported, correctly resulting in the activation of the Gap.
+  • This logic directly coheres with the current market state and internal factors.
+Next: Verify logic in subsequent snapshots. Coherence is currently restored, with gaps and transmission data logically aligned.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:37 PM] YELLOW · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Output Defect: Duplicate Entries in Intent Gaps Array
+The structured 'gaps' list within the intent data contains duplicate entries. While functionally blocking entry as intended, duplicate items indicate sloppiness in state data generation logic, reproducing instability themes reported previously in this build.
+Version assessment: New Finding · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 248, the structured 'gaps' list contains duplicate entries: ["Price persistence", "Acceleration active"] and subsequently repetition of the same.
+  • Prior reports have noted logical inconsistencies in factor/gap generation, and this duplication suggests a persistent defect in the array construction logic within the Intent engine.
+Next: Inspect the function responsible for populating the 'gaps' array in the structured intent response to ensure distinct items are added. Deduplicate the list before outputting.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:57 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Claims 'Leg Agreement' During Active Negative Price Action
+Structured logic disjointedness has regressed. The 'Current leg agrees' supporting factor is incorrectly active during substantive negative price movement (SPX -1.76, SPY -0.09), directly contradicting real-time data and reproducing logic breakdowns previously seen.
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 268, the structured intent data reports 'Current leg agrees' as a supporting factor for CALL intent.
+  • Simultaneously, dynamic transmission data confirms negative market movement (spxMove: -1.7658, spyMove: -0.0900) over the context window.
+  • A bearish immediate leg explicitly does not agree with a CALL intent. This reproduces the logic disjointedness reported earlier in the session (ticks 21, 41) among adjacent build versions.
+Next: Investigate logical linkage between real-time transmission data (price velocity) and the structured 'Current leg agrees' supporting factor. The factor is activating despite counter-directional flow, indicating unstable fix verification and persistent regression.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:17 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Persistent Slackness: Duplicate Entries Continue in Intent Gaps Array
+The structured 'gaps' list within the intent data persistently contains duplicate entries, repeating the defect identified at tick 248. While functionally appropriate for blocking entry, the duplication indicates unmitigated sloppiness in the state data generation logic.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 288, structured intent data lists 'duplicate entrants' within the 'gaps' array: ["Price persistence", "Acceleration active", "Price persistence", "Acceleration active"].
+  • This follows a previous report (tick 248) detailing duplication within the same array.
+  • This confirms the persistence of the underlying state data generation defect within the Intent engine, despite functional logic blocking entry.
+Next: Implement distinct item logic or use a data structure that enforces uniqueness (e.g., a set) when populating the 'gaps' array in the Intent model to fix sloppiness in state generation.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:37 PM] YELLOW · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Still Claims 'Leg Agreement' During Substantive Negative Price Action
+Structured logic disjointedness persists. The 'Current leg agrees' supporting factor is incorrectly active during substantive negative price movement (SPX -1.23, SPY -0.09), directly contradicting real-time data and repeating logic breakdowns previously seen.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • At tick 308, the structured intent data reports 'Current leg agrees' as a supporting factor for CALL intent.
+  • Simultaneously, confirmed transmission data confirms substantive negative market movement (spxMove: -1.2278, spyMove: -0.0860) over the context window.
+  • An actively bearish immediate leg explicitly does not agree with a CALL intent. This demonstrates the persistence of logical disjointedness, reproducing failures reported earlier (tick 268) and throughout prior builds.
+Next: Investigate logical linkage between transmission data (price velocity) and the structured 'Current leg agrees' supporting factor. The factor is activating despite counter-directional flow, indicating persistent regression.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:17 PM] GREEN · TRADER_BEHAVIOR · firstsignal-sim-v1.3-20260712
+Fix Verified: Intent Engine Cohesion Restored; 'Leg Agreement' Supported by Positive Price Action
+Structured logic cohesion is verified as restored at tick 348. The 'Current leg agrees' supporting factor is now correctly cohesive with transmission price data (spxMove: 4.91, spyMove: 0.44) and the bullish CALL intent, resolving the persistent logic disjointedness previously reported.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • tick:348 time:3:17 PM intent:BUY_CALL
+  • transmission: TRANSMISSION_CONFIRMED spxMove:4.91 spyMove:0.44
+  • supportingFactors: ["Current leg agrees"]
+  • prior findings: tick 268 (REGRESSION), tick 308 (SAME_BUILD_REPEAT), tick 328 (SAME_BUILD_REPEAT)
+Next: None required.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:37 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Playbook Constraint Stability Verified: Readiness Suppressed by Active Gaps
+Simulator operational stability is verified at tick 368. Intent readiness (77) remains properly suppressed below the dynamic threshold (92) by the correctly identified 'Price persistence' and 'Acceleration active' Gaps, appropriately adhering to playbook constraints despite positive transmission data.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • tick:368 time:3:37 PM intent:PREPARE_CALL
+  • threshold:92 readiness:77 executionReadiness:77
+  • gaps: ["Price persistence", "Acceleration active"]
+  • transmission: TRANSMISSION_CONFIRMED spxMove:2.038 spyMove:0.167
+Next: None required.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:57 PM] GREEN · APPROVAL · firstsignal-sim-v1.3-20260712
+Close Compatibility Stability Verified: Market Not Tradeable Blocker Blocks Entry Before Close
+Correct system protocol adherence is verified at tick 388 (3:57 PM). Despite strong positive price action, the generic blocker 'Market not tradeable' is appropriately applied, successfully reducing entry readiness to zero as the session approaches market close, maintaining risk management stability.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • tick:388 time:3:57 PM intent:PREPARE_CALL readiness:0 executionReadiness:0 blockers:["Market not tradeable"]
+Next: None required.
+Approval required: NO
+------------------------------------------------------------------------

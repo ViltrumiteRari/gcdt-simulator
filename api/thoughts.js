@@ -1,4 +1,4 @@
-﻿// FirstSignal Sim V1 thought API.
+// FirstSignal Sim v1 thought API.
 // gcdt_thoughts is the legacy physical table name and must remain until a coordinated DB migration.
 export const config = { runtime: 'edge' };
 

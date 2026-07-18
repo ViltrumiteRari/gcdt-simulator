@@ -1,0 +1,7 @@
+{
+  "meetingName": "meeting85_jul12_511pm",
+  "status": "FAILED",
+  "error": "TOKEN_ROUTE_OFFLINE:Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+  "completedCases": [],
+  "totalCases": 5
+}

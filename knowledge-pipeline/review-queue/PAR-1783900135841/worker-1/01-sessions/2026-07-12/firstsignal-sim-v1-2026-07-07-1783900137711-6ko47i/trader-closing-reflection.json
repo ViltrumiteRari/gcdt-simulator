@@ -1,0 +1,12 @@
+{
+  "sessionId": "firstsignal-sim-v1-2026-07-07-1783900137711-6ko47i",
+  "replayDate": "2026-07-07",
+  "privateReflection": "Session close reflection unavailable.",
+  "nextSessionHandoff": "Carry forward uncertainty; do not convert one session into a universal rule.",
+  "completedAt": "2026-07-12T23:57:58.964Z",
+  "traderContinuity": {
+    "available": true,
+    "connectedAt": 1783900673204,
+    "bootstrapped": true
+  }
+}

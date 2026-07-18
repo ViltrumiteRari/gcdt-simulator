@@ -1,0 +1,15 @@
+{"at":"2026-07-12T06:00:13.351Z","role":"OBSERVER","attempt":1,"promptBytes":15391,"elapsedMs":7292,"status":"OK"}
+{"at":"2026-07-12T06:00:21.256Z","role":"TRADER","attempt":1,"promptBytes":17996,"elapsedMs":6234,"status":"OK"}
+{"at":"2026-07-12T06:00:29.154Z","role":"OBSERVER","attempt":1,"promptBytes":18968,"elapsedMs":7064,"status":"OK"}
+{"at":"2026-07-12T06:00:53.782Z","role":"OBSERVER","attempt":1,"promptBytes":15614,"elapsedMs":8432,"status":"OK"}
+{"at":"2026-07-12T06:01:03.572Z","role":"TRADER","attempt":1,"promptBytes":17224,"elapsedMs":8480,"status":"OK"}
+{"at":"2026-07-12T06:01:11.071Z","role":"OBSERVER","attempt":1,"promptBytes":18759,"elapsedMs":6092,"status":"OK"}
+{"at":"2026-07-12T06:01:35.794Z","role":"OBSERVER","attempt":1,"promptBytes":17573,"elapsedMs":8410,"status":"OK"}
+{"at":"2026-07-12T06:01:59.873Z","role":"TRADER","attempt":1,"promptBytes":21199,"elapsedMs":23024,"status":"OK"}
+{"at":"2026-07-12T06:02:08.676Z","role":"OBSERVER","attempt":1,"promptBytes":23101,"elapsedMs":7212,"status":"OK"}
+{"at":"2026-07-12T06:02:31.925Z","role":"OBSERVER","attempt":1,"promptBytes":18005,"elapsedMs":7086,"status":"OK"}
+{"at":"2026-07-12T06:02:42.400Z","role":"TRADER","attempt":1,"promptBytes":20743,"elapsedMs":9626,"status":"OK"}
+{"at":"2026-07-12T06:02:49.561Z","role":"OBSERVER","attempt":1,"promptBytes":23331,"elapsedMs":5956,"status":"OK"}
+{"at":"2026-07-12T06:03:14.661Z","role":"OBSERVER","attempt":1,"promptBytes":16726,"elapsedMs":9132,"status":"OK"}
+{"at":"2026-07-12T06:03:22.847Z","role":"TRADER","attempt":1,"promptBytes":19085,"elapsedMs":7148,"status":"OK"}
+{"at":"2026-07-12T06:03:30.310Z","role":"OBSERVER","attempt":1,"promptBytes":20571,"elapsedMs":5765,"status":"OK"}

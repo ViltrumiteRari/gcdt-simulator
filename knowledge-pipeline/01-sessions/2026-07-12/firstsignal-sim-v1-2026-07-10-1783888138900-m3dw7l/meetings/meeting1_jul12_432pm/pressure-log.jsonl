@@ -1,0 +1,4 @@
+{"at":"2026-07-12T20:32:24.818Z","role":"OBSERVER","attempt":1,"promptBytes":18753,"elapsedMs":7829,"status":"OK"}
+{"at":"2026-07-12T20:32:34.780Z","role":"TRADER","attempt":1,"promptBytes":21187,"elapsedMs":8772,"status":"OK"}
+{"at":"2026-07-12T20:32:41.809Z","role":"OBSERVER","attempt":1,"promptBytes":23030,"elapsedMs":6014,"status":"OK"}
+{"at":"2026-07-12T20:33:01.877Z","role":"OBSERVER","attempt":1,"promptBytes":18516,"status":"ERROR","error":"LIVE_CLOSE:"}

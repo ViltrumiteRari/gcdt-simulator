@@ -1,0 +1,102 @@
+
+[9:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+System Initializes Correctly in Warmup State
+At tick 1, 9:30 AM, the system correctly initiated in a WAIT state with the expected blocker 'Session warming up', reflecting standard session initialization logic.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Session start at 9:30 AM, Tick 1.
+  • Intent state: WAIT.
+  • Blocker: 'Session warming up'.
+  • BuildId: firstsignal-sim-v1.3-20260712.
+Next: None; monitor next ticks for normal intent progression.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:48 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Canonical BUY_CALL Executed Successfully Following Warmup
+The system successfully transitioned from warmup and executed a canonical BUY_CALL entry at 9:47 AM (tick 18). Journal prose and mindset align with the structured BUY_CALL intent, confirming correct execution and logic cohesion in the valid opportunity window.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Entry executed at 9:47 AM, tick 18, BUY_CALL 752C @$0.25.
+  • Current position: CALL, strike 752, entry 0.25, currentSpot 749.053876.
+  • Recent Journal (9:47 AM): 'ENTRY_EXECUTED AI BUY_CALL 752C @$0.25 ... readiness 98%'
+  • Recent Journal (9:47 AM): 'AI_THESIS Causal case for CALL is strong ... canonical system shows a BUY_CALL action'
+  • Mindset (9:47 AM): 'decision: BUY_CALL, score: 41, edgeState: ENTRY_READY'
+Next: None; successful execution and transition out of warmup.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:56 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Hold Intent Latency After Position Exit via Spot Invalidation
+The position was exited via SPOT_INVALIDATION at 9:55 AM. However, at tick 27 (9:56 AM), the intent action incorrectly remains HOLD, sourced from 'OPEN_POSITION', with factors still referencing managing the exited CALL thesis. This indicates persistent latency in intent state update immediately following a structured exit.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Thesis exit executed at 9:55 AM for -12.0% loss.
+  • Exit type: SPOT_INVALIDATION. Entry Spot: 749.048, Exit Spot: 748.42.
+  • Position is null at tick 27 (9:56 AM).
+  • Intent action at tick 27 is HOLD, direction CALL, supporting factors mention 'Managing existing CALL thesis'.
+Next: Investigate intent engine logic to ensure state reset immediately follows exit confirmation.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:12 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Valid Re-entry Executed; Diagnostics Correctly Apply Logic Override
+The system successfully executed a canonical re-entry BUY_CALL at 10:11 AM. Re-entry diagnostics correctly recognized 'material new evidence' (new extreme, fresh frontier, cleared prior extreme), logically overriding the dynamic GEX_VELOCITY block from the prior loss. This verifies the re-entry logic from prior build regressions is functioning correctly in this scenario.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Entry executed at 10:11 AM, BUY_CALL 752C @$0.26.
+  • Recent Journal (10:11 AM): 'new SPY push... SPX-ITS expansion... acceleration surge... SPX leading strongly.'
+  • Reentry Diagnostics (tick 42): 'allowed: true', 'newEvidence: [new extreme beyond prior episode, fresh local/session frontier, cleared prior attempt extreme]'.
+  • Reentry Diagnostics also note: 'override: AI must identify material new evidence'.
+Next: None; verify fix persistence in future sessions.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:19 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Intent Action 'HOLD' Persists After Major Vehicle Failure Profit Exit
+The position was exited via VEHICLE_FAILURE at 10:18 AM for a significant -38.5% loss. However, at tick 50 (10:19 AM), the intent action remains HOLD, sourced from 'OPEN_POSITION', with supporting factors referencing managing the non-existent entry. This reproduces the critical regression of intent state latency following un-planned exits.
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Thesis exit executed at 10:18 AM, tick 49 (implied).
+  • Exit type: VEHICLE_FAILURE. P/L: -38.5% ($-338).
+  • Position at tick 50 (10:19 AM) is null.
+  • Intent action at tick 50 is HOLD, Source: 'OPEN_POSITION'. Supporting Factors: 'Managing existing CALL thesis', '-26.9% option P/L'.
+Next: Investigate and fix persistent intent state logic latency immediately following a VEHICLE_FAILURE exit.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:39 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Reentry Diagnostics Fail to Recognize Cleared extremes with Price Objective Surplus
+Reentry is blocked because diagnostics claim "clearedPriorAttempt" and "freshFrontier" are false. However, current SPY price (749.65) objectively exceeds the prior attempt entry spot (749.50) and previous local high (749.55). This indicates a repeated regression where logical override criteria are incorrectly false despite supportive market data, reproducing failures seen in previous builds despite earlier verification of fix at tick 43. Note drawback block is correctly active.
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Position null at tick 70, time 10:39 AM.
+  • Intent blocked by: ["No genuinely new evidence since failed CALL", "DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE"].
+  • Market price: SPY 749.65... SPX 7523.4...
+  • Reentry diagnostics (tick 69): freshFrontier: false, clearedPriorAttempt: false.
+  • Previous P2 Attempt: EntrySpot: 749.508..., MaxFavorableSpot: 749.556... ExitSpot: 749.127...
+Next: Repair re-entry data mapping logic to correctly recognized cleared extremes when market price surpasses prior attempt points.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:59 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Persistence of Invalid Exit-Execution Intent Following Vehicle Failure Exit
+AI journal prose explicitly details actively 'executing exit plan' at ticks 87, 89, and 90, contradicting the structured intent action which remains 'PREPARE_CALL' with no current position. This continues the critical latency regression where intent state logic fails to update correctly immediately following non-canonical exits, reproducing issues from prior builds (and earlier in this session at tick 50).
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 90, 10:59 AM. Intent action is 'PREPARE_CALL'. State: not in position. Last trade exited at 10:18 AM (tick 50).
+  • Journal entries from 10:55 AM (tick 87) and 10:56 AM (tick 89) report 'Executing exit plan' and 'Continuing to execute exit' respectively, after recognizing a burst past the 750 wall.
+Next: Fix critical latency causing incorrect 'HOLD' and 'OPEN_POSITION' logic to persist after un-planned trade exits. This regression has been reported in multiple builds.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:19 AM] YELLOW · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Persistent Open-Position Logic Following Vehicle Failure
+The system continues to reproduce the critical logic regression where open-position exit management persists after a trade is closed. At tick 110, the AI journal references managing an exit and describes the position as 'highly favorable,' yet the structured position state has been null since the vehicle failure at tick 50 (10:18 AM). This reproduces INTENT_EXIT_EXECUTION_LATENCY_AFTER_VEHICLE_FAILURE_V1_3 reported at tick 90.
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 110, 11:19 AM. Intent action is 'PREPARE_CALL'. Position is null.
+  • Journal entry at 11:16 AM (tick 109) reads: 'Ready to actively manage exit on expansion towards FEP zone.' and 'Position remains highly favorable.'
+Next: Fix the high-priority latency causing open-position 'HOLD' and 'EXIT_MANAGEMENT' logic to persist in the structured intent models long after an unplanned exit.
+Approval required: NO
+------------------------------------------------------------------------

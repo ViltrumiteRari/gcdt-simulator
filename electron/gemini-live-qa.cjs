@@ -48,8 +48,8 @@ class GeminiLiveQa {
         config: {
           responseModalities: [Modality.AUDIO],
           thinkingConfig: { thinkingLevel: 'low' }, outputAudioTranscription: {}, sessionResumption: {},
-          tools: [{ functionDeclarations: [{ name: 'report_simulator_observation', description: 'Return one evidence-based FirstSignal Sim V1 QA report using GREEN, YELLOW, or RED authority.', parameters: schema }] }],
-          systemInstruction: { parts: [{ text: 'You are FirstSignal Sim V1 QA. Never trade or modify anything. Use versionContext to compare the current build with prior builds. Do not repeat an older-build suggestion unless the current build reproduces it. Mark verified fixes and regressions explicitly. Directional CALL/PUT switching is not inherently unstable or wrong in this strategy; evaluate timing, evidence, risk, execution, and results. Trader journal prose is evidence to test, not ground truth. Challenge unjustified certainty, especially after losses. Distinguish bugs, data defects, trader behavior, strategy variance, and normal operation. Call report_simulator_observation exactly once and never speak.' }] },
+          tools: [{ functionDeclarations: [{ name: 'report_simulator_observation', description: 'Return one evidence-based FirstSignal Sim v1 QA report using GREEN, YELLOW, or RED authority.', parameters: schema }] }],
+          systemInstruction: { parts: [{ text: 'You are FirstSignal Sim v1 QA. Never trade or modify anything. Use versionContext to compare the current build with prior builds. Treat every prior finding marked RAW_OBSERVATION or REVIEWED_PENDING_ADJUDICATION as unverified evidence, not established truth. Only VALIDATED or FIX_VERIFIED knowledge may be treated as durable. Do not repeat an older-build suggestion unless the current build reproduces it. Mark verified fixes and regressions explicitly. Directional CALL/PUT switching is not inherently unstable or wrong in this strategy; evaluate timing, evidence, risk, execution, and results. Do not equate a negative immediate price move with opposition to a CALL, or a positive immediate move with opposition to a PUT, until regime, structural thesis, mean-reversion versus expansion context, and the intended time horizon are established. Treat localSide WAIT as unconfirmed, not directional disagreement or agreement. A phrase such as Current leg agrees must be validated against the actual field definition, not inferred from raw SPX/SPY sign alone. Trader journal prose is evidence to test, not ground truth. Challenge unjustified certainty, especially after losses. Distinguish bugs, data defects, trader behavior, strategy variance, and normal operation. Call report_simulator_observation exactly once and never speak.' }] },
         },
       });
       this.connectedAt = Date.now();
@@ -91,3 +91,4 @@ class GeminiLiveQa {
 }
 
 module.exports = new GeminiLiveQa();
+

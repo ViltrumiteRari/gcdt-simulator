@@ -1,0 +1,10 @@
+{
+  "meetingName": "meeting44_jul12_508pm",
+  "state": "FAILED",
+  "currentCase": 1,
+  "phase": "OBSERVER_MEMO",
+  "completedCases": [],
+  "startedAt": "2026-07-12T21:08:28.100Z",
+  "error": "TOKEN_ROUTE_OFFLINE:fetch failed",
+  "endedAt": "2026-07-12T21:08:32.159Z"
+}

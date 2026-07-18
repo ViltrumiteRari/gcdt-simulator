@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Track operationally failed or incomplete runs that still contain useful evidence. Trading losses alone do not make a run failed.",
+  "runs": [
+    {
+      "id": "VFR-2026-07-08-001",
+      "sessionId": "firstsignal-sim-v1-2026-07-08-1784058079789-yjsjgq",
+      "marketDate": "2026-07-08",
+      "buildId": "firstsignal-sim-v1.10-compounding-memory-20260714",
+      "classification": "FINALIZATION_FAILURE_WITH_VALID_TRADING_EVIDENCE",
+      "status": "OPERATIONALLY_INCOMPLETE",
+      "eventIntegrity": "405_OF_405_VALID",
+      "tradingOutcomeStatus": "VALID_NORMAL_RESULT",
+      "reflectionFailure": "Closing reflection was never returned or persisted, so session/end could not complete.",
+      "promotionPolicy": "Trading evidence may be inspected, but the run is not eligible for completed-session promotion because the same-Trader closing reflection is missing."
+    }
+  ]
+}

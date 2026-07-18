@@ -1,0 +1,16 @@
+{
+  "id": "CAMPAIGN-1784263056503",
+  "name": "July 16 expanded-data 10x run",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-16"
+  ],
+  "tailMinutes": 0,
+  "status": "RUNNING",
+  "createdAt": "2026-07-17T04:37:36.503Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-16"
+}

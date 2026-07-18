@@ -1,0 +1,17 @@
+{
+  "sessionId": "firstsignal-sim-v1-1784066224680-3r8sla",
+  "replayDate": "2026-07-13",
+  "privateReflection": "This session was defined by patience. Despite observing the flow, at no point did conditions align sufficiently to trigger an entry based on my established playbook. My primary success was avoiding the temptation to force a trade in the absence of a clear edge, thereby protecting capital. I recognized that waiting is an active, profitable decision in itself when the probabilistic advantage is missing. I take responsibility for maintaining this discipline. This reinforces that not trading is superior to speculative trading.",
+  "nextSessionHandoff": "Maintain discipline and prioritize capital preservation. The next session requires the same commitment to waiting for explicitly defined edge criteria. Continue to track flow dynamics without emotional attachment to taking a trade.",
+  "traderContinuity": {
+    "available": true,
+    "connectedAt": 1784067350710,
+    "bootstrapped": false,
+    "state": "RESUMED_ORIGINAL",
+    "resumptionHandleAvailable": true,
+    "sessionGeneration": 6,
+    "breakReason": null
+  },
+  "state": "CAPTURED_BEFORE_FINALIZATION",
+  "savedAt": "2026-07-14T22:15:52.711Z"
+}

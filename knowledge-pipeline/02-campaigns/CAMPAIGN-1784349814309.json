@@ -1,0 +1,54 @@
+{
+  "id": "CAMPAIGN-1784349814309",
+  "name": "Fresh Jul15 10x V17 Dual Side",
+  "targetRuns": 1,
+  "completedRuns": 0,
+  "replayDates": [
+    "2026-07-15"
+  ],
+  "tailMinutes": 0,
+  "status": "FAILED",
+  "createdAt": "2026-07-18T04:43:34.309Z",
+  "runs": [],
+  "processedSessionIds": [],
+  "proposals": [],
+  "currentReplayDate": "2026-07-15",
+  "failedAt": "2026-07-18T04:45:34.186Z",
+  "failure": {
+    "state": "FAILED_STALL",
+    "code": "NO_TICK_PROGRESS_60S",
+    "workerRuntime": {
+      "state": "RUNNING",
+      "tick": 1,
+      "eventCount": 1,
+      "lastProgressAt": 1784349932300,
+      "updatedAt": "2026-07-18T04:45:32.300Z",
+      "provider": {
+        "state": "CONNECTED",
+        "circuitOpen": false,
+        "circuitReason": null,
+        "lastFailure": null,
+        "connected": true,
+        "connecting": false,
+        "pendingKind": "observation",
+        "throttleUntil": null,
+        "retryAfterMs": 0,
+        "continuity": {
+          "available": true,
+          "connectedAt": 1784349928242,
+          "bootstrapped": true,
+          "state": "ORIGINAL_LIVE",
+          "resumptionHandleAvailable": true,
+          "sessionGeneration": 1,
+          "breakReason": null
+        }
+      },
+      "running": true,
+      "aiFrozen": false,
+      "thinking": false,
+      "buildId": "firstsignal-sim-v1.17-dual-side-reversal-core-20260718",
+      "buildSequence": 17,
+      "at": "2026-07-18T04:45:32.298Z"
+    }
+  }
+}

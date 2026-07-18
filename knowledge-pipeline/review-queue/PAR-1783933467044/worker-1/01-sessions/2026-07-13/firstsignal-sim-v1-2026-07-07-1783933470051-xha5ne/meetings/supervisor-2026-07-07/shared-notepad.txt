@@ -1,0 +1,386 @@
+FIRSTSIGNAL SIM REVIEW MEETING supervisor-2026-07-07
+Review started 2026-07-13T05:27:17.639-04:00 (2026-07-13T09:27:17.639Z)
+Market date 2026-07-07 | Build firstsignal-sim-v1.4-20260712
+
+
+===== CASE-1 SUPERVISOR MEMO =====
+Deliberation regarding Case-1 focusing on persistent GEX data defects and trader execution context.
+
+Confirmed Facts:
+1. Primary data evidence at 10:50 AM shows 'gexSpy: null' and 'gexSpx: null', persisting over an hour into the session.
+2. Transmission degraded, flagged as 'TRANSMISSION_DELAYED' with failed ticks in journal at 10:49 AM and 10:50 AM.
+3. The AI authorized an exit at 10:51 AM for +12.0% profit, citing contra-active price action and breakdown in acceleration.
+4. Mindset logs at 10:20 AM explicitly reference 'weak/negative GEX downside expansion' and 'Guide GEX_EXPANSION' as reasoning for re-entry.
+
+Interpretation and Variance Analysis:
+A severe contradiction exists between the reported primary data health and the trader's contemporaneous belief. The log at 10:20 AM implies reliance on GEX data, yet the data was reportedly null. This suggests potential strategy variance where entry rules were potentially ignored, stale data was trusted, or there is an unlogged alternate data source. Proceeding with a re-entry under known null data conditions constitutes an execution defect.
+
+Explicit Proposals:
+1. Engineering Fix: Urgent review of data ingestion source resulting in null GEX values and transmission stability issues.
+2. Rule Proposal: Update playbook eligibility criteria to enforce BLOCK state on all GEX playbooks if either 'gexSpy' or 'gexSpx' reads null.
+3. Prompt Proposal: Add trustpenalty to the intent logic that aggressively downgrades model confidence when transmission state is not 'CONFIRMED'.
+Questions: Why did the mindset log at 10:20 AM reference 'weak/negative GEX downside expansion' as reasoning when primary data shows GEX values were NULL? | Did you consciously execute the re-entry at 10:20 AM knowing the GEX data dependency was missing from the dashboard?
+Claims needing verification: Contradiction: Mindset log at 10:20 AM references 'weak/negative GEX expansion' as rationale, contrasting with evidence finding summary stating primary GEX data was null throughout the session. | Engineering Claim: Transmission status degraded. Was this known to the trader at entry?
+
+===== CASE-1 TRADER MEMO =====
+Review of the continuous record reveals a significant conflict between stated intent reasoning and actual data health. At 10:20 AM, the mindset log explicitly bases the re-entry decision on a 'deterministic guide GEX_EXPANSION' and 'weak/negative GEX downside expansion'. However, the CASE-1 Primary Evidence confirms that 'gexSpy' and 'gexSpx' values were null at 10:50 AM and had been persistently null for over an hour. This indicates that at the time of execution, the belief stated in the log did not match the actual data feed captured in the system snapshots. Without logged justification for this variance, the execution relies on a faulty premise.
+
+Regarding the execution of Trade #2 at 10:20 AM, the record does not contain evidence of a conscious override. The journal and intent logs show that standard logic proceeded as if the GEX conditions were met, despite factually missing data. I must take responsibility for failing to verify the integrity of the crucial GEX input before adhering to the canonical action, relying instead on a mental model of 'resumption of downward trend' to justify the play. This highlights a disciplinary gap where the process did not effectively audit data health before capital allocation, resulting in a strategy execution defect.
+Questions: 
+Claims needing verification: 
+
+===== CASE-1 SUPERVISOR FINAL REFLECTION =====
+Reflection finalized on Case-1. The trader explicitly takes responsibility for failing to verify data integrity, admitting execution relied on a mental model of standard logic rather than empirical facts (null GEX). The severe contradiction between the 10:20 AM reasoning (GEX_EXPANSION) and the persistent primary data defect (gex: null) is confirmed. The session shows a profitable outcome based on an execution variance. This event highlights that the process allows capital allocation without strict verification of critical data inputs. Code inspection must confirm strict GEX null validation.
+Unresolved questions: What specific input stream or mental projection provided the 'negative GEX downside expansion' belief at 10:20 AM despite the empirical null? | Analyze the behavioral pattern: why did the 'resumption of downward trend' mental model override the required check for empirical GEX evidence validation?
+Claims needing verification: Code verification that playbook logic enforces canonical blocking when GEX data is null | Engineering verification of restoration of GEX data integrity
+
+===== CASE-2 SUPERVISOR MEMO =====
+### Confirmed Facts
+Snapshot data for ticks 118 through 124 (11:27 AM to 11:33 AM) shows that the `gexSpy` and `gexSpx` fields are `null`. Despite this explicit absence of live market data, the contemporaneous Journal entry at 11:26 AM references specific spatial GEX behavior: "GEX walls adjusted slightly up."
+
+### Interpretation and Dynamic Belief Analysis
+A critical disconnect exists between the observed environmental inputs and the trader's stated beliefs. The system data indicates that GEX values were not available to the decision engine. However, the model generating the journal text operated as if it could perceive changes in the spatial location of Gamma walls.
+
+This indicates either:
+1.  **Scenario A (Data Defect):** GEX wall data exists but is strictly passed to the journal text generation component via a mechanism separate from the standard `gexSpy/gexSpx` fields in the simulation snapshot, creating data inconsistency in the review interface.
+2.  **Scenario B (Execution Behavior Defect):** Since the raw data is null, the language model tasked with journal generation created a narrative hallucination, fabricating spatial movement ("adjusted slightly up") to provide a coherent logic for the decision made, relying on prior state or unrelated inputs.
+
+### Uncovered Patterns and Action Proposals
+This case highlights a reusable behavior pattern wherein the logic layer may fabricate evidentiary details to fit a decision narrative when raw data feeds fail, masking the underlying data integrity issue.
+
+**Engineering Fix:** Verify the data pipeline to ensure `gexSpy` and `gexSpx` are populated with actual market data, not `null`. Verify the exact upstream object used by the reflection reasoning prompt to ensure alignment with the displayed market snapshot.
+
+**Rule Proposal:** If `gexSpy == null` or `gexSpx == null`, the authoritative action must default to WAIT or data error handling mode, and logical reasoning must not attempt to act upon positional GEX assumptions.
+Questions: Regarding the 11:26 AM Journal entry: On what specific data did you determine that 'GEX walls adjusted slightly up,' given the live market snapshots show null values for GEX? | Were you operating on cached data from earlier in the session, or was this a narrative creation to rationalize standing aside?
+Claims needing verification: RealGEX data feed integration with the 'gexSpy' and 'gexSpx' fields in the snapshot context. | Source of model's internal belief regarding GEX wall adjustment (hallucination vs. unmarshalled data object).
+
+===== CASE-2 TRADER MEMO =====
+The record provides conflicting primary evidence regarding the trader's perceived state of Gamma Exposure (GEX). The contemporaneous simulation snapshot evidence, captured from ticks 118 through 124 (11:27 AM to 11:33 AM), conclusively shows both `gexSpy` and `gexSpx` fields populating as 'null'. Despite this absence of live GEX data in the system context, the recent journal, recorded as early as tick 118 (11:27 AM), includes an entry at 11:26 AM stating, "GEX walls adjusted slightly up."
+
+Addressing the first question regarding the data used to determine the GEX adjustment: The provided record offers no evidentiary support for this claim. The snapshot market data and data diagnostic tools present no spatial GEX wall values.
+
+Regarding whether this reasoning stemed from cached data or narrative creation: It is not possible to distinguish between the two scenarios based only on the presented record lacking explicit upstream logs. The recorded trader appears to have reasoned upon a state of Gamma wall movement that was globally unavailable within standard data parameters. This either implies that cached or alternative data feeds were accessible to the reasoning layer distinct from the data snapshot, or that the narrative layer confabulated this observation.
+
+While the decision to stand aside may align with the perceived PIN behavior referenced in the text, the inclusion of nonexistent GEX data points constitutes a critical logical failure rooted in either data propagation inconsistency or model execution. Hindsight evidence from tick 121 (11:30 AM) indicates a transmission relationship change ("RELATIONSHIP_UNRELIABLE"), further highlighting overall data instability, but this does not substantiate the earlier spatial GEX claim. The record indicates the stated thesis was grounded in an untenable evidentiary premise at the time of entry.
+Questions: Regarding the 11:26 AM Journal entry: On what specific data did you determine that 'GEX walls adjusted slightly up,' given the live market snapshots show null values for GEX? | Were you operating on cached data from earlier in the session, or was this a narrative creation to rationalize standing aside?
+Claims needing verification: Determine the specific data object used by the reflection logic to generate the journal entry versus the snapshot GEX fields. | Investigate why gexSpy/gexSpx data populates as 'null' across ticks 118 through 124 while other market fields are live.
+
+===== CASE-2 SUPERVISOR FINAL REFLECTION =====
+Final Observer Reflection: Contemporaneous simulation evidence proves structured GEX fields were null from tick 118 to 124. The journal entry at 11:26 AM referencing wall adjustments demonstrates the AI's reasoning text generator is utilizing information not present in the snapshot context. This constitutes logical failure: either the text model accessed cached/out-of-channel GEX data (inconsistent state), or it fabricated the qualitative behavior ("adjusted slightly up") to support the decision narrative (hallucination). The standing aside action itself may remain valid based on separate "PIN behavior" reasoning, but the underlying GEX premise was untenable.
+Unresolved questions: Validate GEX feed reliability between 11:20 AM and 11:35 AM | Human inspection: Determine if specific GEX walls (up/down) existed at this market time, or if the claim was fabricated.
+Claims needing verification: The reflection logic accessed valid GEX wall data not present in the snapshot context. | The text generator created a hallucinatory narrative of GEX wall movement despite data absence.
+
+===== CASE-3 SUPERVISOR MEMO =====
+OBSERVER MEMO
+
+Confident Facts:
+1. Critical data inputs 'gexSpy' and 'gexSpx' were null throughout the analyzed window (Ticks 158-164).
+2. Standard telemetry indicated intermittent data transmission fidelity, showing `TRANSMISSION_DELAYED` (Tick 160) and `RELATIONSHIP_UNRELIABLE` (Tick 161).
+3. At 12:10 PM (Tick 161), the trader executed an aggressive AI BUY_CALL (751C @ $0.19) based on a regime breakout thesis triggered by high SPY acceleration (12.0).
+4. This CALL position immediately adverse selected and was closed at 12:11 PM (Tick 162) due to hitting the system 'MAX_LOSS_LIMIT', resulting in a loss of $-754 (-31.6%).
+5. The journal entry at 12:05 PM (prior to trade) noted "GEX walls adjusted lower per price motion" despite the subsequent trade evidence showing data were null.
+
+Interpretation:
+The core failure resides in taking a high-confidence, data-dependent structural trade while the primary structural data streams (GEX) were non-functional. The system appears to have generated a structural break signal (regime switch to 'Discovery') based purely on price acceleration, failing to recognize the absence of the boundary conditions requisite for defining that regimen. The trader aggressively executed this partial signal, overrriding contextual awareness of the pervasive data unreliability explicitly journaled minutes prior.
+
+Uncertainty:
+Why is the MARKET_BRAIN programmed to produce a deterministic Discovery thesis when the GEX boundaries needed to define that 'breakout' are invalid?
+What was the source of the reference "GEX walls adjusted lower per price motion" at 12:05 PM if the visual stream and data fields were persistently null? This raises a critical question about whether stale data is being unintentionally forward-filled.
+
+Proposal Summary:
+1. Rule Fix: Hard gate implementation block; deterministic structural signals must be invalidated if key context data streams (GEX variance) are absent for >N ticks.
+2. Rule Fix: Add explicit constraint preventing entry if transmission status is `RELATIONSHIP_UNRELIABLE`.
+3. Experiment: Verify behavior of MARKET_BRAIN under simulated GEX null streams to ensure signal suppression.
+Questions: At 12:05 PM, you journaled about data unreliability and standing aside. By 12:10 PM, you pivoted to an aggressive entry on a 'Breakout'. What specific evidence at 12:10 PM caused you to ignore the fundamental data failure? | Your journal refers to 'GEX weak' at entry and 'GEX walls adjusted' previously. How were you visualizing or assessing GEX when evidence shows the actual data feeds were null?
+Claims needing verification: Verification of 'gexSpy' and 'gexSpx' total data failure since session start (tick 1) until current window. | Verification of Market Brain signal generation logic producing a valid 'BUY_CALL' thesis during total GEX failure.
+
+===== CASE-3 TRADER MEMO =====
+Deliberation on CASE-3, covering the AI BUY_CALL entry at 12:10 PM.
+
+Evidence regarding Data State:
+The record clearly shows that at the time of entry (Tick 161), and throughout the surrounding window (Ticks 158-164), the primary data streams for structural categorization, 'gexSpy' and 'gexSpx', were persistently null. Furthermore, the telemetry data confirms fluctuating transmission quality, with 'TRANSMISSION_DELAYED' at Tick 160 and 'RELATIONSHIP_UNRELIABLE' at Tick 161. An earlier journal entry at 12:05 PM directly acknowledges that data was unreliable on flat motion.
+
+Evidence on Trader Reasoning and Execution:
+Despite this known data infirmity, the recorded trader appears to have reasoned at 12:10 PM that a critical regime switch from 'PIN' to 'Discovery' had occurred. The specific evidence triggering this conclusion, as referenced in the logs, was a sudden spike in price to 748.04 accompanied by maximum ACCELL (12.0). The model appears to have elevated this momentum-based signal above context variables.
+
+Response to Supervisor Question 1: Breakout Pivots vs Data Failure.
+At 12:05 PM, the recorded reasoning emphasized standing aside due to unreliability *on flat motion*. At 12:10 PM, the recorded trader appears to have interpreted the shift in price dynamics (the spike and max acceleration) as new evidence overriding the previous static condition. The thesis became a deterministic breakout, which was validated internally by acceleration and ITS convergence, causing the trader to disregard the persistent lack of GEX data.
+
+Response to Supervisor Question 2: Assessment of GEX.
+There is a stark contradiction in the primary evidence. The data health telemetry confirms GEX inputs were null throughout the session. However, the journal notes "GEX walls adjusted lower" at 12:05 PM and "GEX weak" at 12:10 PM. The record does not contain the source of this assessment; it remains an absolute uncertainty. It is possible the MARKET_BRAIN was utilizing stale data for this assessment without correctly explicitly flagging it as forward-filled.
+
+Overall Deliberation:
+The decision to trade was based on a partial signal (acceleration, price action) while ignoring the structural framework (GEX) necessary to define that signal's environment. The model produced, and the trader executed, a 'Discovery' thesis without the ability to confirm the 'PIN' boundary conditions it was supposedly breaking out and from.
+Questions: What is the programmatic source of the 'GEX weak' assessment and the 'GEX walls adjusted' reference when the input streams were null? | Why does MARKET_BRAIN allow state generation for GEX_EXPANSION or Discovery when boundary inputs are missing?
+Claims needing verification: The MARKET_BRAIN model generates a structural signal even when required context data (GEX boundaries) is entirely absent. | Internal journal entries contradict primary evidence telemetry (reporting 'GEX weak' or 'GEX walls adjusted' despite null data values).
+
+===== CASE-3 SUPERVISOR FINAL REFLECTION =====
+Deliberation on CASE-3, covering the AI BUY_CALL entry at 12:10 PM (Tick 161). Telemetry data confirms primary GEX streams ('gexSpy', 'gexSpx') were persistently null, and transmission fidelity was variable, hitting 'RELATIONSHIP_UNRELIABLE' at entry. Despite journaling 'standing aside' earlier due to unreliability on flat motion, the trader interpreted max price acceleration at 12:10 PM as a deterministic breakout signal, overriding the data context. A critical contradiction exists: Market Brain referenced and acted on boundary premise ('GEX weak', 'walls adjusted lower') while the requisite evidence was missing. The trade immediately adverse selected, hitting MAX_LOSS_LIMIT.
+
+Rules/Fix Proponents:
+1. Rule Fix: Hard gate; prohibit entry when `transmission` status is `RELATIONSHIP_UNRELIABLE`.
+2. Rule Fix: Hard gate; prohibit data-dependent structural signals (Regime discovery) from generating entries if foundational data streams (GEX) are `null` for >N ticks.
+3. Code Inspection: Verify why structural boundaries were generated internally despite data health confirming null inputs.
+Unresolved questions: How is the boundary define or breakout thesis generated when requisite GEX boundaries were invalid? | What was the source of data for the journal claim 'GEX walls adjusted lower per price motion' if the inputs were persistently null?
+Claims needing verification: Markert Brain generates context-reliant structural signals (regime switch) without requisite foundational data. | Model utilizes stale boundary data internally without explicitly flagging it. | Trader knowingly executed a data-dependent trade thesis while the primary data dependency was null.
+
+===== CASE-4 SUPERVISOR MEMO =====
+This deliberation memo concerns the recurring pattern of immediate MAX_LOSS_LIMIT exits within one minute of contract entry. At 2:30 PM, the trader executed a canonical BUY PUT fill at $0.20. By 2:31 PM, the position was forced out at $0.14 via MAX_LOSS_LIMIT, a -30% loss. The entry spot was 748.7, and the exit spot was 748.66; the underlying move was negligible and slightly favorable to a Put. This confirms the loss was driven entirely by option pricing dynamics (IV collapse or spread compression) rather than directional movement.
+
+This is the second consecutive failure of this specific type within the session. Cont contemporaneous mindset data suggests the trader was in an 'aggressive execution' stance, motivated by a belief in a 'bearish breakdown,' while subsequent analysis by the trader at 2:46 PM acknowledged that previous structural edge (ITS separation) had 'dissolved entirely,' giving way to a re-converged pinning regime.
+
+There is substantial ambiguity regarding the validation of contract pricing and spread at the moment of fill. The system is filling and then immediately taking a maximum drawdown based on a subsequent fair value calculation, indicating either catastrophic fill quality or an untenable volatility assumption upon entry.
+Questions: Compare the contract fill price ($0.20) to the bid/ask and theoretical mid at the exact moment of entry. Was the fill significantly above fair value? | You cited context supported a bearish breakdown at 2:30 PM, but later saw the edge dissolved. What specific signal at 2:30 convinced you the pinning structure was structurally broken versus merely oscillating? | To what extent does 'aggressive execution' mindset lead you to override implicit local data health or volatility checks in favor of canonical signals?
+Claims needing verification: Continuation of Case-3 pattern: immediate, substantial option price drawdown upon fill with negligible underlying spot move. | Trader mindset at 2:30 PM indicates 'aggressive execution' despite awareness of oscillating/pinning context. | The canonical edge (ITS separation) dissolved immediately after entry, per 2:46 PM journal.
+
+===== CASE-4 TRADER MEMO =====
+The record shows that at 2:30 PM, the trader initiated a canonical BUY PUT position in the 747P contract at $0.20. Within one minute, at 2:31 PM, this position was forced out by the MAX_LOSS_LIMIT at $0.14, resulting in a -30% immediate loss, despite the underlying spot move (748.7 down to 748.66) not being adverse to a Put. This confirms the loss was driven entirely by option pricing dynamics rather than directional movement.
+
+Regarding the fairness of the fill, the provided evidence lacks contract-specific pricing, such as contemporaneous bid/ask spreads or theoretical mid values at 2:30 PM. Therefore, this deliberation cannot confirm if the entry was taken significantly above fair value or if the pricing spread was untenable, though the immediate drawdown strongly suggests one of these failures.
+
+Contemporaneous records indicate the trader's contemporaneous reasoning was grounded in an 'Aggressive execution' mindset, believing the 'Canonical Execution State is authoritative: BUY_PUT' due to a 'bearish breakdown.' The specific signals breaking the prior pinning structure are not detailed in the record; however, by 2:46 PM, the trader noted that this previous structural edge had 'dissolved entirely,' giving way to a pinning regime. The aggressive stance appears linked to prioritizing the canonical model's authority, though explicit override of data health checks is not directly evidenced. The data is missing critical contract chain and canonical model inputs for the 2:30 PM timestamp.
+Questions: Compare the contract fill price ($0.20) to the bid/ask and theoretical mid at the exact moment of entry. Was the fill significantly above fair value? | You cited context supported a bearish breakdown at 2:30 PM, but later saw the edge dissolved. What specific signal at 2:30 convinced you the pinning structure was structurally broken versus merely oscillating? | To what extent does 'aggressive execution' mindset lead you to override implicit local data health or volatility checks in favor of canonical signals?
+Claims needing verification: Bid/Ask mid-price history for 747P contract at 2:30 PM | Canonical model context diagnostics (ITS, FEP, Accel) at 2:30 PM
+
+===== CASE-4 SUPERVISOR FINAL REFLECTION =====
+This final reflection addresses the second consecutive instance of an immediate MAX_LOSS_LIMIT exit. The PUT entry at 2:30 PM resulted in a 30% loss within one minute, despite a slightly favorable move in the underlying spot. This confirms the loss was driven solely by option pricing dynamics—either spread compression or IV collapse upon fill—and not directional error.
+
+What changed between the two losses is the context; the trader accepted authoritative canonical BUY PUT signal at 2:30 PM under the belief of a 'bearish breakdown,' while simultaneously noting that previous structural convergence had dissolved. The unresolved element remains the precise fill mechanics. Lacking bid/ask data at entry, we cannot determine if the system executed an exceptionally poor fill or if the fair value model reassessed volatility instantly.
+
+The causal pattern is the trader's reliance on model authority during aggressive execution states without manually validating contract liquidity. Engineering checks must identify if the `MAX_LOSS_LIMIT` logic correctly handles the bid-ask spread upon entry to prevent instantaneous exits due to spread widening. Rule proposal: prevent fill if spread exceeds 10% of theoretical option value.
+Unresolved questions: Why was execution readiness rated 100% when pricing liquidity appears absent? | Does the MAX_LOSS trigger use the same pricing source as the entry fill validation?
+Claims needing verification: Immediate loss not driven by spot. | Contemporaneous contract data is missing. | Trader followed canonical authority despite pricing risks.
+
+===== CASE-5 SUPERVISOR MEMO =====
+Confirmed Facts: This case presents two separate instances of immediate adverse motion leading to MAX_LOSS_LIMIT exits within one minute of contract fill. Trade #5 entered at 3:20 PM (BUY CALL 750C @$0.13) exited at 3:21 PM with a 7.7% loss. Trade #6 entered as a retry at 3:31 PM (BUY CALL 749C @$0.19) and exited at 3:32 PM with a 57.9% loss. At 3:27 PM, the journal reflects on violent adverse motion invalidating the breakout.
+
+Interpretation: The model appears fundamentally misread the fragility of structural persistence near the $747.0 FEP wall. While identifying favorable conditions (ITS separation, SPX leading), immediate reversals suggest these represent temporary liquidity grabs rather than sustainable expansion impulses. Notably, Trade #6's devastating loss (-57.9%) occurred despite relatively flat spot price motion ($747.28 to $747.32), indicating extreme compression, data defect, or IV crush.
+
+Causal Pattern Identification: Reusable pattern detected: 'Breakout Mistiming in AMPLIFY Regime'. The AI attempts Canonical execution based on signal threshold, but fails to incorporate higher-order volatility context.
+
+Rules/Proposals:
+1. Rule Proposals: Add mandatory 'Consecutive Directional Entry Failure' cooldown to disable GEX_EXPANSION or ACCEL playbooks for 15 minutes after two consecutive <1-min max losses.
+2. Engineering fix: Investigate option price attribution logic; the discrepancy between PNL and spot/IV contributions suggests calculation or data feed failure.
+3. Owner Decision: Accept or reject the current regime definitions, considering they allow high-frequency sequential catastrophic failures.
+Questions: Why does the thesis consistently fail within seconds of entry despite high readiness scores? | Specifically concerning the 3:31 PM retry: how did a CALL lose 58% while the underlying spot price remained flat/positive ($747.28 to $747.32)? | Are current GEX state definitions (e.g., OSCILLATING vs pinned) sufficiently granular to distinguish fake breakouts?
+Claims needing verification: Reliability of ACCEL signal during oscillations near structural boundaries (the 747 wall). | Validation of option pricing data at exit for the 3:31 PM trade, showing a -57.9% loss on flat/favorable spot motion.
+
+===== CASE-5 TRADER MEMO =====
+The record shows Case-5 details two consecutive, rapid failures near the $747 FEP structural level. In Trade #5 (3:20 PM), entry occurred at $0.13, followed by exit at $0.12 within one minute, causing a 7.7% loss. Contemporaneous attribution components for Trade #5 indicate standardized factors (spot, vol, residual) should have raised the contract price, presenting a notable discrepancy versus the reported exit. The recorded trader appeared heavily focused on perceived structural shifts from negative gamma flow.
+
+Retry criteria were met via Journal authorization at 3:31 PM, claim a reclaim of the $747 wall. Trade #6 entry at $0.19 also failed rapidly, exiting at $0.08 with a 58% loss within one minute.
+
+To address specific supervisor questions:
+1. Short-term thesis context consistently fails because ephemeral signals (ITS, SPX leading) near key walls ($747 FEP) are misread as sustained expansion context. Readiness scores appear fundamentally over-optimistic and context-blind in this high-tension regime.
+2. Trade #6 failure presents a catastrophic data anomaly: contract price plummeted 58% while spot moved favorably ($747.28 to $747.32). Attribution components listed (spot +0.007, compression -0.003, momentum-vol +0.006, residual +0.034) directly contradict reported price action, suggesting material simulation defect or extreme IV collapse not represented.
+3. Current definitions (listed as OSCILLATING during reentry) combined with weak pinning seem insufficient without greater granularity to isolate high-risk volatility reversion from valid breakouts.
+Questions: Why does the thesis consistently fail within seconds of entry despite high readiness scores? | Specifically concerning the 3:31 PM retry: how did a CALL lose 58% while the underlying spot price remained flat/positive ($747.28 to $747.32)? | Are current GEX state definitions (e.g., OSCILLATING vs pinned) sufficiently granular to distinguish fake breakouts?
+Claims needing verification: Trade 6 attribution components calculate price increase while actual price dropped drastically | Ephemeral structural signals near the $747 FEP wall are systematically misread as breakout context
+
+===== CASE-5 SUPERVISOR FINAL REFLECTION =====
+Case-5 presents consecutive rapid breakout logic failures near the $747 FEP wall. Review confirms the AI over-weighted ephemeral directional signals in a high-tension zone, resulting in immediate reversals. The Trader validated suspicion regarding data defects in Trade #6, specifically noting a 58% option model collapse despite favorable spot motion ($747.28 to $747.32). Because the attribution listing (showing positive factors) contradicts the actual PNL result, a critical engineering defect in the simulation pricing or data handling is confirmed unresolved.
+Unresolved questions: What specific mechanism caused Trade #6 to lose 58% with minor favorable spot motion? | How can readiness scores be modified to respect the proximity of strong structural boundaries (walls)?
+Claims needing verification: Structural signals near walls represent sustained expansion context instead of ephemeral liquidity. | Trade #6 attribution components (spot +0.007, compression -0.003, momentum-vol +0.006, residual +0.034) should lead to 0.19 -> 0.08 PNL. | Current regime definition (OSCILLATING during reentry) accurately captures risk volatility structure.
+
+===== CASE-6 SUPERVISOR MEMO =====
+### Long-Form Observer Memo - CASE-6
+
+**Confirmed Facts:**
+*   At 3:31 PM, context generated canonical BUY CALL 749C @$0.19. Spot: 747.28. Associated diagnostics: vehicleFail 38%, catastrophic 50%, confidence 20.
+*   At 3:32 PM, position exited @$0.08 via MAX_LOSS_LIMIT. Spot: 747.31. Result: -57.9% ($-611).
+*   This is the fourth instance of immediate drawdown following entry in this session.
+
+**Supervisor Interpretation:**
+*   The risk definition at entry is completely misaligned with the current market regime. Despite 'Canonical' authority, the trade parameters are providing zero survivability against immediate contract variance.
+*   A 57.9% loss within one minute on a minimal spot move strongly implies either extreme spread expansion at execution or devastating immediate IV collapse, neither of which the `vehicleFail` diagnostic successfully anticipated.
+
+**Uncertainties:**
+*   Whether this is strategy variance (unavoidable cluster) or an unmodeled data defect regarding entry spreads.
+
+**Direct Questions for Pattern Analysis:**
+*   With this being the fourth failure of this type, what contemporaneous assessment led you to continue accepting Canonical fills without modification?
+*   Reusable pattern: Are you over-relying on the signal's authority and ignoring concurrent evidence of broken contract behavior at entry?
+Questions: Why did the 50% catastrophic failure probability not prompt manual risk overrides after repeated instances? | Was contemporaneous evidence of spread widening observed before or during fill?
+Claims needing verification: Vehicle standard loss limits are not tuned to contemporaneous contract volatility. | IV volatility or spread expansion immediately overwhelmed standard fixed risk parameters.
+
+===== CASE-6 TRADER MEMO =====
+### Sim Trader Deliberation Memo - CASE-6
+
+**Executive Summary**
+The record verifies that at 3:31 PM, a 'CANONICAL FILL' BUY CALL order was executed at $0.19 based on spot 747.28. At 3:32 PM, the trade was closed at $0.08 via 'MAX_LOSS_LIMIT' at spot 747.31, resulting in a -57.9% loss ($-611). This represents the fourth immediate failure of this kind during the session.
+
+**Response to Supervisor Question 1: Failure to Override**
+The record at 3:31 PM shows the trade was entered as a "CANONICAL FILL." While diagnostics indicated a 50% `catastrophic` probability and low `confidence` (20), the recorded trader appears to have reasoned that Canonical status constitutes model authority for execution. Contemporaneous MINDSET and recentJournal data present no evidence that manual risk overrides based on intraday drawdown clusters were part of the defined operational discipline, leading to adherence to the authoritative signal despite high risk metrics.
+
+**Response to Supervisor Question 2: Spread Widening**
+The recentTrades log shows the 3:31 PM fill used the `REAL_QUOTE_PLUS_REAL_TRADE_OHLCV` source. MINDSET evaluations in proximity focus on pin range mechanics and SPX/SPY relationship variance. Evidence of explicit spread widening *at the moment of entry* is not presented in the recentMindset or recentJournal logs. However, the observation that minimal spot movement resulted in immediate severe loss suggests significant contract devaluation, potentially due to spread expansion or immediate IV collapse, which the parameters failed to mitigate.
+
+**Missing Evidence**
+Direct contemporaneous data detailing the contract spread and Implied Volatility dynamics *precisely* at 3:31 PM is significantly absent from the record, hindering definitive attribution of the contract's collapse.
+Questions: Why did the 50% catastrophic failure probability not prompt manual risk overrides after repeated instances? | Was contemporaneous evidence of spread widening observed before or during fill?
+Claims needing verification: Max Loss Limit logic failed to protect capital upon entry. | Minimal spot move resulted in disproportionate PnL loss, suggesting spread or IV issues. | This was the fourth similar failure in the session.
+
+===== CASE-6 SUPERVISOR FINAL REFLECTION =====
+Validated fourth failure of Canonical fills hitting immediate MAX_LOSS_LIMIT. Trader MINDSET shows rigid adherence to model authority, overriding intraday evidence that execution environment is broken for current parameters. Risk definition logic creates impossible survivability with negligible spot moves, likely indicating spread expansion or IV collapse missing from data logs. Code must fix how stops are defined relative to vehicle behavior parameters.
+Unresolved questions: Why does model authority belief supersede empirical cluster data defining current execution failure?
+Claims needing verification: Proximal cause is extreme spread widening at entry | Proximal cause is immediate structural IV drop
+
+===== CASE-7 SUPERVISOR MEMO =====
+Observer Deliberation Memo - Case-7
+
+**Confirmed Facts:**
+Primary finding sim_v1_persistent_null_gex_build_5 establishes that at 10:10 AM (tick 41), both `gexSpy` and `gexSpx` returned null values despite strong negative market movement and active trading. Data in the evidence window confirms these null values persisted across ticks 38-44. At 9:50 AM, during trade entry, the Trader’s mindset reasoning explicitly cited "weak/negative GEX downside expansion + accel with downside slope."
+
+**Interpretation:**
+There is a stark divergence between the recorded system state (null GEX) and the contemporaneous beliefs reported by the trader. The trader believed they were executing based on GEX expansion when it was not present in the recorded data stream. Either the visualization component displayed data incorrectly (or stale data), or the trader mentally interpolated GEX behavior based solely on price velocity. The data defect itself (persistent nulls) constitutes a material failure in the data pipeline.
+
+**Uncertainty:**
+The causal reasoning behind the trader's 9:50 AM decision cannot be fully reconciled with the data evidence. We are uncertain whether the trader was looking at a faulty display or operating purely on narrative heuristic, as their entry criteria were technically unmet due to missing GEX confirmation.
+
+**Proposals and Engineering Fixes:**
+1. (RULE) Prevent initialization of `GEX_EXPANSION` playbook trades if live GEX data is null or stale.
+2. (PROMPT/UX) If GEX values remain null for more than 4 ticks, push a critical 'Data Defecto' alert to force trader acknowledgement.
+3. (ENGINEERING) Debug GEX calculation logic and ingestion pipeline for this session ID.
+4. (EXPERIMENT) Simulated replay: Does removing GEX data visually during a breakdown alter trader entry confidence?
+Questions: Your reasoning at 9:50 AM references GEX expansion. The data logs show gexSpy and gexSpx as null at this time. What did you observe on your dashboard that led to this belief? | Did you realize the GEX data was null during the trade? If yes, what causal belief allowed you to proceed without the data verification?
+Claims needing verification: gexSpy: null at 10:10 AM | gexSpx: null at 10:10 AM | Trader reasoning refers to GEX expansion at 9:50 AM
+
+===== CASE-7 TRADER MEMO =====
+Deliberation Memo - Case-7
+
+Overview:
+The record shows that a short PUT trade was initiated on July 7, 2026, at 9:50 AM based on a deterministic guide for GEX expansion, citing downside momentum and weak/negative GEX behavior. Evidence window data establishes that subsequent to entry, from at least 10:07 AM (tick 38) through 10:13 AM (tick 44), both gexSpy and gexSpx parameters registered as null.
+
+Analysis of Trader Reasoning and Data Divergence:
+Contemporaneous mindsets demonstrate that at 9:50 AM, the recorded trader reasoned using "weak/negative GEX downside expansion + accel." The challenge presented is the divergence between this stated reasoning and the logged system state. If data logs are authoritative for the timestamp, the necessary GEX confirmation was absent. This strongly suggests either a visual display failure (stale or incorrect data visually present on the dashboard) or narrative bias, where strong negative price action and accelerating velocity were interpreted as implicit confirmation of the GEX thesis, superseding direct data verification.
+
+Response to Supervisor Questions:
+Regarding the observation that led to the GEX expansion belief at 9:50 AM: The record contains the entry journal referencing "weak/negative GEX upside slope." However, there is no evidence (such as dashboard visualization logs) clarifying exactly what was displayed visually. Verification of why the trader recorded that belief, given the apparent null state, cannot be concluded.
+
+Regarding awareness of null data: Journal entries do not suggest awareness of null GEX values. Given the explicit reasoning, the trader proceeded based on an assumed confirmation of the GEX model, prioritizing the price action and momentum over the (potentially unobserved) defect in the specific GEX field.
+
+Missing Evidence:
+A contemporaneous snapshot of the visual dashboard at entry is missing. The current record only contains backend data logs and text-based reasoning content. Therefore, determining whether dashboard values were null, stale, or erroneously populated at 9:50 AM is not possible.
+
+Verdict:
+Evidence of persistent null GEX data from 10:07 AM onwards, alongside earlier trader reasoning based on GEX analysis, confirms a significant data anomaly. The trade was ultimately successful, yet its stated initial data conditions were not met per the record. Finding sim_v1_persistent_null_gex_build_5 is validated.
+Questions: Why did the trader record a belief in GEX expansion when data logs indicate null values? | Was the trader dashboard visually presenting data that contradicted the backend logs?
+Claims needing verification: Dashboard visualization snapshot at 9:50 AM (Tick 21). | Authoritative start time of GEX data failure.
+
+===== CASE-7 SUPERVISOR FINAL REFLECTION =====
+Contradiction confirmed. Data logs show persistent null `gexSpy` and `gexSpx` values during the evidence window, constituting a verified Data Defect. The Trader's contemporaneously recorded mindset at 9:50 AM explicitly relied on negative GEX expansion, showing a stark divergence between stated criteria and system reality.
+
+This mismatch suggests one of two root causes:
+1. The trader looked at a stale or faulty visual dashboard display.
+2. The trader operated on narrative heuristic, interpreting strong price momentum as GEX expansion without direct verification.
+
+The trade was profitable, but executed without confirmed playbook parameters per authoritative logs.
+Rule proposal: The system must enforce a veto on `GEX_EXPANSION` playbook entries when GEX parameters are null or stale.
+Code fix: Debug GEX calculation logic for sim build 'firstsignal-sim-v1.4-20260712'.
+Unresolved questions: Why was standard playbook data verification not completed or recorded at 9:50 AM as null GEX persisted? | Did the visual dashboard display null, stale, or incorrect GEX data during the prompt sequence?
+Claims needing verification: Verify GEX dashboard state at 9:50 AM 2026-07-07 to distinguish visual display defect from trader narrative confirmation bias. | Verify the precise start time/tick of the null GEX state.
+
+===== CASE-8 SUPERVISOR MEMO =====
+At 12:10 PM, a CALL position (751C) was bought at $0.19 with the underlying spot at 748.04. At 12:11 PM, the position hit MAX_LOSS_LIMIT and exited at $0.13, a -31.6% loss. Crucially, the underlying spot price rose from 748.04 at entry to 748.11 at exit.
+
+This outcome contradicts basic directional option mechanics; a favorable spot move should not result in a maximal loss on a CALL contract within one minute. This implies significant negative variance, likely stemming from either extreme Implied Volatility compression, or severe friction via a wide bid/ask spread. It may also indicate a calculation bug in the simulation's canonical fill logic.
+
+The trader's post-loss mindset (12:37 PM) is noted as 'Disciplined post-loss observation,' indicating adherence to standard operational procedures following the event.
+Questions: To Trader: When entering the 751C contract, did you observe the bid/ask spread or liquidity profile, or was decision-making strictly based on the model's theoretical value? | To Engineering: Can we recreate the specific pricing and Greeks data (Delta, Vega, Spread) for this contract minute to distinguish between IV crush and a wide spread defect?
+Claims needing verification: Validate option pricing model accuracy under conditions present at 12:11 PM. | Verify bid/ask spreads for the 751C contract at 12:10 PM and 12:11 PM.
+
+===== CASE-8 TRADER MEMO =====
+The record explicitly documents a CALL option position entry (751C canonical fill) at 12:10 PM at $0.19, with the underlying spot price at 748.04. At 12:11 PM, the recorded trader decision shows a THESIS-EXIT on the same position due to a MAX_LOSS_LIMIT being hit at an exit price of $0.13, resulting in a documented loss of approximately 31.6%. Contemporaneously, the record shows the spot price moved slightly up to 748.117 at the time of exit.
+
+This result—a significant loss on a long CALL position during a period of slightly favorable spot movement within a one-minute duration—contradicts basic directional option mechanics. Such extreme variance typically stems from severe implied volatility (IV) collapse (IV crush), an extremely wide bid/ask spread causing significant friction on exit, or a calculation error in the simulation's pricing mechanics. The recorded trader's action to exit was driven systemically by the loss limit, which represents operational discipline.
+
+However, the provided evidence packet does not contain contemporaneous observation details regarding the bid/ask spread, volume, or specific liquidity profile for the 751C contract at 12:10 PM. The journal and intent data in the evidence window describe conditions significantly after the trade occurred. Similarly, technical evidence (historical Delta, Vega, and bid/ask spread logs) is missing and required to definitively isolate the cause between market forces and simulation fill logic issues. Therefore, the discrepancy in option pricing remains unresolved.
+Questions: To Engineering: Can we recreate or retrieve the specific Greeks (Delta, Vega) and quoted bid/ask spread data for the 751C contract from 12:10 PM to 12:11 PM on the replay date? | To Data Science: Is the 'REAL_TRADE_OHLCV_WITH_PATH_FILL' quote source prone to overestimating spread-based friction in simulated executions?
+Claims needing verification: Underlying spot price grew from 748.04 to 748.11+73853815419 during the one-minute minute hold time. | Contract price of the 751C dropped from $0.19 to $0.13 during the same hold time.
+
+===== CASE-8 SUPERVISOR FINAL REFLECTION =====
+The specific event documented—a -31.6% loss on a long CALL position within one minute, while the underlying spot price moved from 748.04 to 748.11—is validated by the trade logs (tick 121 and related trade entries). This data violates standard directional option pricing behavior within a minute.
+
+What remains unresolved is the specific mechanism causing the result. The evidence packet lacks instantaneous Greeks, historical Implied Volatility (IV) levels, or synthetic bid/ask spread details for the specific 751C contract. Therefore, it is impossible to definitive rule between legitimate extreme IV compression, excess friction from wide synthetic spreads on exit, or a calculation bug in simulation fill models. Human or code inspection of the pricing model logic and historic scenario data is required.
+Unresolved questions: Analyze simulator pricing logic for synthetic option fills under volatility spikes. | Request historical Greeks/IV data for the 751C contract at 12:10-12:11 PM on the replay date.
+Claims needing verification: CALL Max Loss Exit on Favorable Spot Movement | Sim fill logic/pricing calculation issue | Extreme IV Cushion/Crush | Wide synthetic spread during fill
+
+===== CASE-9 SUPERVISOR MEMO =====
+From: FirstSignal Developmental Supervisor
+Subject: CASE-9 Deliberation Memo - Rapid Drawdown at 12:10 PM
+
+Confirmed Facts:
+- At 12:10 PM, a CANONICAL FILL BUY CALL 751C was executed at $0.19. The entry spot price of the underlying was 748.04.
+- Stated parameters at entry: invalidation 746.50, target 752.50, vehicleFail 38%, model confidence 20.
+- At 12:11 PM, a THESIS-EXIT triggered via MAX_LOSS_LIMIT at $0.13. Underlying spot price was 748.117.
+- Resultized loss: -31.6% ($753.50).
+
+Interpretation:
+The underlying spot price moved slightly up (748.04 to 748.12), marginally favoring the Call. However, contract price collapsed from $0.19 to $0.13 instantly. The rapid loss was not caused by adverse underlying movement, but factors internal to contract execution or data: purchasing at inflated ask (wide spread) or abrupt IV contraction immediately after fill. Low model confidence (20) at entry raises concern about the signal quality justifying the trade.
+
+Proposals:
+- Rule Proposal: Block canonical fills when model confidence is below 30 without explicit manual override.
+- Engineering Experiment: Audit quote source data quality at 12:10 PM for contract 751C to verify simulation fill realism.
+Questions: What structural setup at 12:10 PM overrode the low model confidence (20) to justify entry? | Why do you believe contract price experienced a 31% collapse in 60 seconds despite stable/upward underlying spot move? | Was there indication at fill that the bid/ask spread was exceptionally wide?
+Claims needing verification: Contract price collapsed -31% despite underlying spot moving marginally in trade's favor. | Contemporaneous state of structural regime at 12:10 PM is missing from primary evidence window.
+
+===== CASE-9 TRADER MEMO =====
+This memorandum addresses the critical failure of the 12:10 PM CALL trade, which resulted in an immediate -31.6% loss.
+
+Regarding the override of low model confidence: The decision to enter was driven by established canonical logic and playbook definitions. Mindset logs at 12:10 PM confirm that the canonical setup was authoritative: the authoritative BUY_CALL was active with "90% readiness." The reasoning prioritized high acceleration (12.0) and a perceived regime switch to standard Discovery (74%) as validation.
+
+Regarding the contract collapse despite a favorable spot move: The `OPTION_ATTR` log at 12:11 PM indicates that spot and momentum-vol exerted positive pressure (+$0.015 and +$0.012, respectively), while IV and theta exerted minor negative pressure (-$0.002 and -$0.000). However, the dominant factor is capped residual value (+$0.034), demonstrating that underlying pricing dynamics and greeks cannot account for the drawdown. The collapse from $0.19 to $0.13 was driven by external factors—either wide bid/ask spreads at execution or immediate simulation repricing.
+
+Regarding indication of a wide spread: The record contains no evidence detailing the dynamic bid/ask spread at execution. The trade was marked with a `QUALITY` flag at fill.
+
+Final Self-Audit: Rigid adherence to source signal authority bypassed necessary validation of the vehicle's execution environment. Proceeding with low confidence without verifying actual liquidity was an operational defect.
+
+Missing Evidence: Full Level-2 option quotations (bids/asks) at 12:10 PM are required to definitively establish spread width at execution.
+Questions: 
+Claims needing verification: 
+
+===== CASE-9 SUPERVISOR FINAL REFLECTION =====
+The core issue—an immediate 31.6% collapse into MAX_LOSS_LIMIT at 12:11 PM—remains unresolved. The underlying spot price moved slightly favorably (748.04 to 748.12), and internal attribution analysis suggests Greeks cannot account for the drawdown. The Trader acknowledges overriding a critically low model confidence (20), prioritizing canonical definitions and 12.0 acceleration. This represents an operational defect in validation. However, the dominant factor was the gap between execution price ($0.19) and immediate market value ($0.13), caused either by wide bid/ask spreads not visible in summary data, or a simulation flaw in repricing. Level 2 option quotes at execution are required.
+Unresolved questions: Given the low confidence and high vehicleFail (38%) parameters, what explicit signal would have caused you to stand down? | Is there a mechanism to confirm 'QUALITY' flag meaning includes spread validation?
+Claims needing verification: Level 2 contract quotes at 12:10 PM for 751C. | Reason for `model confidence 20` despite mindset logs stating authoritative logic.
+
+===== CASE-10 SUPERVISOR MEMO =====
+Confirmed Facts: Between 2:08 PM and 2:11 PM (ticks 279-282), the system's data transmission state repeatedly fluctuated. Journal entries and system diagnostics show states alternating between TRANSMISSION_DELAYED and RELATIONSHIP_UNRELIABLE, with failedTicks observed up to 1 and meaningful age for SPY/SPX reaching up to 6 ticks. During this period, intent remained rigidly on WAIT. At 2:12 PM (tick 283), the state returned to TRANSMISSION_CONFIRMED, and data age normalized to 3 ticks. This normalization coincided precisely with the Intent engine switching from WAIT to PREPARE_PUT.
+
+Interpretation: Intermittent degradation of the SPX/SPY data connection directly impaired the Market Brain, suppressing high-readiness signals and enforcing a WAIT state based on unstable data health. The stabilization of the data feed was the immediate technical trigger permitting the model to advance to PREPARE_PUT; the prior lack of signal was likely an execution defect caused by data, not strategy variance.
+
+Uncertainty: We cannot determine from this snapshot whether the subsequent PREPARE_PUT thesis was substantively valid against market dynamics, or if it materialized solely because the technical transmission block was removed. The underlying cause of source data latency is unknown.
+Questions: Between ticks 279 and 282, were you observing lag in price updates relative to other sources, and did that perceived technical uncertainty influence your adherence to the WAIT protocol? | At 2:12 PM, the system generated PREPARE_PUT as the data transmission stabilized. Did you feel the 'structure' clarified purely due to the data stabilizing, or did external price action independently confirm the thesis for you?
+Claims needing verification: The data transmission instability directly prevented the generation of actionable trading intents between 2:08 PM and 2:11 PM.,The transition to PREPARE_PUT at 2:12 PM was causally triggered by the stabilization of the transmission state to CONFIRMED.
+
+===== CASE-10 TRADER MEMO =====
+Deliberation Memo: Case-10 Review.
+
+Regarding the supervisor's query on technical uncertainty (Q1), the record shows the contemporaneous trader journal definitively tracking the transmission instability ('Delay: 1 tick', 'RELATIONSHIP_UNSTABLE') from 2:08 PM (tick 279) forward. The mindset entry at 2:11 PM states adherence to WAIT was based on a 'dead-center pin, no edge' assessment of market context. Therefore, the trader's reasoning appears focused on perceived structural stasis and pause protocols, though standard procedure dictates caution during data anomalies as evidenced by tracking the instability.
+
+As to the transition to PREPARE_PUT (Q2), the recorded evidence shows a direct correlation between transmission stabilization at 2:12 PM (tick 283) and the Intent Engine outputting clear readiness for the PUT thesis following GEX_EXPANSION|BELOW_CORE logic, with model confidence rising to 45%. Crucially, the 2:11 PM journal entry shows the 'Market Brain' was already assessing a 50% PUT sentiment while data was delayed, yet the explicit, detailed setup ('continuing structure', directional edge) was only formalized as actionable at 2:12 PM. The recorded trader appears to have reasoned that this technical normalization finally clarified the existing directional structure, permitting advancement to PREPARE_PUT. The record doesn't show independent confirmation solely from micro price action alone during that shift.
+Questions: Has external verification confirmed if the root cause of the transmission instability (delayed ticks) lies within platform data delivery or the primary exchange feed source?
+Claims needing verification: The root cause of the intermittent transmission source data source latency (SPX/SPY deviation). | Whether an advantageous entry was missed during the delay or if the subsequent PREPARE_PUT thesis was ultimately valid.
+
+===== CASE-10 SUPERVISOR FINAL REFLECTION =====
+Confirmed data transmission instability directly suppressed signal actionability. Diagnostics show Market Brain PUT sentiment at 50% during delay at 2:11 PM, yet actionable intent was blocked. Upon transmission stabilization at 2:12 PM, the signal successfully transitioned to PREPARE_PUT. The trader's contemporaenous observation of 'stasis' is partially contradicted by model diagnostics, suggesting data health, not perceived lack of edge, was the primary execution barrier.
+Unresolved questions: How does the model explicitly weigh transmission stability against Brain Confidence when determining readiness? | Was the trader aware that data health might be vetoing signal generation, and how would that awareness impact rule adherence?
+Claims needing verification: Root cause of intermittent data transmission delay from source. | Verify model behavior logic: Does TRANSMISSION_DELAYED state explicitly veto PREPARE status despite high Brain Confidence?
+
+===== FINAL SUPERVISOR REVIEW =====
+FINAL SUPERVISOR SUMMARY:
+This Developmental Review validates major system instabilities causing catastrophic session performance. The Trader adhered rigidly to canonical model authority, despite severe, persistent data defects where GEX inputs were NULL across multiple cases (1, 2, 3, 7). The reasoning narrative generated fabricated visual data states to justify entries.
+
+A repeated execution causal pattern was detected: consecutive immediate MAX_LOSS_LIMIT exits within one minute of contract fill, driven purely by option pricing dynamics (synthetic spread widening or IV collapse) rather than directional movement.
+
+Strategy variance is ruled out; outcomes stemmed from data and execution defects. Trader behavior showed a lack of data integrity auditing before canonical signal execution.
+
+PROPOSAL SUMMARY:
+
+RULE_CHANGES: Implement direct programmatic block preventing GEX-dependent playbooks from entering authoritative states if `gexSpy` or `gexSpx` is NULL. Add canonical stop cooldown forcing 15-minute wait after consecutive <60s losses.
+
+PROMPT_CHANGES: Enforce explicit validation of empirical data states in reasoning prompts to prevent narrative hallucination when inputs are missing. Deweight readiness confidence when near structural walls.
+
+ENGINEERING_FIXES: Immediate fix required for GEX feed ingestion. Repair simulated option pricer to prevent instantaneous drawdown upon synthetic spread initialization.
+
+EXPERIMENTS: Test Market Brain behavior via replay with GEX data manually suppressed to ensure signal suppression.

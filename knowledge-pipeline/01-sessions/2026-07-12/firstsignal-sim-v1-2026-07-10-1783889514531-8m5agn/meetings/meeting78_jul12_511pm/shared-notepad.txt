@@ -1,0 +1,4 @@
+FIRSTSIGNAL SIM REVIEW MEETING meeting78_jul12_511pm
+Review started 2026-07-12T17:11:23.326-04:00 (2026-07-12T21:11:23.326Z)
+Market date 2026-07-10 | Build firstsignal-sim-v1.4-20260712
+

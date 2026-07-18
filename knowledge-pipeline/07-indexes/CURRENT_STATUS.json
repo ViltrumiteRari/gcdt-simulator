@@ -1,0 +1,21 @@
+{
+  "pipelineVersion": 2,
+  "updatedAtUtc": "2026-07-18T18:08:49.862Z",
+  "supervisorState": "PENDING_REVIEW",
+  "currentSessionId": "firstsignal-sim-v1-2026-07-10-1783889514531-8m5agn",
+  "currentMeeting": null,
+  "campaign": {
+    "id": "CAMPAIGN-1784256151598",
+    "name": "Fresh Jul15 preserved-thesis verified launch",
+    "status": "FAILED",
+    "completedRuns": 0,
+    "targetRuns": 1
+  },
+  "counts": {
+    "canonicalFindings": 47,
+    "backlogItems": 23,
+    "blocked": 4,
+    "awaitingApproval": 6,
+    "validated": 2
+  }
+}

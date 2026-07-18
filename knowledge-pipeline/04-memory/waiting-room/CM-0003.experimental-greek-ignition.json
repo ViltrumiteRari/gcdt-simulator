@@ -1,0 +1,54 @@
+﻿{
+    "id":  "CM-0003",
+    "title":  "Experimental 20-second Greek ignition and harvest-rotation prior",
+    "status":  "WAITING_ROOM",
+    "knowledgeCutoffTick":  null,
+    "sessionMinute":  null,
+    "confidence":  0.35,
+    "evidenceCount":  1,
+    "source":  {
+                   "sourceType":  "OFFLINE_CROSS_STREAM_RESEARCH",
+                   "marketDate":  "2026-07-15",
+                   "excludedReplayDates":  [
+                                               "2026-07-15"
+                                           ],
+                   "outcomeVisibleToTrader":  false,
+                   "analysisCadence":  "20_SECONDS",
+                   "executionAssumption":  "BUY_ASK_SELL_BEST_FUTURE_BID"
+               },
+    "thesisScope":  {
+                        "active":  "EXPERIMENTAL_SHORT_HORIZON_GREEK_IGNITION_AND_ROTATION",
+                        "parent":  "HARVEST_STATE_DETECTION_BEFORE_CONTRACT_REPRICING",
+                        "invalidated":  "SINGLE_GREEK_OR_PRIOR_WIN_ALONE_JUSTIFIES_ENTRY_OR_SIDE_FLIP",
+                        "survived":  "RELATIVE_GREEK_VECTOR_PLUS_EARLY_CHAIN_BREADTH_MAY_IDENTIFY_40_TO_120_SECOND_EXPANSION_WINDOWS"
+                    },
+    "state":  {
+                  "putIgnitionCandidate":  [
+                                               "SPX_NET_DEX_WEAK_RELATIVE_TO_SPY",
+                                               "SPX_GEX_RATIO_HIGH_RELATIVE_TO_SPY",
+                                               "SPX_PUT_CALL_IV_SKEW_HIGH_RELATIVE_TO_SPY"
+                                           ],
+                  "callIgnitionCandidate":  [
+                                                "SPY_NET_DEX_ELEVATED",
+                                                "SPX_NET_VEX_ELEVATED"
+                                            ],
+                  "rotationCandidate":  [
+                                            "CURRENT_SIDE_BREADTH_SATURATED",
+                                            "RELATIVE_DEX_AND_CHARM_COLLAPSE",
+                                            "RELATIVE_VANNA_DIVERGENCE_EXPANDS",
+                                            "OPPOSITE_SIDE_BREADTH_ACTIVATES"
+                                        ],
+                  "primaryUltraShortBenchmark":  "PLUS_40_PERCENT_EXECUTABLE_RETURN",
+                  "horizonsSeconds":  [
+                                          40,
+                                          60,
+                                          120
+                                      ],
+                  "sampleScope":  "ONE_SESSION_RESEARCH",
+                  "dataHealth":  "HEALTHY_20_SECOND_GEXSTREAM_AND_CHAIN_SNAPSHOTS"
+              },
+    "interpretation":  "On one 20-second session, relative Greek combinations were more informative than isolated GEX. A put-ignition candidate appeared when SPX net DEX was weak relative to SPY while the SPX-versus-SPY GEX-ratio gap and relative put-versus-call IV skew were elevated. A separate fast-call candidate appeared when SPY net DEX and SPX net VEX were elevated. Treat these as early-warning hypotheses for cheap-contract expansion, not automatic entries. Directional structure must appear before broad repricing, the selected contract must still have executable runway, and same-side chain breadth should be beginning rather than already saturated. After a broad current-side burst, a sharp collapse in relative DEX and charm together with expanding relative vanna and first activation of opposite-side breadth may indicate exhaustion and possible rotation. One observed rotation is insufficient to establish a rule.",
+    "usePolicy":  "Experimental low-confidence prior only. Never apply or reveal this memory during replay of 2026-07-15 because it was derived from that full session. On later unseen dates, use it only to generate questions and modestly adjust attention. It may not trigger BUY_CALL, BUY_PUT, continuation, full-port re-entry, or side rotation by itself. Require fresh pre-expansion price transmission, acceptable spread and liquidity, remaining structural runway, and early same-side breadth. Do not chase after the contract or neighboring strikes have already delivered the intended expansion. Treat +40% as the primary ultra-short research benchmark; do not assume 40-to-60-second doubles are routine. Record confirmations and contradictions separately and lower or retire the memory if independent days fail to reproduce it.",
+    "waitingRoomReason":  "References DEX/VEX inputs no longer available to the live simulator; preserved for future offline research only.",
+    "movedAtUtc":  "2026-07-18T07:25:46.7519047Z"
+}

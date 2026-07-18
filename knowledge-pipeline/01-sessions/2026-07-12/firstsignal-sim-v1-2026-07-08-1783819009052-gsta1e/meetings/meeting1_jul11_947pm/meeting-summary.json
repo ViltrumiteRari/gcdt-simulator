@@ -1,0 +1,82 @@
+{
+  "meetingName": "meeting1_jul11_947pm",
+  "status": "FAILED",
+  "error": "MEETING_LIVE_CLOSE:You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h",
+  "endedAt": "2026-07-12T01:47:54.072Z",
+  "cases": [
+    {
+      "caseId": "CASE-1",
+      "title": "AI Model Timeout Forces Fallback HOLD Decision on Open Position",
+      "observerFinding": {
+        "related_build_id": "firstsignal-sim-v1.2-20260712",
+        "finding_key": "AI_RESPONSE_TIMEOUT_FALLBACK_ACTIVE",
+        "approval_required": false,
+        "title": "AI Model Timeout Forces Fallback HOLD Decision on Open Position",
+        "evidence": [
+          "Tick 63 Mindset: 'fallback' decision, 'GEMINI_LIVE_TIMEOUT' reasoning",
+          "Tick 63: Position is PUT, current price $0.27, entry $0.28"
+        ],
+        "summary": "The current position mindset indicates an 'AI response failure' with the reasoning 'GEMINI_LIVE_TIMEOUT,' resulting in a FALLBACK decision to HOLD. This demonstrates a failure in active model management due to external model latency, preventing fresh tactical assessments for the open position at tick 63.",
+        "confidence": 1,
+        "version_assessment": "NEW_FINDING",
+        "category": "PERFORMANCE",
+        "level": "YELLOW",
+        "suggested_action": "Investigate the cause of the AI response timeout to ensure consistent active management.",
+        "t": "10:32 AM",
+        "tick": 63,
+        "buildId": "firstsignal-sim-v1.2-20260712",
+        "buildSequence": 3,
+        "productVersion": "V1",
+        "id": "QA-1783819264039",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+        "replayDate": "2026-07-08"
+      },
+      "verdict": "TRADER_JUSTIFIED",
+      "unresolved": []
+    },
+    {
+      "caseId": "CASE-2",
+      "title": "Inaccurate Flat P&L State Reported Despite Active Trade Gain",
+      "observerFinding": {
+        "suggested_action": "Investigate the P&L calculation logic within the intent state. Ensure the 'option P/L' and 'flat' status accurately reflect the current option price vs. entry price, rather than potentially using stale reference prices or flawed capping logic.",
+        "related_build_id": "firstsignal-sim-v1.2-20260712",
+        "title": "Inaccurate Flat P&L State Reported Despite Active Trade Gain",
+        "category": "PERFORMANCE",
+        "approval_required": false,
+        "summary": "At Tick 89, the intent state incorrectly reports '+0.0% option P/L' and lists the attribution status as 'flat: true'. The active 736P position was entered at 0.22 and is currently priced at 0.25, representing a 13.6% gain, contradicting the reported diagnostic data.",
+        "confidence": 1,
+        "level": "YELLOW",
+        "finding_key": "INACCURATE_PNL_REPORTING_IN_HOLD_INTENT",
+        "version_assessment": "NEW_FINDING",
+        "evidence": [
+          "Tick 89 (10:58 AM) screenshot shows active PUT position, current option price 0.25 vs entry 0.22.",
+          "Snapshot attribution at Tick 89 shows 'flat: true', despite the option price increase from 0.22 to 0.25 (a 13.6% gain).",
+          "Current intent factors state '+0.0% option P/L' at Tick 89."
+        ],
+        "t": "10:58 AM",
+        "tick": 89,
+        "buildId": "firstsignal-sim-v1.2-20260712",
+        "buildSequence": 3,
+        "productVersion": "V1",
+        "id": "QA-1783819371397",
+        "productName": "FirstSignal Sim",
+        "sessionId": "firstsignal-sim-v1-2026-07-08-1783819009052-gsta1e",
+        "replayDate": "2026-07-08"
+      },
+      "verdict": "OBSERVER_CONFIRMED",
+      "unresolved": []
+    }
+  ],
+  "temporal": {
+    "observedAtUtc": "2026-07-12T01:47:54.072000Z",
+    "observedAtLocal": "2026-07-11T21:47:54.072000-04:00",
+    "localDate": "2026-07-11",
+    "replayDate": "2026-07-08",
+    "marketDate": "2026-07-08",
+    "marketTime": null,
+    "marketTime24": null,
+    "chronologicalKey": "2026-07-08T00:00:00|2026-07-12T01:47:54.072000Z",
+    "timestampBackfilled": true
+  }
+}

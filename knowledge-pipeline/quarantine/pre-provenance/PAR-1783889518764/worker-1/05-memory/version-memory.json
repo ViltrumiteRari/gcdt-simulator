@@ -1,0 +1,29 @@
+{
+  "productName": "FirstSignal Sim",
+  "productVersion": "V1",
+  "builds": {
+    "firstsignal-sim-v1.4-20260712": {
+      "buildId": "firstsignal-sim-v1.4-20260712",
+      "productVersion": "V1",
+      "buildSequence": 5,
+      "firstSeen": "2026-07-12T20:57:29.800Z",
+      "findings": [
+        {
+          "key": "DATA_STALENESS_DETECTED",
+          "level": "YELLOW",
+          "title": "Stale and Non-Informative Data State Detected",
+          "summary": "The simulator has detected stale data, indicated by a 'DATA_STALE_OR_NONINFORMATIVE' state, impacting execution readiness.",
+          "evidenceStatus": "RAW_OBSERVATION",
+          "versionAssessment": "NEW_FINDING",
+          "sessionId": "firstsignal-sim-v1-2026-07-10-1783889523328-y8f2te",
+          "tick": 242,
+          "marketDate": "2026-07-10",
+          "marketTime": "1:31 PM",
+          "observedAtUtc": "2026-07-12T20:57:29.798Z",
+          "at": "2026-07-12T20:57:29.800Z"
+        }
+      ],
+      "lastSeen": "2026-07-12T20:57:29.800Z"
+    }
+  }
+}

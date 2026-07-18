@@ -1,0 +1,23 @@
+{
+  "meetingName": "meeting1_jul12_429am",
+  "state": "COMPLETED",
+  "currentCase": 12,
+  "phase": "CASE_COMPLETE",
+  "completedCases": [
+    "CASE-1",
+    "CASE-2",
+    "CASE-3",
+    "CASE-4",
+    "CASE-5",
+    "CASE-6",
+    "CASE-7",
+    "CASE-8",
+    "CASE-9",
+    "CASE-10",
+    "CASE-11",
+    "CASE-12"
+  ],
+  "startedAt": "2026-07-12T08:29:06.464Z",
+  "resumeAfter": "2026-07-12T08:30:08.018Z",
+  "endedAt": "2026-07-12T08:38:50.575Z"
+}

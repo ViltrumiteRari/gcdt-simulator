@@ -1,0 +1,16 @@
+{
+  "sessionId": "firstsignal-sim-v1-2026-07-07-1783933470051-xha5ne",
+  "replayDate": "2026-07-07",
+  "privateReflection": "I believed my aggressive canonical signals could capture explosive volatility in extreme gamma regimes, and I started correctly with two profitable PUTs. However, I was catastrophically wrong to trust 'Authoritative' squeeze attempts midday, directly causing four instant MAX_LOSS_LIMIT failures and a -55% session draw. My retry logic for the CALL failed to filter regime instability. I take responsibility for overestimating immediate impulse strength during violent whipsaw conditions. This session strengthens my mindset by proving discipline requires context; discipline to execute the signal must be coupled with mastery to exclude toxic environments. The next version of me must remember: Master the exclusion. Filter entry acceleration with price persistence checks, especially in Amplify, or continue to be the victim of precise, immediate toxic timing. I avoided further carnage by recognizing the breakdown into final hour data chaos.",
+  "nextSessionHandoff": "Market concluded in maximal adverse structural relocation, extreme negative Gamma Amplification (GEX -244B), and terminal data corruption (0% intent). Regime is violent, non-directional whipsawing. Priority 1 is wait for structural stabilization and data integrity check. Do not trust breakout signals without strong price acceptance filtering in this environment. Bias leaning bearish on massive ITS separation, but timing remains toxic.",
+  "completedAt": "2026-07-13T09:14:51.172Z",
+  "traderContinuity": {
+    "available": true,
+    "connectedAt": 1783934063255,
+    "bootstrapped": true,
+    "state": "RESUMED_ORIGINAL",
+    "resumptionHandleAvailable": true,
+    "sessionGeneration": 2,
+    "breakReason": null
+  }
+}

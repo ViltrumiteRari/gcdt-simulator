@@ -1,0 +1,13 @@
+{
+  "meetingName": "meeting1_jul12_501pm",
+  "state": "RUNNING",
+  "currentCase": 5,
+  "phase": "OBSERVER_MEMO",
+  "completedCases": [
+    "CASE-1",
+    "CASE-2",
+    "CASE-3",
+    "CASE-4"
+  ],
+  "startedAt": "2026-07-12T21:01:00.354Z"
+}

@@ -1,0 +1,287 @@
+
+[9:30 AM] GREEN · HEALTHY · firstsignal-sim-v1.3-20260712
+Session Initializes Correctly in Warmup State
+At tick 1 (9:30 AM), the system correctly starts up in a WAIT state, blocked by expected session warming up, confirming initial logic coherence for built v1.3.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 1, 9:30 AM: intent.action is WAIT, blockers are ["Session warming up"].
+  • Build ID: firstsignal-sim-v1.3-20260712 (Seq 4).
+Next: None, behavior is normal for session start.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:36 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Canonical BUY_CALL Executed Cohesively
+At 9:35 AM (tick 6), the system correctly executed a canonical BUY_CALL entry. Mindset, journal prose, and structured execution state were all cohesive, verifying the fix for prior logic disconnects and standard entry operation.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 6 (9:35 AM): recentTrades shows canonical entry FILL BUY CALL 753C via REAL_TRADE_OHLCV_WITH_PATH_FILL. Journal prose and mindset align with execution.
+  • Tick 7 (9:36 AM): Current position reflects "side":"CALL","strike":753,"entry":0.18.
+  • Build ID: firstsignal-sim-v1.3-20260712 (Seq 4).
+Next: Continue monitoring entry execution and subsequent position management.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:39 AM] GREEN · HEALTHY · firstsignal-sim-v1.3-20260712
+Intent State Latency Fix Verified Post-Exit
+Following the thesis exit at tick 9, the intent state correctly and immediately transitioned from HOLD to WAIT at tick 10 (9:39 AM), with readiness resetting to zero and the expected post-exit blocker applied. This verifies the fix for the critical open-position logic latency regression seen in prior builds and earlier in this build sequence.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 8 (9:37 AM): Post-entry context, position exists, intent.action is HOLD.
+  • Tick 9: recentTrades indicates trade exit via THESIS_INVALIDATED_STRUCT_LOCAL_REVERSAL. Journal prose confirms POST_EXIT_STATE_RESET.
+  • Tick 10 (9:39 AM): Position is null. intent.action is WAIT, readiness is 0, blockers are ["POSITION_CLOSED_THESIS_INVALIDATED_STRUCT_LOCAL_REVERSAL"].
+Next: Continue verifying intent state update integrity upon subsequent entries and exits.
+Approval required: NO
+------------------------------------------------------------------------
+
+[9:58 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Re-entry Logic Override Fix Verified
+The system successfully executed a canonical re-entry BUY_CALL at 9:57 AM (tick 28). Re-entry diagnostics correctly mapped market data to recognize 'cleared prior attempt extreme,' overriding the dynamic block from the prior loss at tick 9. This verifies the fix for reentry logic regressions where logical override criteria were identified but not applied.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 28 (9:57 AM): recentTrades shows entry FILL BUY CALL 752C. intent.diagnostics.reentry correctly shows "allowed":true and "clearedPriorAttempt":true based on prior loss at tick 9.
+  • Tick 29 (9:58 AM): Position state is open, prose and mindset align with successful re-entry.
+Next: Monitor for correct thesis management of the re-entered position.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:10 AM] GREEN · HEALTHY · firstsignal-sim-v1.3-20260712
+Post-Exit Intent Latency Fix Verified Repeatedly
+Following the position exit via VEHICLE_FAILURE at tick 40, the intent state correctly and immediately transitioned from HOLD to WAIT at tick 41 (10:10 AM). The readiness reset to zero and the correct post-exit blocker were applied. This confirms the verified fix for open-position logic latency following non-canonical exits, reproducing the successful reset seen at tick 10.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 39 (10:08 AM): Position exists, intent.action is HOLD. Latest entry was tick 28.
+  • Tick 40: recentTrades shows exit THESIS-EXIT via VEHICLE_FAILURE at 10:09 AM with -40% P&L. Journal confirms POST_EXIT_STATE_RESET explicitly.
+  • Tick 41 (10:10 AM): Position is null. intent.action is WAIT, readiness is 0, blockers are ["POSITION_CLOSED_VEHICLE_FAILURE"].
+Next: Continue monitoring intent state updates after non-canonical exits.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:30 AM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+AI Narrative Describes High Conviction Logic Override, Diagnostics Fails to Update Reentry State
+The AI journal explicitly details material new evidence and a 'high-conviction setup forming' for a BUY_CALL, yet the structured reentry diagnostics remain blocked by 'repeated GEX_VELOCITY' with no stated evidence. This indicates a critical breakdown and regression where the model fails to apply its logical override criteria based on recognized narrative, repeating failures reported in previous build sequences.
+Version assessment: REGRESSION · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 60 (10:29 AM context) Journal: AI describes 'Tension is screaming upside break... prime BUY_CALL setup' and 'eagerly awaiting the end of the mandatory wait period'.
+  • Tick 61 (10:30 AM): Intent is PREPARE_CALL, readiness 72, blockers include REENTRY_REASSESS_REQUIRED due to 'repeated GEX_VELOCITY'. diagnostis.reentry confirms allowed:false.
+  • Build ID: firstsignal-sim-v1.3-20260712 (Seq 4).
+Next: Investigate failure of AI prose analysis to logically map described high-conviction momentum evidence into structured reentry diagnostics.
+Approval required: NO
+------------------------------------------------------------------------
+
+[10:50 AM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Intent Engine Reports 'Current Leg Agrees' Despite AI Narrative Detailing Stasis and Lack of Momentum
+The intent engine's structured diagnostic cites 'Current leg agrees' as a supporting factor for PREPARE_CALL, directly contradicting simultaneous AI journal prose which describes a continuation of 'quiet accumulation' with 'localized tension easing' and 'immediate breakout momentum...not yet re-activated'. This demonstrates incoherence between the narrative and structured intent criteria.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 81 current. Reentry diagnostics show `allowed: false` with blocker `REENTRY_REASSESS_REQUIRED: repeated GEX_VELOCITY`. Override condition explicitly states `AI must identify material new evidence`.
+  • AI journal at 10:49 AM describes `Minor further easing of localized tension` as `quiet accumulation phase` which `extends` the period and `confirms that immediate breakout momentum has not yet re-activated`.
+  • This prose explicitly defines a *continuation* of conditions and *lack* of new evidence, directly contradicting the structured intent factor citing `Source: SESSION_AWARE_INTENT SupportingFactor: Current leg agrees` in the Intent Factors.
+Next: Trace the logic mapping AI prose descriptions of 'stasis' or 'extended accumulation' to internal 'leg agreement' factors. The intent engine should not claim leg agreement to support a Prepare action when the narrative explicitly details a lack of dynamic momentum or new evidence.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:10 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Fix Verified: Reentry Logic Override Function Properly Dynamic and Cohesive with AI Narrative
+The reentry logic override function is verified as fixed. At tick 101, the AI journal details an imminent explosive upward resolution, and structured reentry diagnostics cohesively match this narrative by showing 'allowed: true' based on recognized material new evidence ('new extreme beyond prior episode'). This verifies that logical override criteria are correctly identified and applied.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 101 current, Session Mode null, Replay Date 2026-07-10. Position is null. Intent is PREPARE_CALL with readiness 98. Blockers: DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE. Reentry diagnostics display allowed: true, with newEvidence recognized as ['new extreme beyond prior episode', 'cleared prior attempt extreme'].
+  • AI journal at 11:08 AM and 11:09 AM describes 'continuous violent accumulation of localized positive tension' and 'Upward explosion imminent' with 'maximal conviction'.
+  • Structured diagnostics and AI narrative are cohesive, recognizing material new evidence (price at 7518.94 is beyond the prior P2 exit spot at 747.90) to override dynamic reentry blocks, verifying the fix for logical disconnects reported at tick 61.
+Next: Fix verified. No suggested action needed for this function. Reentry diagnostics appropriately map AI text reflection and market data to logic states.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:30 AM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Fix Verified: Reentry Override Logic Remains Stable and Coherent Through Continuation
+The fix for the reentry logic override function is confirmed as stable and coherent. At tick 121, both the AI journal narrative and structured reentry diagnostics properly recognize material new evidence to maintain an 'allowed' status, despite dynamic blockers like drawdown review being present. This demonstrates sustained logical consistency.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 121 current. Position null. Intent PREPARE_CALL with readiness 83. Blocker: DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE. Reentry diagnostics show allowed: true, recognizing 'new extreme beyond prior episode' and 'cleared prior attempt extreme'.
+  • AI journal from 11:28 AM and 11:29 AM describes price stationarity with localized tension re-build, reiterating 'maximal conviction' for uninterrupted upward momentum and defining dips as 'fierce buying context'.
+  • Structured diagnostics and AI narrative are cohesive, recognizing material new evidence to maintain authorized reentry status, confirming the fix verified at tick 101 holds through logical continuation.
+Next: Fix verified. Reentry functions show stable cohesion with market data and narrative logic across multiple snapshots.
+Approval required: NO
+------------------------------------------------------------------------
+
+[11:50 AM] GREEN · HEALTHY · firstsignal-sim-v1.3-20260712
+System Correctly Identifies Data Staleness and Applies Intent Blocker
+Data staleness detection and blocking is verified as functional. At tick 141, market data age exceeds the threshold (10-11 seconds), and the system correctly transitions Data Health to 'DATA_STALE_OR_NONINFORMATIVE', logs this in the AI journal, and applies the corresponding blocker to PREPARE_CALL intent.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 141 current, intent PREPARE_CALL, readiness 83.
+  • Data health explicitly state: 'DATA_STALE_OR_NONINFORMATIVE', stale: true, nonInformative: true, spyMeaningfulAge: 10, spxMeaningfulAge: 11.
+  • Intent blockers correctly list 'DATA_STALE_OR_NONINFORMATIVE'.
+  • AI journal at 11:49 AM explicitly notes 'DATA_STATE DATA_STALE_OR_NONINFORMATIVE source:REAL_TRADE_OHLCV_WITH_PATH_FILL spyFlat:2 chainRows:55.'
+Next: Fix verified. The system accurately detects input data staleness and applies the correct blocker to prevent immediate trade execution during the non-informative phase. No action required.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:10 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Intent Engine Claims 'Leg Agreement' While AI Narrative Details Violent Counter-Directional Compression
+The intent engine continues to report 'Current leg agrees' as a supporting factor for PREPARE_CALL, despite simultaneous AI journal prose detailing violent negative compression builds (-0.59). This confirms persistence of the logic breakdown where structured criteria become disjointed from the recognized market narrative.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 161 structured Intent supportingFactors includes 'Current leg agrees' to support PREPARE_CALL.
+  • AI Journal at 12:08 PM and 12:09 PM explicitly details 'localized tension compression intensified violently' from -0.11 to an 'absolute extreme' of -0.59 on stationary price.
+  • Violent negative tension/compression on stationary price contradicts a structured factor of immediate bullish 'leg agreement', reproducing the logic incoherence reported at tick 81.
+Next: Trace logic mapping AI prose descriptions of violent compression/negative tension to internal 'leg agreement' factors. The intent engine should not claim leg agreement to support a Prepare action when the narrative explicitly details counter-directional local pressure build.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:30 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Intent Engine Claims 'Leg Agreement' While AI Narrative Describes Stationary Price and Normalizing Negative Tension
+The intent engine still asserts 'Current leg agrees' to support PREPARE_CALL, despite simultaneous AI journal prose explicitly describing price as 'stationary' and localized tension as in 'minor normalization (-0.62)'. This confirms that the logic linkage reported as incoherent at ticks 81 and 161 remains broken in this build.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick 181 structured Intent supportingFactors includes 'Current leg agrees' for PREPARE_CALL.
+  • AI Journal at 12:29 PM describes price as 'stationary at 7533' and local tension as having 'minor normalization (-0.62)'.
+  • Stationary price and negatively normalizing tension directly contradict a structured factor asserting immediate bullish 'leg agreement', repeating the logic incoherence reported at ticks 81 and 161.
+Next: Investigate the logic that maps AI journal prose descriptions of stationary price and normalizing negative tension to the 'Current leg agrees' structured factor. The intent engine incorrectly claims immediate bullish leg agreement when narrative evidence indicates stasis and pressure builds.
+Approval required: NO
+------------------------------------------------------------------------
+
+[12:50 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Intent Engine Asserts 'Leg Agreement' Contradicting AI Narrative of Local Drifting
+The structured intent engine claims 'Current leg agrees' as a supporting factor for PREPARE_CALL. This directly contradicts simultaneous AI journal narrative explicitly describing price as having 'drifted minimally' lower and immediate market moves being slightly negative, indicating the local leg is not actively agreeing with the CALL direction. This confirms persistence of the logic breakdown reported at ticks 81, 161, and 181.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Journal (12:45 PM): "Price drifted minimally to 7532 from 7534 highs. Local tension normalized back towards absolute balance (+0.02)."
+  • Structured SupportingFactors: "Current leg agrees"
+  • Transmission data: spxMove: -0.11419574775845831, spyMove: -0.016217147610745997
+Next: Investigate linkage between AI prose generation and structured intent criteria to ensure supporting factors properly reflect recognized market state.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:10 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Fix Verified: Reentry Logic Remains Stable and Coherent Under Drawdown Review Blocker
+The fix for reentry override logic stability is confirmed as stable at tick 221. Despite the presence of a dynamic blocker ('DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE') resulting from the prior trade loss, the system's re-entry diagnostics consistently identify material new evidence ('cleared prior attempt extreme'). This correctly maintains 'allowed: true' status, allowing valid intent preparation while respecting risk guardrails.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Prior Reports (fix verified at ticks 101, 121)
+  • Current re-entry diagnostics: "allowed: true", "clearedPriorAttempt: true"
+  • Intent blockers: ["DRAWDOWN_REVIEW_REQUIRES_MODEL_CHANGE"]
+  • Recent Trades: Thesis-exit at 10:09 AM with -40% PnL
+Next: None. System performance is optimal in this scenario.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:30 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Fix Verified: Intent Engine 'Price Persistence' Factor Coheres with Breakout Narrative
+Fix Verified: The structured intent engine's supporting factor 'Price persistence' is verified as coherent with the recognized narrative at tick 241. AI journal prose explicitly describes price as 'holding 7545' after an 'initiated breakout', which is directly supported by transmission data showing positive movement. This confirms the system correctly links structured criteria to narrative evidence, resolving prior incoherence.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • System Intent Engine reports supporting factor "Price persistence"
+  • AI Journal (1:26 PM): "Price holding 7545." and (1:25 PM): "Price breakout initiated to 7545."
+  • Transmission data: spxMove: 0.2013629161665449, spyMove: 0.016217147610745997
+Next: None. Internal logic remains coherent.
+Approval required: NO
+------------------------------------------------------------------------
+
+[1:50 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Structured Intent Criteria Contain Logical Contradiction Between Supporting Factors and Gaps
+A logical contradiction exists within the structured data at tick 261. 'Price persistence' is simultaneously listed as an active 'Gap' (preventing execution) and as NOT listed in the 'SupportingFactors' (consistent), however comparing to tick 241, where it was verified as fixed, it seems the factors logic is inconsistent. Furthermore, previous bug reports (ticks 161, 181, 201) regarding 'Current leg agrees' persist, indicating disjointed structured logic generation. Therefore, the highest value observation is the internal contradiction in data structure between supporting factors and gaps definitions.
+Version assessment: NEW_FINDING · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • SupportingFactors list: ['Market brain CALL', 'Current leg agrees', ...]
+  • Gaps list: ['Price persistence', 'Acceleration active']
+Next: Investigate the logic that defines structured supporting factors and gaps to ensure a condition cannot simultaneously exist in both lists.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:10 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Claims 'Leg Agreement' During Price Stasis
+The structured intent engine reports 'Current leg agrees' as a supporting factor for CALL, directly contradicting simultaneous AI journal prose describing price as 'static'. Price stasis also confirms the persistence of the 'Price persistence' gap. This demonstrates persistent incoherence where structured support criteria become disjointed from the recognized market narrative, repeating logic breakdowns previously reported.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Current SupportingFactors: ["Market brain CALL", "Current leg agrees", ...]
+  • Current Gaps: ["Price persistence", "Acceleration active"]
+  • AI Journal (2:08 PM): "Price...hold static."
+Next: Review intent model logic mapping specifically regarding stationary price and how 'leg agreement' and 'persistence gaps' are generated.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:30 PM] GREEN · PERFORMANCE · firstsignal-sim-v1.3-20260712
+Fix Verified Stability: Reentry Diagnostics Dynamically Map Price Extension to Override Material Evidence
+Fix Verified Stability: Reentry logic override continues to perform stably at tick 301. Internal diagnostics correctly map immediate market movement ("Price ticked up to 7542") to recognized material new evidence ("cleared prior attempt extreme" and "new extreme beyond prior episode"), maintaining re-entry 'allowed' status while properly respecting the dynamic drawdown review blocker. This confirms sustained stabilization of logic mapping.
+Version assessment: FIX_VERIFIED · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • AI Journal (2:25 PM): "Price ticked up to 7542...Resumption of violent dynamic extension velocity confirmed."
+  • Reentry Diagnostics: clearedPriorAttempt: true, newEvidence: ["new extreme beyond prior episode", "cleared prior attempt extreme"]
+  • Recent Trades: VEHICLE_FAILURE at 10:09 AM (tick 40)
+Next: Continue to monitor reentry logic to ensure sustained performance under risk blockers.
+Approval required: NO
+------------------------------------------------------------------------
+
+[2:50 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Persistent Incoherence: Intent Engine Claims CALL 'Leg Agreement' During Price Decline
+The structured intent engine reports 'Current leg agrees' as a supporting factor for PREPARE_CALL, despite simultaneous transmission data and AI journal prose acknowledging immediate negative price movement. This confirms the persistence of the logic incoherence reported since tick 81.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick: 321
+  • Intent: PREPARE_CALL
+  • Supporting Factor: 'Current leg agrees'
+  • Transmission SPX Move: -0.0493
+  • Transmission SPY Move: -0.0040
+  • AI Journal Ticker Reflection (2:45 PM): 'Price dropped to 7540...'
+Next: Investigate the logic generation for 'Current leg agrees' supporting factor. The transmission data clearly shows negative price movement over the immediate window, which contradicts the claim of CALL leg agreement. This logic mismatch has been reported at ticks 81, 161, 181, 201, and 281 in this session.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:10 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Claims CALL 'Leg Agreement' During Active Negative Price Movement
+At tick 341, the structured intent engine cites 'Current leg agrees' as a supporting factor for the CALL direction. This directly contradicts immediate transmission metrics showing negative movement over the current window (SPX -0.035, SPY -0.006), confirming sustained logic incoherence previously reported throughout this session, most recently at tick 321.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick: 341
+  • Intent: PREPARE_CALL
+  • Supporting Factor: 'Current leg agrees'
+  • Transmission SPX Move: -0.0351
+  • Transmission SPY Move: -0.0061
+  • Current SPX price 7535.9, down from 7538.48 at tick 321
+Next: Fix the underlying logic that generates the internal 'Current leg agrees' criteria. Validate that this structured factor aligns with raw market data and the recognized playbook conditions before presenting it as supporting evidence, as this mismatch has been persistently reported.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:30 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Claims CALL 'Leg Agreement' During Price Retracement
+At tick 361, the structured intent engine cites 'Current leg agrees' as a supporting factor for the CALL direction. This directly contradicts immediate transmission metrics showing substantive negative movement over the context window (SPX -0.0689, SPY -0.0054), confirming sustained logic incoherence precisely identical to failures reported since tick 81.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick: 361
+  • Intent: PREPARE_CALL
+  • Supporting Factor: 'Current leg agrees'
+  • Transmission SPX Move: -0.0689
+  • Transmission SPY Move: -0.0054
+Next: Address the core logic generation failure presented by 'Current leg agrees'. This structured supporting factor consistently fails to validate against objective market data and transmission metrics, presenting a misleading support criterion throughout the session.
+Approval required: NO
+------------------------------------------------------------------------
+
+[3:50 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Persistent Contradiction: Intent Engine Incorrectly Reports 'Current Leg Agrees' During Negative Price Action
+The structured intent engine reports 'Current leg agrees' as a supporting factor for PREPARE_CALL at tick 381, directly contradicting simultaneous transmission data that shows significant negative movement (SPX -0.1473, SPY -0.0203). This confirms the persistence of the logic incoherence reported throughout this session by FirstSignal Sim V1 QA.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick: 381, 3:50 PM
+  • Intent: PREPARE_CALL
+  • Supporting Factor: 'Current leg agrees'
+  • Transmission SPX Move: -0.1473
+  • Transmission SPY Move: -0.0203
+Next: Correct the logic for generating the predictive supporting criteria. The 'Current leg agrees' factor persistently contradicts negative transmission data, indicating that the immediate price movement does not support the stated CALL intent preparation. This logic mismatch has been consistently observed.
+Approval required: NO
+------------------------------------------------------------------------
+
+[4:10 PM] YELLOW · BUG · firstsignal-sim-v1.3-20260712
+Persistent Incoherence: Intent Engine Claims 'Leg Agreement' Despite Contradictory Price Movement
+The structured intent engine claims 'Current leg agrees' as supporting evidence for CALL intent at tick 401. This structured data point is directly contradicted by immediate transmission metrics, where SPX is showing negative movement (-0.0858). This persistent logic incoherence reproduces the bug reported repeatedly throughout this session.
+Version assessment: SAME_BUILD_REPEAT · related firstsignal-sim-v1.3-20260712
+Evidence:
+  • Tick: 401, 4:10 PM
+  • Intent: PREPARE_CALL
+  • Supporting Factor: 'Current leg agrees'
+  • Transmission SPX Move: -0.0858
+  • Transmission SPY Move: 0.0209
+Next: Correct the faulty logic that determines positional 'leg agreement'. This internal structured criterion continues to report supporting evidence for its directional intent preparation that is directly contradicted by simultaneous transmission metrics. The failure has been continuously observed and reported.
+Approval required: NO
+------------------------------------------------------------------------

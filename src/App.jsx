@@ -1065,8 +1065,11 @@ function createAiSessionMemory(label="UNSET"){
   const priorArch=storageGet("ai_architecture_memory",{}),upgradePending=priorArch.buildId!==BUILD_ID;
   return{sessionLabel:label,updatedAt:null,summary:"Session not yet assessed.",dominantThesis:"UNSET",competingThesis:"UNSET",expectedPath:"UNSET",invalidation:"UNSET",unresolved:"UNSET",lastDecision:"NONE",lastSpot:null,lastTime:null,entries:[],architecture:{buildId:BUILD_ID,upgradePending,priorBuild:priorArch.buildId||"UNKNOWN",reflection:priorArch.reflection||"UNSET"}};
 }
-function aiMemoryText(mem){
+function aiMemoryText(mem,{recentEntries=0,includeAllEntries=false}={}){
   const m=mem||createAiSessionMemory();
+  const allEntries=m.entries||[];
+  const selected=includeAllEntries?allEntries:(recentEntries>0?allEntries.slice(-recentEntries):[]);
+  const ledger=selected.length?`\n\nTHOUGHT LEDGER (${selected.length}${includeAllEntries?` OF ${allEntries.length}`:` MOST RECENT OF ${allEntries.length}`}):\n${selected.map((entry,i)=>`--- NOTE ${includeAllEntries?i+1:allEntries.length-selected.length+i+1} ---\n${entry}`).join("\n\n")}`:`\nThought ledger entries stored: ${allEntries.length}.`;
   return `FIRSTSIGNAL SIM v1 STRUCTURED CONTINUITY STATE
 Session: ${m.sessionLabel}
 Continuity summary: ${m.summary}
@@ -1077,8 +1080,7 @@ Invalidation: ${m.invalidation}
 Unresolved question: ${m.unresolved}
 Last decision: ${m.lastDecision} at ${m.lastTime||"UNSET"}
 Architecture: ${m.architecture?.upgradePending?`UPGRADE PENDING from ${m.architecture?.priorBuild||"UNKNOWN"} to ${m.architecture?.buildId}`:`Build ${m.architecture?.buildId||BUILD_ID} understood`}
-Architecture reflection: ${m.architecture?.reflection||"UNSET"}
-Raw thoughts remain preserved externally for same-Trader final reflection and audit, but are not recursively replayed as authority.`;
+Architecture reflection: ${m.architecture?.reflection||"UNSET"}${ledger}`;
 }
 function authoritativeStateText(mkt,pos,bal,tradeMemory){
   const p=pos?`${pos.isCall?"CALL":"PUT"} ${pos.strike}${pos.isCall?"C":"P"} entry $${Number(pos.entry).toFixed(2)} current $${Number(pos.current??pos.entry).toFixed(2)} entrySpot ${Number(pos.entrySpot).toFixed(2)}`:"FLAT";
@@ -1111,7 +1113,7 @@ function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const entry=`[${time}]\n${thought||`${dec.decision}: ${observed}`}\nDecision: ${dec.decision}${expected?` | Watching: ${expected}`:""}`;
   const reflection=(dec.architecture_reflection||prior.architecture?.reflection||"UNSET").trim();
   const architecture={...(prior.architecture||{}),buildId:BUILD_ID,upgradePending:false,reflection};
-  return{...prior,architecture,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved:lastFlowHypothesis(dec,unresolved),lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-40)};
+  return{...prior,architecture,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved:lastFlowHypothesis(dec,unresolved),lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-2000)};
 }
 
 function observationIntegrity(obs){
@@ -1127,7 +1129,7 @@ function appendAiObservationMemory(mem,obs,mkt,time){
   const entry=`[${time}]
 ${thought}
 Cognition: ${obs.urgency||"NONE"}${obs.expected_next_path?` | Watching: ${obs.expected_next_path}`:""}`;
-  return{...prior,updatedAt:time,lastSpot:mkt.spySpot,lastTime:time,summary:obs.thesis_delta||thought,dominantThesis:obs.current_thesis||prior.dominantThesis,expectedPath:obs.expected_next_path||prior.expectedPath,entries:[...(prior.entries||[]),entry].slice(-40)};
+  return{...prior,updatedAt:time,lastSpot:mkt.spySpot,lastTime:time,summary:obs.thesis_delta||thought,dominantThesis:obs.current_thesis||prior.dominantThesis,expectedPath:obs.expected_next_path||prior.expectedPath,entries:[...(prior.entries||[]),entry].slice(-2000)};
 }
 
 function normalizeTraderDecision(obj){
@@ -1511,7 +1513,7 @@ SESSION JOURNAL:
 ${activeJournal.map(j=>`[${j.t}] ${j.entry}`).join("\n")||"No currently authoritative journal event."}
 
 AI THOUGHTS JOURNAL — READ THIS BEFORE DECIDING:
-${aiMemoryText(aiSessionMemory)}
+${aiMemoryText(aiSessionMemory,{recentEntries:30})}
 
 VALIDATED CROSS-SESSION OPERATING MEMORY:
 ${traderLearningText(traderLearning)}
@@ -2057,7 +2059,9 @@ export default function App(){
     const latest=batch.at(-1);
     if(!latest)return;
     cognitionRunningR.current=true;
-    const memory=aiMemoryText(aiSessionMemoryR.current);
+    aiFreezeR.current=true;
+    setLiveThought(`Reading and committing cognition for tick ${latest.tick}...`);
+    const memory=aiMemoryText(aiSessionMemoryR.current,{recentEntries:30});
     const authoritative=authoritativeStateText(latest.market,posR.current,balR.current,tradeMemoryR.current);
     const campaign=buildCampaignState(latest.market,candR.current,tradeMemoryR.current,metacognitionR.current);
     const wholeDay=`WHOLE-DAY STRUCTURED CONTEXT
@@ -2070,16 +2074,21 @@ Trade memory: ${JSON.stringify(tradeMemoryR.current)}`;
     const providerRuntime=geminiLiveTrader.runtimeStatus?.()||{};
     const providerAuthority=providerRuntime.state==="CONNECTED"&&!providerRuntime.circuitOpen?"PROVIDER STATUS: CONNECTED AND HEALTHY. Any earlier transient provider failure is historical and cannot remain an execution or integrity lock.":`PROVIDER STATUS: ${providerRuntime.state||"UNKNOWN"}.`;
     const prompt=`CONTINUOUS_TICK_BATCH ${++cognitionSeqR.current}\n${providerAuthority}\nSIMULATION TEMPORAL CONTEXT: each row is exactly one simulated 20-second market tick. Wall-clock arrival speed is not market information. This batch is background interpretation only and cannot execute trades. Source ticks ${batch[0]?.tick}-${latest.tick}; if the market has advanced when this resolves, preserve only durable context and never imply execution eligibility.\nDATA HEALTH GROUNDING: the deterministic DATA field on each row is authoritative. Never declare a frozen, stale, corrupt, or invalid feed when the latest row says DATA_HEALTHY. Do not infer staleness merely because rounded values repeat; SPX is supplied to cents. If continuity prose conflicts with current DATA or current ticks, discard the prose as historical.\nRead every ordered tick and the private journal. This is background cognition only. Call record_tick_reflection once. First determine the active campaign, its maturity, and remaining opportunity from WHOLE-DAY STRUCTURED CONTEXT. Keep thought_append empty unless a causal inference, campaign-stage change, failed-leg update, expectation revision, contradiction, or self-correction is genuinely new. Never narrate WAIT/PREPARE gates, repeat prior wording, or issue a trade through this channel.\n\nSTRUCTURED CONTINUITY:\n${memory}\n\n${authoritative}\n\n${wholeDay}\n\nTICKS:\n${lines}`;
-    const requestObservationWithOneRetry=async()=>{
-      try{return await geminiLiveTrader.requestObservation(prompt);}
-      catch(firstError){
-        const message=String(firstError?.message||firstError);
-        if(!/OBSERVATION_TIMEOUT|TURN_DRAIN_TIMEOUT|RESPONSE_TIMEOUT/i.test(message))throw firstError;
-        addJournal(latest.t,`AI_COGNITION_RETRY_ONCE tick ${latest.tick}: first observation attempt timed out; resending the identical batch through the same Trader session.`);
-        return geminiLiveTrader.requestObservation(prompt);
+    let cognitionFailed=false;
+    const requestObservationWithRecovery=async()=>{
+      let lastError=null;
+      for(let attempt=1;attempt<=3;attempt++){
+        try{return await geminiLiveTrader.requestObservation(prompt);}
+        catch(error){
+          lastError=error;
+          const message=String(error?.message||error);
+          addJournal(latest.t,`AI_COGNITION_RETRY ${attempt}/3 tick ${latest.tick}: ${message}. Simulation remains paused until this tick is understood.`);
+          if(attempt<3)await new Promise(resolve=>setTimeout(resolve,1000));
+        }
       }
+      throw lastError||new Error("COGNITION_FAILED_AFTER_RETRIES");
     };
-    requestObservationWithOneRetry().then(obs=>{
+    requestObservationWithRecovery().then(async obs=>{
       const integrity=observationIntegrity(obs);
       if(!integrity.ok){addJournal(latest.t,`AI_OBSERVATION_REJECTED ${integrity.reason}; malformed provider output was not committed to Trader memory.`);fetch(`${AGENT_BASE}/session/finalization-diagnostic`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:selectedReplayDate,phase:'MALFORMED_OBSERVATION',marketTime:latest.t,tick:latest.tick,reason:integrity.reason,rawObservation:obs})}).catch(()=>{});return;}
       const thought=sanitizeCognitionText(obs?.thought_append||obs?.thesis_delta||"");
@@ -2096,13 +2105,33 @@ Trade memory: ${JSON.stringify(tradeMemoryR.current)}`;
       storageSet("ai_session_memory",aiSessionMemoryR.current);
       setAiSessionMemory({...aiSessionMemoryR.current});
       setThoughtSync("SAVING");
-      persistThought({session_id:thoughtSessionIdR.current,market_time:latest.t,kind:"tick_reflection",content:thought,decision:"OBSERVE",spot:latest.spy,metadata:{thesis:obs.current_thesis||"",expected_next_path:obs.expected_next_path||"",urgency:obs.urgency||"NONE",batch_ticks:batch.length,requestedAtTick:batch[0]?.tick,resolvedAtTick:tickR.current,appliedAtTick:null,status:"BACKGROUND_CONTEXT_ONLY",executionEligible:false}}).then(()=>setThoughtSync("SYNCED")).catch(()=>setThoughtSync("LOCAL"));
+      try{
+        await persistThought({session_id:thoughtSessionIdR.current,market_time:latest.t,kind:"tick_reflection",content:thought,decision:"OBSERVE",spot:latest.spy,metadata:{thesis:obs.current_thesis||"",expected_next_path:obs.expected_next_path||"",urgency:obs.urgency||"NONE",batch_ticks:batch.length,requestedAtTick:batch[0]?.tick,resolvedAtTick:tickR.current,appliedAtTick:latest.tick,status:"COMMITTED_BEFORE_NEXT_TICK",executionEligible:false}});
+        setThoughtSync("SYNCED");
+      }catch{
+        setThoughtSync("LOCAL");
+        throw new Error("THOUGHT_JOURNAL_COMMIT_FAILED");
+      }
       if(obs.noteworthy)addJournal(latest.t,`AI_TICK_REFLECTION ${obs.urgency||"NONE"}: ${thought}`);
-    }).catch(()=>{}).finally(()=>{
+    }).catch(error=>{
+      cognitionFailed=true;
+      cognitionQueueR.current=[...batch,...cognitionQueueR.current];
+      setRunning(false);
+      setLiveThought(`COGNITION BLOCKED at tick ${latest.tick}`);
+      addJournal(latest.t,`COGNITION_BLOCKED tick ${latest.tick}: ${String(error?.message||error)}. Run halted before the next market tick; unresolved cognition was re-queued.`);
+    }).finally(()=>{
       cognitionRunningR.current=false;
-      if(!finalizingR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)setTimeout(()=>drainCognition(),0);
+      if(!cognitionFailed){
+        aiFreezeR.current=false;
+        setLiveThought("");
+        if(!finalizingR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)setTimeout(()=>drainCognition(),0);
+      }
     });
   },[addJournal]);
+
+  useEffect(()=>{
+    if(running&&aiFreezeR.current&&!cognitionRunningR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)drainCognition();
+  },[running,drainCognition]);
 
   const resetPostExitState=useCallback((reason,market)=>{
   const active=activeDecisionR.current;
@@ -3090,8 +3119,8 @@ if(screen==="home")return(
 
         {mkt&&<details open style={{background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,margin:"0 14px 8px",padding:"9px 12px"}}>
           <summary style={{fontSize:9,color:T.purple,letterSpacing:"0.1em",cursor:"pointer"}}>AI THOUGHTS JOURNAL  |  {thoughtSync}  |  {aiSessionMemory.entries?.length||0} NOTES</summary>
-          <pre style={{whiteSpace:"pre-wrap",fontSize:9,lineHeight:1.65,color:T.text,maxHeight:320,overflowY:"auto",margin:"10px 0 8px",fontFamily:"Consolas, monospace"}}>{aiMemoryText(aiSessionMemory)}{liveThought?`\n\n[WRITING NOW]\n${liveThought}▌`:""}</pre>
-          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory)],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`firstsignal-sim-v1-ai-thoughts-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT .TXT</button>
+          <pre style={{whiteSpace:"pre-wrap",fontSize:9,lineHeight:1.65,color:T.text,maxHeight:320,overflowY:"auto",margin:"10px 0 8px",fontFamily:"Consolas, monospace"}}>{aiMemoryText(aiSessionMemory,{recentEntries:30})}{liveThought?`\n\n[WRITING NOW]\n${liveThought}▌`:""}</pre>
+          <button onClick={()=>{const blob=new Blob([aiMemoryText(aiSessionMemory,{includeAllEntries:true})],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`firstsignal-sim-v1-ai-thoughts-${selectedReplayDate}.txt`;a.click();URL.revokeObjectURL(a.href);}} style={{fontSize:8,padding:"5px 8px",background:T.surface2,color:T.purple,border:`1px solid ${T.purple}55`,borderRadius:4,cursor:"pointer"}}>EXPORT ALL NOTES .TXT</button>
         </details>}
 
         <div style={{background:T.surface,borderRadius:8,border:`1px solid ${qaReports.at(-1)?.level==="RED"?T.red:qaReports.at(-1)?.level==="YELLOW"?T.yellow:T.accent}55`,margin:"0 14px 8px",padding:12}}>

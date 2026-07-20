@@ -44,7 +44,7 @@ const STORAGE_KEY = "gcdt_shared"; // legacy compatibility key; do not rename wi
 const LEGACY_STORAGE_KEYS = ["gcdt_v14","gcdt_v13"];
 const SIGNAL_EXIT_MIN_HOLD_TICKS=12;
 const LEAD_LAG_SUSTAIN_TICKS=3;
-const AI_REQUEST_TIMEOUT_MS=45000,AI_MAX_ENTRY_AGE_TICKS=10,AI_MAX_WAIT_AGE_TICKS=12;
+const AI_REQUEST_TIMEOUT_MS=60000,AI_MAX_ENTRY_AGE_TICKS=10,AI_MAX_WAIT_AGE_TICKS=12;
 const CHOP_PIN_ON=0.35,CHOP_PIN_OFF=0.25;
 const ACCEL_SCALE_MAX=12,ACCEL_EXTREME_HIGH=8.8,ACCEL_EXTREME_LOW=2,ACCEL_BUILD_MIN=4.2,ACCEL_BUILD_MAX=8.7,ACCEL_RETEST_MAX=6.8;
 
@@ -1604,7 +1604,14 @@ GEX IMPULSE: ${JSON.stringify(th.gexImpulse||{})}
 SIGNAL TRUST: ${JSON.stringify(metaContext.signalTrust||{})}
 DRAWDOWN REVIEW: ${metaContext.drawdownActive?"ACTIVE - fewer trades are appropriate until the operating model is re-articulated":"inactive"}
 If canonical action is BUY with no hard blockers, return that BUY unless one enumerated veto is objectively true. Keep thought_append and architecture_reflection empty; prioritize the decision.`:prompt;
-  const payload=await geminiLiveTrader.request(urgentPrompt,onThought,signal,{urgent:urgentEntry});
+  let payload;
+  try{payload=await geminiLiveTrader.request(urgentPrompt,onThought,signal,{urgent:urgentEntry});}
+  catch(firstError){
+    const message=String(firstError?.message||firstError);
+    if(!/GEMINI_LIVE_TIMEOUT|RESPONSE_TIMEOUT|TURN_DRAIN_TIMEOUT/i.test(message))throw firstError;
+    onThought?.("Trader decision timed out once; retrying through the same live session...");
+    payload=await geminiLiveTrader.request(urgentPrompt,onThought,signal,{urgent:urgentEntry});
+  }
   const normalized=normalizeTraderDecision(payload);
   if(isSemanticAiFailure(normalized)){
     const err=new Error(`AI_SEMANTIC_FAILURE ${normalized.reasoning||normalized.mindset}`);
@@ -3226,4 +3233,5 @@ if(screen==="home")return(
     </div>
   );
 }
+
 

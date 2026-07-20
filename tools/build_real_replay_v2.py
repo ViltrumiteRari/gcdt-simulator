@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"]
-SOURCE_INTERVAL_SECONDS = {"2026-07-13":300,"2026-07-14":300,"2026-07-15":20,"2026-07-16":20}
+SOURCE_INTERVAL_SECONDS = {"2026-07-13":300,"2026-07-14":300,"2026-07-15":20,"2026-07-16":20,"2026-07-17":20}
 ROOT = Path(r"D:\FirstSignal_Sim_Dataset")
 OUT = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayData.js")
 OUT_JUL10 = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayDataJul10.js")
@@ -164,8 +164,16 @@ def load_market():
             series = fx.dropna(subset=["spot"]).groupby("captured_at")["spot"].median().sort_index()
             if series.empty:
                 continue
+            # Some option feeds carry a stale premarket underlying into the open.
+            # Do not let that overwrite a changing native spot path until the option
+            # underlying itself has made a meaningful observed move.
+            moves = series.diff().abs()
+            active = moves[moves > 0.01]
+            if active.empty:
+                continue
+            first_active = active.index[0]
             series, _ = causal_project_series(series, minute_index, slope_cap=5.0 if ticker == "SPX" else 0.5, max_age_minutes=10)
-            start = fx["captured_at"].min().floor("min")
+            start = first_active.floor("min")
             mask = (out[ticker]["captured_at"] >= start).to_numpy() & series.notna().to_numpy()
             out[ticker].loc[mask, "spot"] = series.loc[mask].to_numpy()
     # If native SPX collection starts late, restore the earlier five-minute historical path

@@ -1,0 +1,24 @@
+{
+  "date": "2026-06-29",
+  "as_of_et": "2026-06-29T09:29:59-04:00",
+  "information_boundary": "Only information reasonably available by 09:30 ET is included. Same-day outcome and post-open catalysts are excluded.",
+  "prior_days_context": [],
+  "same_day_premarket": {
+    "source_status": "RESEARCHED",
+    "items": [
+      "U.S. equities entered the week after a rare losing week and five consecutive S&P 500 declines.",
+      "Weekend developments around U.S.-Iran diplomacy reduced immediate tail risk but did not remove oil/geopolitical uncertainty.",
+      "AI and semiconductor shares were positioned for a rebound after sharp prior-week volatility."
+    ],
+    "scheduled_events": [
+      "No single scheduled macro release dominated the session setup; the key known variables were oil, Middle East headlines and whether AI leadership could stabilize."
+    ],
+    "starting_prior": "Use as a probabilistic prior and require live market transmission."
+  },
+  "authority": {
+    "role": "starting_prior_only",
+    "live_market_can_disprove": true,
+    "suggested_open_weight_pct": 20
+  },
+  "research_integrity": "No same-day post-09:30 catalyst or closing result is included."
+}

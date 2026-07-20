@@ -1,0 +1,81 @@
+{
+  "date": "2026-07-02",
+  "as_of_et": "2026-07-02T09:29:59-04:00",
+  "information_boundary": "Only information reasonably available by 09:30 ET is included. Same-day outcome and post-open catalysts are excluded.",
+  "prior_days_context": [
+    {
+      "date": "2026-06-29",
+      "observed_result": {
+        "open": 738.67,
+        "high": 741.0728401293519,
+        "low": 732.4343991376536,
+        "close": 740.989663876596,
+        "open_to_close": 2.32,
+        "range": 8.638
+      },
+      "causal_summary": "The session was primarily a relief and positioning rebound. The index recovered from a compressed, oversold five-day decline as AI leadership re-engaged. Geopolitical risk remained present, but stable yields prevented it from overwhelming the equity rebound.",
+      "main_drivers": [
+        "Broad risk rebound after five straight S&P 500 losses.",
+        "AI and chip shares rebounded strongly, helped by large announced South Korean chip-investment plans.",
+        "Oil rose but Treasury yields were comparatively stable, allowing growth stocks to recover."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-06-30",
+      "observed_result": {
+        "open": 741.31,
+        "high": 747.7807673628816,
+        "low": 741.31,
+        "close": 746.1038935390068,
+        "open_to_close": 4.794,
+        "range": 6.471
+      },
+      "causal_summary": "The close of the quarter extended the AI rebound. Index strength was concentrated in semiconductors and AI infrastructure rather than a clean all-sector expansion. Easing oil helped risk appetite, while higher yields limited the breadth of the move.",
+      "main_drivers": [
+        "Semiconductors and AI infrastructure led another advance.",
+        "Oil eased while Treasury yields rose, producing a growth-positive but not fully broad risk-on tape.",
+        "Quarter-end buying helped trim June losses."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-01",
+      "observed_result": {
+        "open": 742.64,
+        "high": 749.3971201724692,
+        "low": 742.64,
+        "close": 745.1,
+        "open_to_close": 2.46,
+        "range": 6.757
+      },
+      "causal_summary": "This was a divergence day: underlying breadth was healthier than the index, but concentrated technology and memory-chip selling controlled the cap-weighted benchmarks. Softer manufacturing reduced rate pressure but was insufficient to offset valuation-driven tech liquidation.",
+      "main_drivers": [
+        "Weakness in influential technology and memory-chip stocks outweighed positive breadth.",
+        "A softer-than-expected manufacturing reading helped Treasury yields retreat from their highs.",
+        "Most S&P sectors rose, but concentrated megacap weakness kept SPY/S&P 500 slightly negative."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    }
+  ],
+  "same_day_premarket": {
+    "source_status": "RESEARCHED",
+    "items": [
+      "June payrolls were the major scheduled catalyst before the holiday weekend.",
+      "The prior session had exposed a sharp split between positive breadth and weak AI/chip leadership.",
+      "Investors were balancing softer growth data against the risk of further semiconductor profit-taking."
+    ],
+    "scheduled_events": [
+      "June nonfarm payrolls",
+      "Unemployment rate",
+      "Early close/holiday positioning"
+    ],
+    "starting_prior": "Use as a probabilistic prior and require live market transmission."
+  },
+  "authority": {
+    "role": "starting_prior_only",
+    "live_market_can_disprove": true,
+    "suggested_open_weight_pct": 20
+  },
+  "research_integrity": "No same-day post-09:30 catalyst or closing result is included."
+}

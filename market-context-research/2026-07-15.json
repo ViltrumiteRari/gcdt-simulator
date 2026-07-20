@@ -1,0 +1,47 @@
+{
+  "date": "2026-07-15",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 754.54,
+    "high": 755.6381917247583,
+    "low": 750.2696802384185,
+    "close": 754.7449951171875,
+    "open_to_close": 0.205,
+    "range": 5.369
+  },
+  "known_by_0930_et": {
+    "items": [
+      "Producer-price inflation was softer than expected before the open, extending the prior day's cooler-CPI narrative.",
+      "Second-quarter earnings had started positively, with major banks reporting strong results for a second day.",
+      "BlackRock beat profit expectations; PayPal jumped on reported takeover interest.",
+      "Oil remained near a one-month high, so Middle East inflation risk was still present despite the benign PPI reading."
+    ],
+    "scheduled_events": [
+      "June PPI",
+      "BlackRock and bank earnings",
+      "Reported PayPal takeover proposal"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Softer producer inflation pushed Treasury yields lower.",
+    "Strong financial-sector earnings supported the broader tape.",
+    "PayPal and consumer-facing shares outperformed; semiconductors remained uneven.",
+    "The S&P 500 oscillated between gains and losses before finishing modestly higher."
+  ],
+  "causal_narrative": "The day was a tug-of-war between a constructive macro/earnings backdrop and unstable semiconductor leadership. Cooler PPI and falling yields improved the valuation environment, while strong financial earnings supported breadth. The modest close reflected continued skepticism toward crowded AI exposure and persistent oil risk rather than a rejection of the bullish inflation impulse.",
+  "source_notes": [
+    "Reuters premarket report at 09:15 ET, 2026-07-15",
+    "Associated Press market recap, 2026-07-15",
+    "Reuters closing recap, 2026-07-15"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

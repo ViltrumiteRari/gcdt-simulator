@@ -109,6 +109,7 @@ class GeminiLiveTrader {
     this.lastFailure = null;
     this.throttleUntil = 0;
     this.throttleCount = 0;
+    this.recoveryMode = false;
   }
 
   runtimeStatus(){return{state:this.providerState,circuitOpen:this.circuitOpen,circuitReason:this.circuitReason,lastFailure:this.lastFailure,connected:!!this.session,connecting:!!this.connecting,pendingKind:this.pending?.kind||null,throttleUntil:this.throttleUntil||null,retryAfterMs:Math.max(0,(this.throttleUntil||0)-Date.now()),continuity:this.continuityStatus()};}
@@ -116,6 +117,15 @@ class GeminiLiveTrader {
   openCircuit(error){const failure=classifyProviderError(error);this.lastFailure={...failure,at:new Date().toISOString()};this.circuitOpen=true;this.circuitReason=failure.code;this.providerState='CIRCUIT_OPEN';clearTimeout(this.reconnectTimer);this.reconnectTimer=null;this.connectAttemptSeq+=1;this.connecting=null;try{this.session?.close();}catch{}this.session=null;this.connectedAt=0;return failure;}
 
   enterThrottle(error){const failure=classifyProviderError(error);this.throttleCount+=1;const backoff=[60000,120000,300000][Math.min(this.throttleCount-1,2)];this.throttleUntil=Date.now()+backoff;this.lastFailure={...failure,at:new Date().toISOString(),retryAfterMs:backoff};this.providerState='THROTTLED';clearTimeout(this.reconnectTimer);this.reconnectTimer=null;this.connectAttemptSeq+=1;this.connecting=null;this.serverTurnActive=false;try{this.session?.close();}catch{}this.session=null;this.connectedAt=0;if(this.resumptionHandle)this.continuityState='RESUMING_ORIGINAL';return failure;}
+
+  isRejectedResumption(error){return !!this.resumptionHandle&&/invalid argument|invalid_argument|session.?resumption|resumption.?handle/i.test(String(error?.message||error||''));}
+
+  discardRejectedResumption(error){
+    this.resumptionHandle=null;
+    this.recoveryMode=true;
+    this.continuityState='REHYDRATING_CONTEXT';
+    this.continuityBreakReason=`STALE_RESUMPTION_HANDLE:${String(error?.message||error)}`;
+  }
 
   assertCircuitClosed(){if(this.circuitOpen){const e=new Error(`GEMINI_CIRCUIT_OPEN:${this.circuitReason}`);e.code=this.circuitReason;throw e;}}
 
@@ -160,7 +170,8 @@ class GeminiLiveTrader {
           candidate=await withTimeout(ai.live.connect({
             model:MODEL,
             callbacks:{
-              onopen:()=>{if(this.resumptionHandle&&this.sessionGeneration>0)this.continuityState='RESUMED_ORIGINAL';},
+              // Socket-open is not proof that the server accepted the handle.
+              onopen:()=>{},
               onmessage:message=>this.handleMessage(message),
               onerror:event=>this.handleFailure(new Error(`GEMINI_LIVE_ERROR:${event?.message||'unknown'}`),true),
               onclose:event=>this.handleFailure(new Error(`GEMINI_LIVE_CLOSE:${event?.reason||'closed'}`),true),
@@ -170,13 +181,19 @@ class GeminiLiveTrader {
           if(attemptGroup!==this.connectAttemptSeq){try{candidate?.close();}catch{} throw new Error('GEMINI_CONNECT_ATTEMPT_SUPERSEDED');}
           this.session=candidate;this.connectedAt=Date.now();this.sessionGeneration+=1;this.providerState='CONNECTED';this.lastFailure=null;this.throttleUntil=0;
           if(this.sessionGeneration===1)this.continuityState='ORIGINAL_LIVE';
-          else if(this.resumptionHandle)this.continuityState='RESUMED_ORIGINAL';
+          else if(this.resumptionHandle)this.continuityState='RESUMING_ORIGINAL';
+          else if(this.recoveryMode)this.continuityState='REHYDRATED_CONTEXT';
           else{this.continuityState='CONTINUITY_BROKEN';this.continuityBreakReason||='RECONNECTED_WITHOUT_RESUMPTION_HANDLE';}
           return candidate;
         }catch(error){
           lastError=error;const failure=classifyProviderError(error);this.lastFailure={...failure,at:new Date().toISOString()};try{candidate?.close();}catch{}
           this.session=null;this.connectedAt=0;
           if(failure.code==='PROVIDER_THROTTLED'){this.enterThrottle(error);throw error;}
+          if(this.isRejectedResumption(error)){
+            this.discardRejectedResumption(error);
+            if(attempt<CONNECT_ATTEMPTS)continue;
+            throw new Error(this.continuityBreakReason);
+          }
           if(failure.permanent){this.openCircuit(error);throw error;}
           if(attemptGroup!==this.connectAttemptSeq)throw error;
           if(this.resumptionHandle){this.continuityState='RESUMING_ORIGINAL';this.continuityBreakReason=String(error?.message||error);}
@@ -216,7 +233,8 @@ class GeminiLiveTrader {
     const resume = message?.sessionResumptionUpdate;
     if (resume?.resumable && resume?.newHandle) {
       this.resumptionHandle = resume.newHandle;
-      if (this.continuityState === 'UNPROVEN') this.continuityState = 'ORIGINAL_LIVE';
+      this.continuityState = this.recoveryMode?'REHYDRATED_CONTEXT':this.sessionGeneration>1?'RESUMED_ORIGINAL':'ORIGINAL_LIVE';
+      if(!this.recoveryMode)this.continuityBreakReason = null;
     }
     const turnComplete = message?.serverContent?.turnComplete === true;
     const pending = this.pending;
@@ -408,7 +426,7 @@ ${market}`;
     await this.waitForIdle(null, 5000);
     const activeSession = await this.ensureSession();
     if (!activeSession) throw new Error('TRADER_SESSION_RESUME_FAILED');
-    if (this.continuityState !== 'ORIGINAL_LIVE' && this.continuityState !== 'RESUMED_ORIGINAL') {
+    if (!['ORIGINAL_LIVE','RESUMED_ORIGINAL','REHYDRATED_CONTEXT'].includes(this.continuityState)) {
       throw new Error(`SAME_TRADER_CONTINUITY_NOT_CONFIRMED:${this.continuityState}`);
     }
     return await new Promise((resolve,reject)=>{

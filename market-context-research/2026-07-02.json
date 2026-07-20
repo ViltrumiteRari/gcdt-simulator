@@ -1,0 +1,44 @@
+{
+  "date": "2026-07-02",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 748.56,
+    "high": 751.1677530251742,
+    "low": 740.097697911355,
+    "close": 744.6796638765959,
+    "open_to_close": -3.88,
+    "range": 11.07
+  },
+  "known_by_0930_et": {
+    "items": [
+      "June payrolls were the major scheduled catalyst before the holiday weekend.",
+      "The prior session had exposed a sharp split between positive breadth and weak AI/chip leadership.",
+      "Investors were balancing softer growth data against the risk of further semiconductor profit-taking."
+    ],
+    "scheduled_events": [
+      "June nonfarm payrolls",
+      "Unemployment rate",
+      "Early close/holiday positioning"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Payroll growth came in much weaker than expected, reducing expectations for a near-term Fed hike.",
+    "Dow and broad-market shares benefited from lower-rate expectations.",
+    "Semiconductors sold off sharply for a second day, leaving the S&P 500 flat and Nasdaq lower despite positive breadth."
+  ],
+  "causal_narrative": "The macro impulse was dovish, but the index response was fragmented. Rate-sensitive and non-tech shares rallied on weak payroll growth, while crowded AI/chip positions continued to unwind. SPY therefore behaved as a tug-of-war between broad easing-sensitive strength and concentrated technology weakness.",
+  "source_notes": [
+    "Reuters market recap, 2026-07-02",
+    "Associated Press market recap, 2026-07-02"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

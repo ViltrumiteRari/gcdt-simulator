@@ -1,0 +1,42 @@
+{
+  "date": "2026-07-01",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 742.64,
+    "high": 749.3971201724692,
+    "low": 742.64,
+    "close": 745.1,
+    "open_to_close": 2.46,
+    "range": 6.757
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The market began the second half after a two-day AI-led rebound.",
+      "Investors faced a potential rotation risk because AI and memory stocks had rebounded quickly into still-elevated valuations.",
+      "ISM manufacturing was scheduled and expected to shape rate expectations."
+    ],
+    "scheduled_events": [
+      "ISM manufacturing"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Weakness in influential technology and memory-chip stocks outweighed positive breadth.",
+    "A softer-than-expected manufacturing reading helped Treasury yields retreat from their highs.",
+    "Most S&P sectors rose, but concentrated megacap weakness kept SPY/S&P 500 slightly negative."
+  ],
+  "causal_narrative": "This was a divergence day: underlying breadth was healthier than the index, but concentrated technology and memory-chip selling controlled the cap-weighted benchmarks. Softer manufacturing reduced rate pressure but was insufficient to offset valuation-driven tech liquidation.",
+  "source_notes": [
+    "Associated Press/WTOP market recap, 2026-07-01",
+    "Strasmore market recap, 2026-07-01"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

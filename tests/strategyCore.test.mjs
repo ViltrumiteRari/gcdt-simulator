@@ -7,6 +7,7 @@ import {
   reliabilityRates,
 } from '../src/strategyCore.js';
 import { createMetacognitionState, computeGexImpulse, createForecast, scoreForecast, applyForecastTrust, shouldActivateDrawdownReview, classifyTradeFailure, buildTradeDiagnostics, analyzeDataHealth, updateTransmissionState, applyMetacognitiveGates } from '../src/metacognition.js';
+import { createDeterministicDecisionState, updateDeterministicDecisionCore } from '../src/deterministicDecisionCore.js';
 
 const wallMarket = { netGex: 400, spySpot: 500, gammaFlip: 500.4, callWall: 505, putWall: 495 };
 const spike = classifyGexVelocity([
@@ -59,6 +60,20 @@ const appComponentLine = app.split(/\r?\n/).findIndex(line => line.startsWith('e
 const appTopLevel = app.split(/\r?\n/).slice(0, appComponentLine).join('\n');
 assert.doesNotMatch(appTopLevel, /\b(?:metacognitionR|dataHealthR|transmissionR)\.current\b/);
 assert.doesNotMatch(appTopLevel, /\bdrawdownReviewActive\b/);
+assert.doesNotMatch(app, /applyDecision\(deterministicDecision,"DETERMINISTIC"\)/);
+assert.match(app, /requestCtx\.freezeSim=entryCritical/);
+assert.match(app, /required Trader veto review did not complete/);
+
+const risingHistory=Array.from({length:70},(_,i)=>({spySpot:500+i*.04,fep:500,gammaFlip:500,callWall:506,putWall:494}));
+const risingMarket={...risingHistory.at(-1),spySpot:risingHistory.at(-1).spySpot+.04,fep:500,gammaFlip:500,callWall:506,putWall:494};
+const mismatchedDirection=updateDeterministicDecisionCore(createDeterministicDecisionState(),{rawIntent:{action:'PREPARE_PUT',direction:'PUT',setupQuality:90,confidence:90,blockers:[],diagnostics:{}},market:risingMarket,tick:71,dataHealth:{state:'DATA_HEALTHY'},transmission:{state:'TRANSMISSION_CONFIRMED'},position:null,history:risingHistory,alphaRegime:{active:null},chain:{spot:risingMarket.spySpot,calls:[{strike:503.5,price:.2,delta:.1}],puts:[{strike:502.5,price:.2,delta:-.1}]}});
+assert.equal(mismatchedDirection.intent.action,'WAIT');
+assert.equal(mismatchedDirection.intent.diagnostics.v17.proposedCausallySupported,false);
+
+const liveTraderSource=fs.readFileSync(new URL('../src/geminiLiveTrader.js',import.meta.url),'utf8');
+assert.match(liveTraderSource,/isRejectedResumption/);
+assert.match(liveTraderSource,/REHYDRATED_CONTEXT/);
+assert.doesNotMatch(liveTraderSource,/onopen:\(\)=>\{if\(this\.resumptionHandle/);
 
 assert.match(app, /move15/);
 assert.match(app, /move30/);

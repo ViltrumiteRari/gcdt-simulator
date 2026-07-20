@@ -1,0 +1,44 @@
+{
+  "date": "2026-07-17",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 750.719970703125,
+    "high": 750.719970703125,
+    "low": 740.8403850774276,
+    "close": 743.1500244140625,
+    "open_to_close": -7.57,
+    "range": 9.88
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The previous session exposed heavy selling in chipmakers and Alphabet despite positive breadth.",
+      "Before the open, chip weakness, rising oil on Middle East tension, and a sharp post-earnings Netflix decline formed a three-part risk-off setup.",
+      "VIX had jumped and the 10-year yield was near 4.54%, while Iran-war risk remained unresolved."
+    ],
+    "scheduled_events": [
+      "Netflix earnings reaction",
+      "Ongoing Middle East/oil developments",
+      "Semiconductor valuation concerns"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "AI and chip valuation concerns intensified, with Nvidia a major drag.",
+    "Brent crude surged on Iran-war concerns.",
+    "Netflix's earnings reaction added pressure to growth sentiment, and the S&P 500 recorded a 1% decline."
+  ],
+  "causal_narrative": "The session converted a narrow technology warning into a broader risk-off move. Persistent semiconductor liquidation, a negative megacap earnings shock and higher oil aligned against the index. Unlike July 16, the selling was strong enough to overwhelm breadth and produce the week's decisive downside close.",
+  "source_notes": [
+    "Schwab premarket update, 2026-07-17",
+    "Associated Press market recap, 2026-07-17"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

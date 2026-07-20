@@ -1,0 +1,45 @@
+{
+  "date": "2026-06-30",
+  "as_of_et": "2026-06-30T09:29:59-04:00",
+  "information_boundary": "Only information reasonably available by 09:30 ET is included. Same-day outcome and post-open catalysts are excluded.",
+  "prior_days_context": [
+    {
+      "date": "2026-06-29",
+      "observed_result": {
+        "open": 738.67,
+        "high": 741.0728401293519,
+        "low": 732.4343991376536,
+        "close": 740.989663876596,
+        "open_to_close": 2.32,
+        "range": 8.638
+      },
+      "causal_summary": "The session was primarily a relief and positioning rebound. The index recovered from a compressed, oversold five-day decline as AI leadership re-engaged. Geopolitical risk remained present, but stable yields prevented it from overwhelming the equity rebound.",
+      "main_drivers": [
+        "Broad risk rebound after five straight S&P 500 losses.",
+        "AI and chip shares rebounded strongly, helped by large announced South Korean chip-investment plans.",
+        "Oil rose but Treasury yields were comparatively stable, allowing growth stocks to recover."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    }
+  ],
+  "same_day_premarket": {
+    "source_status": "RESEARCHED",
+    "items": [
+      "Quarter-end positioning followed Monday's technology-led rebound.",
+      "AI and semiconductor shares remained the dominant source of index-level momentum, while the market was still digesting June's valuation-driven AI selloff.",
+      "Chicago PMI and consumer-confidence data were scheduled; Nike earnings were due after the close."
+    ],
+    "scheduled_events": [
+      "Chicago PMI",
+      "U.S. consumer confidence",
+      "Quarter-end rebalancing"
+    ],
+    "starting_prior": "Use as a probabilistic prior and require live market transmission."
+  },
+  "authority": {
+    "role": "starting_prior_only",
+    "live_market_can_disprove": true,
+    "suggested_open_weight_pct": 20
+  },
+  "research_integrity": "No same-day post-09:30 catalyst or closing result is included."
+}

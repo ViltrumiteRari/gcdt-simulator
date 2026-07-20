@@ -22,7 +22,9 @@ export function updateDeterministicDecisionCore(state,input){
  const proposed=rawIntent?.direction||sideOf(rawIntent?.action), d=rawIntent?.diagnostics||{};
  const proposedSign=proposed==='CALL'?1:proposed==='PUT'?-1:0;
  const activePrior=s.active;
- const rawMoves={m3:mv(history,3,m),m9:mv(history,9,m),m30:mv(history,30,m),m60:mv(history,60,m)};
+ // 20-second canonical ticks, normalized to real elapsed horizons:
+ // m3=3m (9 ticks), m9=15m (45), m30=60m (180), m60=180m (540).
+ const rawMoves={m3:mv(history,9,m),m9:mv(history,45,m),m30:mv(history,180,m),m60:mv(history,540,m)};
  const activeGiveback=activePrior?.side==='CALL'?Math.max(0,(activePrior.peakSpot??m.spySpot)-m.spySpot):activePrior?.side==='PUT'?Math.max(0,m.spySpot-(activePrior.troughSpot??m.spySpot)):0;
  const failedExtension=!!activePrior&&((activePrior.side==='CALL'&&rawMoves.m3<-.10&&rawMoves.m9<.08)||(activePrior.side==='PUT'&&rawMoves.m3>.10&&rawMoves.m9>-.08));
  const scoreSide=side=>{
@@ -32,8 +34,8 @@ export function updateDeterministicDecisionCore(state,input){
    const persistence=Object.values(q).filter((v,i)=>v>[.12,.26,.52,.78][i]).length;
    const f=sign*(m.spySpot-m.fep),g=sign*(m.spySpot-m.gammaFlip),sameAnchor=Math.abs(m.fep-m.gammaFlip)<.18;
    const location=sameAnchor?Math.min(f,g):(f+g)/2;
-   const fepMove=history.length>30?m.fep-history.at(-31).fep:0;
-   const wallMove=history.length>30?(side==='CALL'?m.callWall-history.at(-31).callWall:m.putWall-history.at(-31).putWall):0;
+   const fepMove=history.length>180?m.fep-history.at(-181).fep:0;
+   const wallMove=history.length>180?(side==='CALL'?m.callWall-history.at(-181).callWall:m.putWall-history.at(-181).putWall):0;
    const migration=sign*(fepMove+wallMove);
    const regime=alphaRegime?.active?.side===side&&['BREAKOUT_UP','BREAKDOWN_DOWN','REVERSAL_UP','REVERSAL_DOWN'].includes(alphaRegime?.active?.type);
    const isOpposite=activePrior&&activePrior.side!==side;
@@ -47,16 +49,18 @@ export function updateDeterministicDecisionCore(state,input){
  const causalEdge=Math.abs(callCausal-putCausal),causalLeader=callCausal>putCausal?'CALL':putCausal>callCausal?'PUT':null;
  const leaderEval=causalLeader==='CALL'?callEval:putEval;
  const timeframeConfirmations=Object.values(leaderEval.tf).filter(v=>v>=57).length;
- const openingEvidenceReady=history.length>=12;
+ const openingEvidenceReady=history.length>=45;
  const proposedCausallySupported=!!proposed&&causalLeader===proposed&&causalEdge>=8&&Math.max(callCausal,putCausal)>=38;
- const authoritativeReady=openingEvidenceReady&&causalEdge>=8&&Math.max(callCausal,putCausal)>=38&&(timeframeConfirmations>=2||leaderEval.reversalBoost>=16);
+ // The causal core confirms or rejects the session-aware thesis; it must not
+ // autonomously invent the opposite direction from a short momentum edge.
+ const authoritativeReady=openingEvidenceReady&&proposedCausallySupported&&(timeframeConfirmations>=2||leaderEval.reversalBoost>=16);
  const side=authoritativeReady?causalLeader:null, sign=side==='CALL'?1:side==='PUT'?-1:0;
  const selectedContract=side?((rawIntent?.contract&&rawIntent?.direction===side)?rawIntent.contract:chooseDirectionalContract(chain,side)):null;
- const m3=sign*mv(history,3,m),m9=sign*mv(history,9,m),m30=sign*mv(history,30,m),m60=sign*mv(history,60,m);
- const r12=rng(history,12,m), persistence=[m3>.16,m9>.34,m30>.62,m60>.90].filter(Boolean).length;
+ const m3=sign*mv(history,9,m),m9=sign*mv(history,45,m),m30=sign*mv(history,180,m),m60=sign*mv(history,540,m);
+ const r12=rng(history,45,m), persistence=[m3>.16,m9>.34,m30>.62,m60>.90].filter(Boolean).length;
  const fepAccept=sign*(m.spySpot-m.fep),flipAccept=sign*(m.spySpot-m.gammaFlip);
  const wallRunway=side==='CALL'?Math.max(0,m.callWall-m.spySpot):side==='PUT'?Math.max(0,m.spySpot-m.putWall):0;
- const structureMigration=sign*((history.length>30?m.fep-history.at(-31).fep:0)+(history.length>30?(side==='CALL'?m.callWall-history.at(-31).callWall:m.putWall-history.at(-31).putWall):0));
+ const structureMigration=sign*((history.length>180?m.fep-history.at(-181).fep:0)+(history.length>180?(side==='CALL'?m.callWall-history.at(-181).callWall:m.putWall-history.at(-181).putWall):0));
  const alignment=clamp(Number(d.alignedPrimaryCount||0),0,3), contractQuality=selectedContract?(selectedContract.tier==='QUALITY'?100:68):0;
  const setup=clamp(Number(rawIntent?.setupQuality||0),0,100), rawConfidence=clamp(Number(rawIntent?.confidence||0),0,100);
  const regimeAligned=alphaRegime?.active?.side===side&&['BREAKOUT_UP','BREAKDOWN_DOWN','REVERSAL_UP','REVERSAL_DOWN'].includes(alphaRegime?.active?.type);

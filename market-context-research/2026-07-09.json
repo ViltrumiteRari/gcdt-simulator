@@ -1,0 +1,41 @@
+{
+  "date": "2026-07-09",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 747.43,
+    "high": 751.8586945964114,
+    "low": 745.888773992769,
+    "close": 751.6486674638297,
+    "open_to_close": 4.219,
+    "range": 5.97
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The previous session had repriced renewed U.S.-Iran escalation after Trump's comments.",
+      "Markets were highly sensitive to whether oil would extend or reverse its jump.",
+      "AI shares retained rebound potential if yields and crude eased."
+    ],
+    "scheduled_events": [
+      "U.S.-Iran and oil-market developments"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Oil gave back much of the prior day's surge as markets calmed.",
+    "Treasury yields eased, reducing pressure on risk assets.",
+    "AI and growth shares recovered, lifting the Nasdaq and S&P 500."
+  ],
+  "causal_narrative": "This was a partial reversal of the prior day's geopolitical shock. Falling oil and yields relaxed the inflation channel, allowing growth leadership to reassert itself. The S&P 500 more than recovered the prior loss as the market treated escalation risk as less immediate.",
+  "source_notes": [
+    "Associated Press market recap, 2026-07-09"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

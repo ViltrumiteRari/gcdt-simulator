@@ -1,0 +1,42 @@
+{
+  "date": "2026-07-06",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 749.17,
+    "high": 752.3397309796464,
+    "low": 748.0957596550614,
+    "close": 751.6937775120568,
+    "open_to_close": 2.524,
+    "range": 4.244
+  },
+  "known_by_0930_et": {
+    "items": [
+      "Markets reopened after the Independence Day holiday with AI shares trying to recover from two sessions of heavy semiconductor selling.",
+      "Oil and Treasury yields were easing modestly.",
+      "The Dow had ended the prior session at a record while the Nasdaq had been pressured by chip liquidation."
+    ],
+    "scheduled_events": [
+      "Post-holiday positioning",
+      "No dominant scheduled U.S. macro release"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Broadcom and other AI names rebounded, lifting the Nasdaq and S&P 500.",
+    "The majority of S&P 500 stocks still fell, showing narrow leadership.",
+    "Easing oil and yields reduced macro pressure."
+  ],
+  "causal_narrative": "The session was a narrow AI-led rebound rather than broad risk-on confirmation. Falling oil and yields created room for growth shares to recover, but weak breadth meant the move depended heavily on megacap and semiconductor leadership.",
+  "source_notes": [
+    "Associated Press market recap, 2026-07-06"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

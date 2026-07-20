@@ -1,0 +1,42 @@
+{
+  "date": "2026-06-29",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 738.67,
+    "high": 741.0728401293519,
+    "low": 732.4343991376536,
+    "close": 740.989663876596,
+    "open_to_close": 2.32,
+    "range": 8.638
+  },
+  "known_by_0930_et": {
+    "items": [
+      "U.S. equities entered the week after a rare losing week and five consecutive S&P 500 declines.",
+      "Weekend developments around U.S.-Iran diplomacy reduced immediate tail risk but did not remove oil/geopolitical uncertainty.",
+      "AI and semiconductor shares were positioned for a rebound after sharp prior-week volatility."
+    ],
+    "scheduled_events": [
+      "No single scheduled macro release dominated the session setup; the key known variables were oil, Middle East headlines and whether AI leadership could stabilize."
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Broad risk rebound after five straight S&P 500 losses.",
+    "AI and chip shares rebounded strongly, helped by large announced South Korean chip-investment plans.",
+    "Oil rose but Treasury yields were comparatively stable, allowing growth stocks to recover."
+  ],
+  "causal_narrative": "The session was primarily a relief and positioning rebound. The index recovered from a compressed, oversold five-day decline as AI leadership re-engaged. Geopolitical risk remained present, but stable yields prevented it from overwhelming the equity rebound.",
+  "source_notes": [
+    "Associated Press market recap, 2026-06-29",
+    "Washington Post/AP: U.S. stocks rise and recover losses from a rare losing week"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

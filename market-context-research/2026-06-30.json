@@ -1,0 +1,44 @@
+{
+  "date": "2026-06-30",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 741.31,
+    "high": 747.7807673628816,
+    "low": 741.31,
+    "close": 746.1038935390068,
+    "open_to_close": 4.794,
+    "range": 6.471
+  },
+  "known_by_0930_et": {
+    "items": [
+      "Quarter-end positioning followed Monday's technology-led rebound.",
+      "AI and semiconductor shares remained the dominant source of index-level momentum, while the market was still digesting June's valuation-driven AI selloff.",
+      "Chicago PMI and consumer-confidence data were scheduled; Nike earnings were due after the close."
+    ],
+    "scheduled_events": [
+      "Chicago PMI",
+      "U.S. consumer confidence",
+      "Quarter-end rebalancing"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Semiconductors and AI infrastructure led another advance.",
+    "Oil eased while Treasury yields rose, producing a growth-positive but not fully broad risk-on tape.",
+    "Quarter-end buying helped trim June losses."
+  ],
+  "causal_narrative": "The close of the quarter extended the AI rebound. Index strength was concentrated in semiconductors and AI infrastructure rather than a clean all-sector expansion. Easing oil helped risk appetite, while higher yields limited the breadth of the move.",
+  "source_notes": [
+    "Associated Press market recap, 2026-06-30",
+    "Swingfolio U.S. premarket and closing recap, 2026-06-30"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

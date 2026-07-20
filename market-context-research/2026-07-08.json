@@ -1,0 +1,41 @@
+{
+  "date": "2026-07-08",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 743.57,
+    "high": 745.8420330682915,
+    "low": 739.8088688047669,
+    "close": 744.9522248794325,
+    "open_to_close": 1.382,
+    "range": 6.033
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The market entered with unresolved U.S.-Iran escalation risk after the prior day's oil spike.",
+      "AI/chip shares were attempting to stabilize after renewed selling.",
+      "Any diplomatic headline had unusually high authority because recent truce signals had repeatedly reversed."
+    ],
+    "scheduled_events": [
+      "NATO summit remarks and U.S.-Iran developments"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "President Trump said the interim Iran deal was 'over' and warned of additional strikes.",
+    "Oil and geopolitical risk increased while the Dow and S&P weakened.",
+    "Broadcom and selected battered chip shares rebounded, creating mixed index internals."
+  ],
+  "causal_narrative": "Geopolitical headline risk overrode the attempted stabilization. The S&P 500 declined because renewed war escalation raised oil, inflation and duration uncertainty. Selected chip rebounds prevented a more uniform technology collapse, but the session's dominant causal force was the breakdown of the diplomatic narrative.",
+  "source_notes": [
+    "Reuters market recap, 2026-07-08"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

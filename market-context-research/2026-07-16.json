@@ -1,0 +1,43 @@
+{
+  "date": "2026-07-16",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 754.8099975585938,
+    "high": 754.8099975585938,
+    "low": 747.9947733355295,
+    "close": 750.77001953125,
+    "open_to_close": -4.04,
+    "range": 6.815
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The prior day had produced a modest gain on cooler PPI and solid earnings.",
+      "Investors were assessing more corporate results and fresh economic data, but AI/chip leadership was already unstable.",
+      "Global semiconductor volatility, especially in South Korea, was an active overnight warning."
+    ],
+    "scheduled_events": [
+      "Corporate earnings",
+      "U.S. economic-data batch"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Nvidia, Broadcom, Micron and Alphabet fell, overwhelming otherwise positive market breadth.",
+    "More S&P 500 stocks rose than fell, but cap-weighted technology weakness controlled the index.",
+    "Treasury yields rose and oil's early gain faded."
+  ],
+  "causal_narrative": "This was another concentration-driven decline. The average stock was healthier than the index, but losses in the largest AI and platform companies dominated SPY/SPX. Rising yields amplified valuation pressure, while the failure of oil to sustain gains limited the move from becoming a broader inflation panic.",
+  "source_notes": [
+    "Associated Press/WTOP market recap, 2026-07-16",
+    "WMTMT index-contribution recap, 2026-07-16"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

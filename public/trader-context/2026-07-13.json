@@ -1,0 +1,188 @@
+{
+  "date": "2026-07-13",
+  "as_of_et": "2026-07-13T09:29:59-04:00",
+  "information_boundary": "Only information reasonably available by 09:30 ET is included. Same-day outcome and post-open catalysts are excluded.",
+  "prior_days_context": [
+    {
+      "date": "2026-06-29",
+      "observed_result": {
+        "open": 738.67,
+        "high": 741.0728401293519,
+        "low": 732.4343991376536,
+        "close": 740.989663876596,
+        "open_to_close": 2.32,
+        "range": 8.638
+      },
+      "causal_summary": "The session was primarily a relief and positioning rebound. The index recovered from a compressed, oversold five-day decline as AI leadership re-engaged. Geopolitical risk remained present, but stable yields prevented it from overwhelming the equity rebound.",
+      "main_drivers": [
+        "Broad risk rebound after five straight S&P 500 losses.",
+        "AI and chip shares rebounded strongly, helped by large announced South Korean chip-investment plans.",
+        "Oil rose but Treasury yields were comparatively stable, allowing growth stocks to recover."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-06-30",
+      "observed_result": {
+        "open": 741.31,
+        "high": 747.7807673628816,
+        "low": 741.31,
+        "close": 746.1038935390068,
+        "open_to_close": 4.794,
+        "range": 6.471
+      },
+      "causal_summary": "The close of the quarter extended the AI rebound. Index strength was concentrated in semiconductors and AI infrastructure rather than a clean all-sector expansion. Easing oil helped risk appetite, while higher yields limited the breadth of the move.",
+      "main_drivers": [
+        "Semiconductors and AI infrastructure led another advance.",
+        "Oil eased while Treasury yields rose, producing a growth-positive but not fully broad risk-on tape.",
+        "Quarter-end buying helped trim June losses."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-01",
+      "observed_result": {
+        "open": 742.64,
+        "high": 749.3971201724692,
+        "low": 742.64,
+        "close": 745.1,
+        "open_to_close": 2.46,
+        "range": 6.757
+      },
+      "causal_summary": "This was a divergence day: underlying breadth was healthier than the index, but concentrated technology and memory-chip selling controlled the cap-weighted benchmarks. Softer manufacturing reduced rate pressure but was insufficient to offset valuation-driven tech liquidation.",
+      "main_drivers": [
+        "Weakness in influential technology and memory-chip stocks outweighed positive breadth.",
+        "A softer-than-expected manufacturing reading helped Treasury yields retreat from their highs.",
+        "Most S&P sectors rose, but concentrated megacap weakness kept SPY/S&P 500 slightly negative."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-02",
+      "observed_result": {
+        "open": 748.56,
+        "high": 751.1677530251742,
+        "low": 740.097697911355,
+        "close": 744.6796638765959,
+        "open_to_close": -3.88,
+        "range": 11.07
+      },
+      "causal_summary": "The macro impulse was dovish, but the index response was fragmented. Rate-sensitive and non-tech shares rallied on weak payroll growth, while crowded AI/chip positions continued to unwind. SPY therefore behaved as a tug-of-war between broad easing-sensitive strength and concentrated technology weakness.",
+      "main_drivers": [
+        "Payroll growth came in much weaker than expected, reducing expectations for a near-term Fed hike.",
+        "Dow and broad-market shares benefited from lower-rate expectations.",
+        "Semiconductors sold off sharply for a second day, leaving the S&P 500 flat and Nasdaq lower despite positive breadth."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-06",
+      "observed_result": {
+        "open": 749.17,
+        "high": 752.3397309796464,
+        "low": 748.0957596550614,
+        "close": 751.6937775120568,
+        "open_to_close": 2.524,
+        "range": 4.244
+      },
+      "causal_summary": "The session was a narrow AI-led rebound rather than broad risk-on confirmation. Falling oil and yields created room for growth shares to recover, but weak breadth meant the move depended heavily on megacap and semiconductor leadership.",
+      "main_drivers": [
+        "Broadcom and other AI names rebounded, lifting the Nasdaq and S&P 500.",
+        "The majority of S&P 500 stocks still fell, showing narrow leadership.",
+        "Easing oil and yields reduced macro pressure."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-07",
+      "observed_result": {
+        "open": 749.49,
+        "high": 750.3202293221748,
+        "low": 745.6037817005891,
+        "close": 747.4639358477009,
+        "open_to_close": -2.026,
+        "range": 4.716
+      },
+      "causal_summary": "The market absorbed a direct inflation/geopolitical shock. Higher oil and yields compressed growth multiples and intensified semiconductor selling. The S&P 500 held up better than tech-heavy indexes because capital rotated rather than exiting equities uniformly.",
+      "main_drivers": [
+        "The U.S. Treasury revoked an Iranian-oil sales waiver, increasing supply and shipping risk.",
+        "WTI crude surged, Treasury yields rose on inflation concerns, and the dollar firmed.",
+        "Chipmakers fell sharply; rotation into other sectors limited the S&P 500 decline."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-08",
+      "observed_result": {
+        "open": 743.57,
+        "high": 745.8420330682915,
+        "low": 739.8088688047669,
+        "close": 744.9522248794325,
+        "open_to_close": 1.382,
+        "range": 6.033
+      },
+      "causal_summary": "Geopolitical headline risk overrode the attempted stabilization. The S&P 500 declined because renewed war escalation raised oil, inflation and duration uncertainty. Selected chip rebounds prevented a more uniform technology collapse, but the session's dominant causal force was the breakdown of the diplomatic narrative.",
+      "main_drivers": [
+        "President Trump said the interim Iran deal was 'over' and warned of additional strikes.",
+        "Oil and geopolitical risk increased while the Dow and S&P weakened.",
+        "Broadcom and selected battered chip shares rebounded, creating mixed index internals."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-09",
+      "observed_result": {
+        "open": 747.43,
+        "high": 751.8586945964114,
+        "low": 745.888773992769,
+        "close": 751.6486674638297,
+        "open_to_close": 4.219,
+        "range": 5.97
+      },
+      "causal_summary": "This was a partial reversal of the prior day's geopolitical shock. Falling oil and yields relaxed the inflation channel, allowing growth leadership to reassert itself. The S&P 500 more than recovered the prior loss as the market treated escalation risk as less immediate.",
+      "main_drivers": [
+        "Oil gave back much of the prior day's surge as markets calmed.",
+        "Treasury yields eased, reducing pressure on risk assets.",
+        "AI and growth shares recovered, lifting the Nasdaq and S&P 500."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    },
+    {
+      "date": "2026-07-10",
+      "observed_result": {
+        "open": 752.58,
+        "high": 755.3129746395286,
+        "low": 750.5902139065344,
+        "close": 755.0988875602839,
+        "open_to_close": 2.519,
+        "range": 4.723
+      },
+      "causal_summary": "The session extended the AI-risk bid but with less force than the prior day. Semiconductor optimism and lower oil supported SPY, while weak small-cap participation showed that the move remained leadership-dependent rather than universally risk-on.",
+      "main_drivers": [
+        "AI and semiconductor appetite remained strong.",
+        "SK Hynix surged in its U.S. debut, reinforcing AI-infrastructure enthusiasm.",
+        "Oil eased and volatility fell, supporting a modest index advance, while small caps lagged."
+      ],
+      "source_status": "RESEARCHED_POST_CLOSE"
+    }
+  ],
+  "same_day_premarket": {
+    "source_status": "RESEARCHED",
+    "items": [
+      "The prior week ended with AI optimism and lower oil, but U.S.-Iran tensions remained unresolved.",
+      "Weekend developments increased concern over the Strait of Hormuz and oil supply.",
+      "The market was vulnerable because semiconductor positioning had become volatile and crowded."
+    ],
+    "scheduled_events": [
+      "Middle East/Strait of Hormuz developments",
+      "Start of major bank earnings week"
+    ],
+    "starting_prior": "Use as a probabilistic prior and require live market transmission."
+  },
+  "authority": {
+    "role": "starting_prior_only",
+    "live_market_can_disprove": true,
+    "suggested_open_weight_pct": 20
+  },
+  "research_integrity": "No same-day post-09:30 catalyst or closing result is included."
+}

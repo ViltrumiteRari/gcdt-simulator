@@ -1,0 +1,42 @@
+{
+  "date": "2026-07-13",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 753.43,
+    "high": 753.8141058347618,
+    "low": 748.1595016574719,
+    "close": 748.7735574156027,
+    "open_to_close": -4.656,
+    "range": 5.655
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The prior week ended with AI optimism and lower oil, but U.S.-Iran tensions remained unresolved.",
+      "Weekend developments increased concern over the Strait of Hormuz and oil supply.",
+      "The market was vulnerable because semiconductor positioning had become volatile and crowded."
+    ],
+    "scheduled_events": [
+      "Middle East/Strait of Hormuz developments",
+      "Start of major bank earnings week"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "Brent crude surged nearly 10% as U.S.-Iran tensions and shipping-control claims intensified.",
+    "Treasury yields rose on renewed inflation concerns.",
+    "AI and semiconductor shares fell sharply, with Micron and Nvidia among the main index drags."
+  ],
+  "causal_narrative": "The session combined two bearish channels: an oil-driven inflation shock and renewed liquidation in crowded AI leadership. The oil surge raised yields and reduced the market's willingness to pay elevated growth multiples. SPY declined as both macro and index concentration worked in the same direction.",
+  "source_notes": [
+    "Associated Press market recap, 2026-07-13"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "date": "2026-07-07",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 749.49,
+    "high": 750.3202293221748,
+    "low": 745.6037817005891,
+    "close": 747.4639358477009,
+    "open_to_close": -2.026,
+    "range": 4.716
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The prior day's rebound had been narrow and dependent on AI leadership.",
+      "U.S.-Iran tensions and the Strait of Hormuz remained active risks.",
+      "Oil supply policy and semiconductor valuation concerns were the main known cross-asset threats."
+    ],
+    "scheduled_events": [
+      "Ongoing U.S.-Iran/Strait of Hormuz developments"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "The U.S. Treasury revoked an Iranian-oil sales waiver, increasing supply and shipping risk.",
+    "WTI crude surged, Treasury yields rose on inflation concerns, and the dollar firmed.",
+    "Chipmakers fell sharply; rotation into other sectors limited the S&P 500 decline."
+  ],
+  "causal_narrative": "The market absorbed a direct inflation/geopolitical shock. Higher oil and yields compressed growth multiples and intensified semiconductor selling. The S&P 500 held up better than tech-heavy indexes because capital rotated rather than exiting equities uniformly.",
+  "source_notes": [
+    "BabyPips financial market recap, 2026-07-07"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

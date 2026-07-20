@@ -1,0 +1,42 @@
+{
+  "date": "2026-07-14",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 749.65,
+    "high": 752.9658147688807,
+    "low": 749.65,
+    "close": 751.9062224879432,
+    "open_to_close": 2.256,
+    "range": 3.316
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The prior session had delivered an oil and AI-led selloff.",
+      "June CPI was the primary scheduled catalyst and had the ability to offset or reinforce war-driven inflation fears.",
+      "Major U.S. banks were reporting earnings; oil remained elevated because U.S.-Iran escalation risk persisted."
+    ],
+    "scheduled_events": [
+      "June CPI",
+      "Major-bank earnings"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "CPI was cooler than economists expected, easing Treasury yields and rate pressure.",
+    "Chip and AI shares rebounded; bank earnings were generally strong.",
+    "Rising oil capped enthusiasm and kept the advance moderate."
+  ],
+  "causal_narrative": "Cooler inflation interrupted the prior day's bearish macro chain. Lower yields enabled AI and growth shares to rebound, while strong bank profits supported confidence in the economy. The unresolved oil shock prevented a full risk-on expansion, producing a moderate rather than explosive advance.",
+  "source_notes": [
+    "Associated Press/WTOP market recap, 2026-07-14"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

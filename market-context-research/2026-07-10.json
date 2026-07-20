@@ -1,0 +1,43 @@
+{
+  "date": "2026-07-10",
+  "access_policy": "RESEARCH_ONLY_NEVER_DIRECTLY_VISIBLE_TO_TRADER",
+  "observed_price_action": {
+    "open": 752.58,
+    "high": 755.3129746395286,
+    "low": 750.5902139065344,
+    "close": 755.0988875602839,
+    "open_to_close": 2.519,
+    "range": 4.723
+  },
+  "known_by_0930_et": {
+    "items": [
+      "The market came in after a strong rebound driven by easing oil and renewed AI demand.",
+      "Iran risk remained unresolved but was not actively worsening before the open.",
+      "Semiconductor enthusiasm and the SK Hynix U.S. listing were known positive catalysts."
+    ],
+    "scheduled_events": [
+      "SK Hynix U.S. market debut",
+      "Ongoing Middle East monitoring"
+    ],
+    "source_status": "RESEARCHED"
+  },
+  "intraday_and_postclose_catalysts": [
+    "AI and semiconductor appetite remained strong.",
+    "SK Hynix surged in its U.S. debut, reinforcing AI-infrastructure enthusiasm.",
+    "Oil eased and volatility fell, supporting a modest index advance, while small caps lagged."
+  ],
+  "causal_narrative": "The session extended the AI-risk bid but with less force than the prior day. Semiconductor optimism and lower oil supported SPY, while weak small-cap participation showed that the move remained leadership-dependent rather than universally risk-on.",
+  "source_notes": [
+    "Associated Press/WTOP market recap, 2026-07-10",
+    "StockMarketWatch digest, 2026-07-10"
+  ],
+  "confidence": {
+    "observed_price_action": 1.0,
+    "causal_attribution": 0.78,
+    "premarket_boundary": 0.76
+  },
+  "alternative_explanations": [
+    "Options and dealer positioning may amplify or oppose the public-news impulse.",
+    "Index concentration can make SPY and SPX diverge from equal-weight breadth."
+  ]
+}

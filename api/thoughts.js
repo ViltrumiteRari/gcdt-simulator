@@ -31,7 +31,13 @@ export default async function handler(req) {
     if (req.method === 'GET') {
       const requestUrl = new URL(req.url);
       const limit = Math.min(120, Math.max(1, Number(requestUrl.searchParams.get('limit')) || 60));
-      const endpoint = `${url}/rest/v1/gcdt_thoughts?select=id,session_id,market_time,kind,content,decision,spot,created_at&order=created_at.desc&limit=${limit}`;
+      const sessionId = requestUrl.searchParams.get('session_id');
+      const kind = requestUrl.searchParams.get('kind');
+      const filters = [
+        sessionId ? `session_id=eq.${encodeURIComponent(sessionId)}` : '',
+        kind ? `kind=eq.${encodeURIComponent(kind)}` : '',
+      ].filter(Boolean).join('&');
+      const endpoint = `${url}/rest/v1/gcdt_thoughts?select=id,session_id,market_time,kind,content,decision,spot,metadata,created_at${filters ? `&${filters}` : ''}&order=created_at.desc&limit=${limit}`;
       const resp = await fetch(endpoint, { headers: headers(key) });
       const text = await resp.text();
       if (!resp.ok) return json({ error: text }, resp.status);

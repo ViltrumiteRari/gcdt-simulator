@@ -35,10 +35,54 @@ function readTraderLearningPacket() {
   return { pipelineVersion: 3, generatedAtUtc: new Date().toISOString(), items, compounding }
 }
 
+function localNotebookFile() {
+  const dir = path.resolve(process.cwd(), 'runtime', 'notebooks')
+  fs.mkdirSync(dir, { recursive: true })
+  return path.join(dir, 'thoughts.jsonl')
+}
+function readLocalNotebook({ limit = 60, sessionId = '', kind = '' } = {}) {
+  let rows = []
+  try { rows = fs.readFileSync(localNotebookFile(), 'utf8').split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)) } catch {}
+  if (sessionId) rows = rows.filter(row => row.session_id === sessionId)
+  if (kind) rows = rows.filter(row => row.kind === kind)
+  return rows.slice(-Math.max(1, Math.min(120, Number(limit) || 60)))
+}
+function appendLocalNotebook(row) {
+  const saved = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, created_at: new Date().toISOString(), ...row }
+  fs.appendFileSync(localNotebookFile(), `${JSON.stringify(saved)}\n`, 'utf8')
+  return saved
+}
+
 function localLiveTokenPlugin(env) {
   return {
     name: 'firstsignal-local-live-token',
     configureServer(server) {
+      server.middlewares.use('/api/thoughts', (req, res) => {
+        const send = (code, body) => { res.statusCode = code; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(body)) }
+        if (req.method === 'GET') {
+          const u = new URL(req.url, 'http://127.0.0.1')
+          return send(200, { rows: readLocalNotebook({ limit: u.searchParams.get('limit'), sessionId: u.searchParams.get('session_id') || '', kind: u.searchParams.get('kind') || '' }) })
+        }
+        if (req.method !== 'POST') return send(405, { error: 'Method not allowed' })
+        let raw = ''
+        req.on('data', chunk => { raw += chunk })
+        req.on('end', () => {
+          try {
+            const body = JSON.parse(raw || '{}')
+            const row = {
+              session_id: String(body.session_id || 'unknown').slice(0, 120),
+              market_time: String(body.market_time || '').slice(0, 30) || null,
+              kind: String(body.kind || 'thought').slice(0, 30),
+              content: String(body.content || '').slice(0, 12000),
+              decision: String(body.decision || '').slice(0, 30) || null,
+              spot: Number.isFinite(Number(body.spot)) ? Number(body.spot) : null,
+              metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
+            }
+            if (!row.content) return send(400, { error: 'content required' })
+            send(200, { row: appendLocalNotebook(row) })
+          } catch (error) { send(500, { error: String(error?.message || error) }) }
+        })
+      })
       server.middlewares.use('/api/trader-learning', (req, res) => {
         if (req.method !== 'GET') {
           res.statusCode = 405

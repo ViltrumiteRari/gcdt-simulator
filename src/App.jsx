@@ -1128,7 +1128,7 @@ function updateAiSessionMemory(mem,dec,mkt,intent,time){
   const entry=`[${time}]\n${thought||`${dec.decision}: ${observed}`}\nDecision: ${dec.decision}${expected?` | Watching: ${expected}`:""}`;
   const reflection=(dec.architecture_reflection||prior.architecture?.reflection||"UNSET").trim();
   const architecture={...(prior.architecture||{}),buildId:BUILD_ID,upgradePending:false,reflection};
-  return{...prior,architecture,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved:lastFlowHypothesis(dec,unresolved),lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-2000)};
+  return{...prior,architecture,updatedAt:time,dominantThesis:thesis,competingThesis:dec.veto_reason&&dec.veto_reason!=="NONE"?dec.veto_reason:"Monitor opposite acceptance",expectedPath:expected,invalidation,unresolved:lastFlowHypothesis(dec,unresolved),lastDecision:dec.decision,lastSpot:mkt.spySpot,lastTime:time,summary:`${dec.decision}: ${dec.reasoning||thesis}`,entries:[...(prior.entries||[]),entry].slice(-5),entryCount:Number(prior.entryCount||0)+1};
 }
 
 function observationIntegrity(obs){
@@ -1144,7 +1144,7 @@ function appendAiObservationMemory(mem,obs,mkt,time){
   const entry=`[${time}]
 ${thought}
 Cognition: ${obs.urgency||"NONE"}${obs.expected_next_path?` | Watching: ${obs.expected_next_path}`:""}`;
-  return{...prior,updatedAt:time,lastSpot:mkt.spySpot,lastTime:time,summary:obs.thesis_delta||thought,dominantThesis:obs.current_thesis||prior.dominantThesis,expectedPath:obs.expected_next_path||prior.expectedPath,entries:[...(prior.entries||[]),entry].slice(-2000)};
+  return{...prior,updatedAt:time,lastSpot:mkt.spySpot,lastTime:time,summary:obs.thesis_delta||thought,dominantThesis:obs.current_thesis||prior.dominantThesis,expectedPath:obs.expected_next_path||prior.expectedPath,entries:[...(prior.entries||[]),entry].slice(-5),entryCount:Number(prior.entryCount||0)+1};
 }
 
 function normalizeTraderDecision(obj){
@@ -2069,13 +2069,13 @@ export default function App(){
   const addM=useCallback(e=>{const clean={...e,mindset:cleanUiText(e?.mindset),reasoning:cleanUiText(e?.reasoning),decision:cleanUiText(e?.decision),edgeState:cleanUiText(e?.edgeState)};const key=`${clean.edgeState}|${clean.decision}|${clean.mindset}|${clean.reasoning.slice(0,80)}`;if(clean.edgeState.startsWith('LOCAL')&&key===lastMindsetKeyR.current)return;lastMindsetKeyR.current=key;mindR.current=[...mindR.current.slice(-100),clean];setMindsetLog([...mindR.current]);},[]);
   const addJournal=useCallback((t,entry)=>{journalR.current=[...journalR.current.slice(-50),{t:cleanUiText(t),entry:cleanUiText(entry)}];setJournal([...journalR.current]);},[]);
 
-  useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-200));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
+  useEffect(()=>{let alive=true;loadThoughts().then(rows=>{if(!alive)return;const cleanRows=(rows||[]).filter(r=>!String(r.content||"").toLowerCase().includes("ai response failed"));storageSet("ai_thought_archive",cleanRows.slice(-5));setThoughtSync("SYNCED");}).catch(()=>setThoughtSync("LOCAL"));return()=>{alive=false;};},[]);
   useEffect(()=>{let alive=true;loadTraderLearning().then(packet=>{if(alive)setTraderLearning(packet);});return()=>{alive=false;};},[]);
   useEffect(()=>{if(!running)return;let alive=true;loadTraderLearning().then(packet=>{if(alive)setTraderLearning(packet);});return()=>{alive=false;};},[running,sessionLabel]);
   useEffect(()=>{let alive=true;const poll=()=>fetch(`${AGENT_BASE}/status`).then(r=>r.json()).then(x=>{if(!alive)return;setQaFolder(x.settings?.reportFolder||"Agent service connected");setQaStatus(x.status?.state||"WATCHING");if(x.reports)setQaReports(x.reports.slice(-20));}).catch(()=>alive&&setQaStatus("OFFLINE: START AGENT CONSOLE"));poll();const id=setInterval(poll,1000);return()=>{alive=false;clearInterval(id);};},[]);
 
   useEffect(()=>{
-    const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current,candles:candR.current.slice(-50),mindset:mindR.current.slice(-20),journal:journalR.current,aiSessionMemory:aiSessionMemoryR.current,timeline:tlR.current,sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,archetypeId:archetypeIdR.current});}}
+    const handler=()=>{if(engR.current&&!done){storageSet("interrupted",{bal:balR.current,pos:posR.current,log:logR.current.slice(-20),candles:candR.current.slice(-12),mindset:mindR.current.slice(-8),journal:journalR.current.slice(-8),aiSessionMemory:{...aiSessionMemoryR.current,entries:(aiSessionMemoryR.current.entries||[]).slice(-5)},notebookSessionId:thoughtSessionIdR.current,timeline:tlR.current.slice(-20),sessionLabel,sessionMode,replayDate:selectedReplayDate,tick:tickR.current,archetypeId:archetypeIdR.current});}}
     window.addEventListener("beforeunload",handler);return()=>window.removeEventListener("beforeunload",handler);
   },[done,sessionLabel,sessionMode,selectedReplayDate]);
 
@@ -2087,7 +2087,7 @@ export default function App(){
     cognitionRunningR.current=true;
     aiFreezeR.current=true;
     setLiveThought(`Reading and committing cognition for tick ${latest.tick}...`);
-    const memory=aiMemoryText(aiSessionMemoryR.current,{recentEntries:30});
+    const memory=aiMemoryText(aiSessionMemoryR.current,{recentEntries:5});
     const authoritative=authoritativeStateText(latest.market,posR.current,balR.current,tradeMemoryR.current);
     const campaign=buildCampaignState(latest.market,candR.current,tradeMemoryR.current,metacognitionR.current);
     const wholeDay=`WHOLE-DAY STRUCTURED CONTEXT

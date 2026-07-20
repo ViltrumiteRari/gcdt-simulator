@@ -2,7 +2,8 @@ import csv, json, uuid
 from datetime import datetime, timedelta, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
+from seed_generator import generate_seed, readiness as seed_readiness
 
 DATASET_ROOT = Path(r"D:\FirstSignal_Sim_Dataset")
 HOST, PORT = "127.0.0.1", 8765
@@ -123,6 +124,11 @@ class Handler(BaseHTTPRequestHandler):
             if p==["api","health"]:
                 return self.send_json(200,{"ok":True,"service":"firstsignal-sim-v1",
                   "dataset_root":str(DATASET_ROOT),"trade_cutoff":TRADE_CUTOFF,"data_end":DATA_END})
+            if p==["api","seed","readiness"]:
+                return self.send_json(200,seed_readiness())
+            if p==["api","seed"]:
+                q=parse_qs(urlparse(self.path).query); seed=(q.get("seed") or [None])[0]
+                return self.send_json(200,generate_seed(seed))
             if p==["api","sessions"]:
                 days=[]
                 for d in sorted(DATASET_ROOT.iterdir(),reverse=True):

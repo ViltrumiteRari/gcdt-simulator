@@ -17,6 +17,8 @@ const BUILD_ID = "firstsignal-sim-v1.21-preserve-completed-session-view-20260718
 const BUILD_SEQUENCE = 21;
 const AGENT_PORT = new URLSearchParams(window.location.search).get('agentPort') || '8766';
 const AGENT_BASE = `http://127.0.0.1:${AGENT_PORT}`;
+const SIM_BASE = 'http://127.0.0.1:8765';
+const loadUnifiedSeed=async seed=>{const suffix=seed?`?seed=${encodeURIComponent(seed)}`:'';const r=await fetch(`${SIM_BASE}/api/seed${suffix}`,{cache:'no-store'});const data=await r.json();if(!r.ok||!Array.isArray(data?.snapshots)||data?.quality?.level!=='GREEN')throw new Error(data?.error||'SEED_NOT_READY');return data;};
 const AVAILABLE_REPLAY_DATES=[...new Set([...Object.keys(REAL_REPLAY_META),...REPLAY_DATES])].sort().reverse();
 const replayMetaFor=date=>REAL_REPLAY_META[date]||REPLAY_CATALOG[date]||null;
 const replayDataFor=async date=>REAL_REPLAY_META[date]?loadRealReplay(date):(REPLAY_CATALOG[date]||null);
@@ -32,6 +34,7 @@ Pinning, expansion, breakdown, discovery, and transition are market-structure in
 Options flow includes sweep, multi-exchange, block, bid/ask-side premium, repeated activity, and comprisingTrades price-level evidence. Flow is evidence of urgency and possible intent, while broker routing, hedges, rolls, and packages remain competing explanations.
 The AI is the convergence layer: preserve component-level nuance, inspect interactions, form hypotheses, execute canonical opportunities, manage positions, and write durable reflections when new evidence changes how the architecture should be understood.`;
 const STARTING_BALANCE = 1000;
+const CATASTROPHIC_EQUITY_FLOOR = STARTING_BALANCE * 0.60;
 const BASE_TICK_MS = 4000;
 const SESSION_END_H = 16, SESSION_END_M = 15;
 const TRADE_CUTOFF_H = 15, TRADE_CUTOFF_M = 45;
@@ -1995,7 +1998,7 @@ export default function App(){
   const[chopGate,setChopGate]=useState("OFF");
   const[multiTimeframe,setMultiTimeframe]=useState(()=>createMultiTimeframeState());
 
-  const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null);
+  const engR=useRef(null),balR=useRef(STARTING_BALANCE),posR=useRef(null),catastrophicStopR=useRef(false);
   const logR=useRef([]),candR=useRef([]),mindR=useRef([]),tlR=useRef([]);
   const journalR=useRef([]),aiSessionMemoryR=useRef(createAiSessionMemory()),probR=useRef({discovery:25,pin:25,transition:25,macro:25});
   const contextMemoryR=useRef(createContextMemory());
@@ -2135,6 +2138,16 @@ const doTick=useCallback(eng=>{
         throw lastError||new Error(`EVENT_POST_FAILED_TICK_${qaSnapshot.tick}`);
       }).catch(e=>{eventPostErrorR.current=e;if(tick===1||tick%100===0)addJournal(fmt.time(m.h,m.m,m.s||0),`OBSERVER_EVENT_POST_SKIPPED tick ${tick}: optional observer service unavailable; replay continues.`);});
     };
+    const pauseForCatastrophicEquity=equity=>{
+      if(Number(equity)>CATASTROPHIC_EQUITY_FLOOR)return false;
+      balR.current=Number(equity);setBal(Number(equity));
+      if(!catastrophicStopR.current){
+        catastrophicStopR.current=true;
+        addJournal(fmt.time(m.h,m.m,m.s||0),`CATASTROPHIC_EQUITY_STOP: equity ${fmt.bal(Number(equity))} reached the 60% floor (${fmt.bal(CATASTROPHIC_EQUITY_FLOOR)}). Replay paused.`);
+      }
+      setRunning(false);clearInterval(ivR.current);commitCurrentTick();return true;
+    };
+    if(pauseForCatastrophicEquity(balR.current))return;
     const mL=(SESSION_END_H*60+SESSION_END_M)-(m.h*60+m.m);
     const octx=optionCtx(m,candR.current,optionMemoryR.current);
     const chain=m.optionChain?.calls?.length?m.optionChain:buildOptionChain(m.spySpot,m.iv,mL,80,octx);setOptionChain(chain);
@@ -2151,6 +2164,9 @@ const doTick=useCallback(eng=>{
       posR.current={...p0,current:attr.price,peakPrice,peakPnl,lastSpot:m.spySpot,lastIv:m.iv,lastAttribution:attr,maxFavorableSpot,maxAdverseSpot,contractHistory:[...(p0.contractHistory||[]),attr.price].slice(-30)};
       setPos({...posR.current});
       let p=posR.current; let size=p.remainingSize??p.size??balR.current; const optPnl=(p.current/p.entry-1)*100;
+      const liveEquity=(p.cashReserve||0)+size*(p.current/p.entry);
+      balR.current=liveEquity;setBal(liveEquity);
+      if(pauseForCatastrophicEquity(liveEquity))return;
       const side=p.isCall?"CALL":"PUT",dir=p.isCall?1:-1;
       const heldTicks=tickR.current-(p.entryTick??tickR.current);
       const spotProgress=dir*(m.spySpot-p.entrySpot);
@@ -2353,8 +2369,10 @@ const doTick=useCallback(eng=>{
       requestCtx.controller=controller;
       const timeoutId=setTimeout(()=>{requestCtx.cancelled=true;controller.abort("AI_TIMEOUT");},AI_REQUEST_TIMEOUT_MS);
       requestCtx.timeoutId=timeoutId;
-      requestCtx.freezeSim=false;
-      aiFreezeR.current=false;
+      // Canonical BUY is a proposal until the live Trader gets one bounded veto
+      // review. Freeze the source tick so 10x playback cannot stale that review.
+      requestCtx.freezeSim=entryCritical;
+      aiFreezeR.current=entryCritical;
       activeDecisionR.current=requestCtx;
       // Compute flat-duration from full retained candle history. The execution prompt still shows a short recent window, while continuous cognition receives ordered tick batches and persistent memory.
       let flatTicks=0;for(let i=candR.current.length-1;i>=0&&Math.abs(candR.current[i].spySpot-m.spySpot)<0.15;i--)flatTicks++;
@@ -2477,12 +2495,6 @@ const doTick=useCallback(eng=>{
             }
           }
       };
-      if(requestCtx.cognitionClass==="EXECUTION_CRITICAL"&&(intent.action==="BUY_CALL"||intent.action==="BUY_PUT")){
-        const deterministicDecision=normalizeTraderDecision({decision:intent.action,reasoning:`V13 deterministic campaign ${intent.campaignId||"UNSET"} entered ${intent.campaignStage||"ENTRY_WINDOW"}; direction, timing, remaining opportunity, contract and risk quality all passed.`,mindset:"deterministic entry window",journal_entry:"",edge_state:"ENTRY_READY",confidence_trend:"BUILDING",trade_confidence:intent.confidence||intent.setupQuality||70,invalidation_spot:intent.invalidation??null,invalidation_instrument:"SPY",target_spot:intent.target??null,target_instrument:"SPY",max_loss_pct:10,memory_used:`campaign ${intent.campaignId||"UNSET"}`,current_thesis:`${intent.direction} ${intent.campaignStage||"ENTRY_WINDOW"}`,expected_next_path:(intent.whyNow||[]).join("; ")||"directional continuation with nearby invalidation",new_evidence:`persistent campaign ${intent.campaignId||"UNSET"} reached deterministic entry window`,prior_trade_effect:"prior attempts are represented in campaign state and failed-leg memory",reevaluate_after_ticks:4,forecast_probability:intent.confidence||65,forecast_window_ticks:6,forecast_supporting_behavior:"persistent campaign state and current price transmission",forecast_side:intent.direction||"NONE",veto_reason:"NONE",veto_evidence:""});
-        applyDecision(deterministicDecision,"DETERMINISTIC");
-        clearTimeout(requestCtx.timeoutId);activeDecisionR.current=null;aiFreezeR.current=false;thinkR.current=false;setThinking(false);setLiveThought("");
-        return;
-      }
       callAI(m,posR.current,balR.current,candR.current,probR.current,confR.current,thesisR.current,journalR.current,rules.approved,repeatWaitR.current,(sessionMode==="replay"?"BLIND HISTORICAL REPLAY. Calendar date, eventual outcome, day type, and remaining path are withheld.":sessionSummary)+`\n${sessionLearning}\n${tradeMemorySnapshot(tradeMemoryR.current,m)}\nSIMULATION TEMPORAL CONTEXT â€” AUTHORITATIVE:
 Current replay tick ${requestCtx.tick}; current market time ${requestCtx.requestMarketTime} ET; replay display speed ${speed}x; each tick equals the source replay cadence; second-resolved replays use 20 simulated seconds per tick. Never assume one minute. Wall-clock delay and display speed are not market evidence. Cognition class ${requestCtx.cognitionClass}. Execution-critical output is bound exclusively to tick ${requestCtx.tick}; do not reason from or act on any later market state. All execution spot fields are SPY-only. invalidation_spot and target_spot must use the SPY price scale and must declare invalidation_instrument=SPY and target_instrument=SPY. SPX values belong only in SPX context fields and must never cross into SPY execution fields.
 CANONICAL EXECUTION STATE â€” AUTHORITATIVE:
@@ -2512,7 +2524,11 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
           addM({t:ts,mindset:"AI response failure",reasoning:raw,decision:"FALLBACK",score:confR.current.score,edgeState:providerRuntime.circuitOpen?"TERMINAL_PROVIDER_FAILURE":"ERROR_RECOVERED",confTrend:"UNCLEAR"});
           reliabilityR.current.parseFailures++;
           addJournal(ts,`AI_RESPONSE_FAILURE ${raw}`);
-          const fallback=buildFallbackDecision(liveMarket,posR.current,tradeIntentR.current,tradeMemoryR.current);
+          // No Trader response means the veto review did not happen, so new entries
+          // fail closed. Existing-position risk management keeps its fallback path.
+          const fallback=requestCtx.cognitionClass==="EXECUTION_CRITICAL"&&!posR.current
+            ?normalizeTraderDecision({decision:"WAIT",reasoning:"AI response failed; canonical entry withheld because the required Trader veto review did not complete.",mindset:"fail closed on unreviewed entry",journal_entry:"",edge_state:"CONDITIONS_FORMING",confidence_trend:"UNCLEAR",trade_confidence:0,invalidation_spot:null,invalidation_instrument:"SPY",target_spot:null,target_instrument:"SPY",max_loss_pct:null,memory_used:"session trade memory",current_thesis:"",expected_next_path:"",new_evidence:"",prior_trade_effect:"",reevaluate_after_ticks:1,forecast_probability:0,forecast_window_ticks:1,forecast_supporting_behavior:"",forecast_side:"NONE",veto_reason:"NONE",veto_evidence:""})
+            :buildFallbackDecision(liveMarket,posR.current,tradeIntentR.current,tradeMemoryR.current);
           addJournal(ts,`FALLBACK_DECISION ${fallback.decision} â€” ${fallback.reasoning}`);
           applyDecision(fallback,"FALLBACK");
         })
@@ -2591,6 +2607,12 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
     const targetReplayDate=replayDateOverride||selectedReplayDate;
     setReplayLoadError("");
     let replayData=null;
+    if(mode==="seed"){
+      setReplayLoading(true);
+      try{replayData=await loadUnifiedSeed();}
+      catch(error){console.error("SEED_START_LOAD_FAILED",error);setReplayLoadError(`Seed unavailable: ${String(error?.message||error)}`);return;}
+      finally{setReplayLoading(false);}
+    }
     if(mode==="replay"){
       setReplayLoading(true);
       try{replayData=replayDateOverride?await replayDataFor(replayDateOverride):await replayDataFor(selectedReplayDate);}
@@ -2600,11 +2622,11 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
     }
     const tailCount=mode==="replay"?Math.max(0,Math.min(60,Number(tailMinutes)||0)):0;
     const expectedStartTick=tailCount>0?Math.max(1,1216-tailCount+1):1;
-    engR.current=mode==="replay"?createReplayEngine(replayData,expectedStartTick):createSeedEngine();
+    engR.current=createReplayEngine(replayData,expectedStartTick);
     const sess=engR.current.getSession();
-    archetypeIdR.current=mode==="seed"?sess.archetype:null;
-    const label=mode==="replay"?`${replayData.label}  |  ${replayData.dayType}`:`SEED  |  ${sess.archetypeLabel} (modeled: ${sess.sourceDay})`;
-    setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;
+    archetypeIdR.current=mode==="seed"?replayData.seedId:null;
+    const label=mode==="replay"?`${replayData.label}  |  ${replayData.dayType}`:`SEED  |  UNIFIED ALL-DATA 20S  |  ${replayData.quality.sourceDayCount} source days`;
+    setSessionLabel(label);setSessionMode(mode);setBal(STARTING_BALANCE);balR.current=STARTING_BALANCE;catastrophicStopR.current=false;
     setPos(null);posR.current=null;setTradeIntentData({action:"WAIT",direction:null,readiness:0,confidence:0,contract:null,blockers:["Session warming up"],supportingFactors:[]});tradeIntentR.current={action:"WAIT",readiness:0,confidence:0,blockers:["Session warming up"],supportingFactors:[]};setTradeLog([]);logR.current=[];setMindsetLog([]);mindR.current=[];tradeMemoryR.current=createSessionTradeMemory();reliabilityR.current={totalRequests:0,parseFailures:0,totalTrades:0,fallbackExecutions:0};if(activeDecisionR.current){activeDecisionR.current.cancelled=true;activeDecisionR.current.controller?.abort("SESSION_RESET");clearTimeout(activeDecisionR.current.timeoutId);}activeDecisionR.current=null;decisionSeqR.current=0;positionSeqR.current=0;latestMarketR.current=null;aiFreezeR.current=false;lastMeaningfulAiKeyR.current="";lastActiveWallR.current=Date.now();aiVetoAuditsR.current=[];
     setJournal([]);journalR.current=[];eventPostChainR.current=Promise.resolve();eventPostErrorR.current=null;eventSnapshotsR.current=[];eventCommittedTicksR.current=new Set();
     multiTimeframeR.current=createMultiTimeframeState();decisionCoreR.current=createDeterministicDecisionState();setMultiTimeframe({...multiTimeframeR.current});thoughtSessionIdR.current=sessionIdOverride||`firstsignal-sim-v1-${targetReplayDate}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;fetch(`${AGENT_BASE}/session/start`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:thoughtSessionIdR.current,replayDate:targetReplayDate,mode:tailCount>0?"tail-validation":mode,label:tailCount>0?`${label} ÃƒÆ’Ã¢â‚¬Å¡ |  TAIL_VALIDATION_${tailCount}M`:label,productName:PRODUCT_NAME,productVersion:PRODUCT_VERSION,buildId:BUILD_ID,buildSequence:BUILD_SEQUENCE,validationMode:tailCount>0?"TAIL_VALIDATION":null,expectedStartTick})}).catch(()=>{});const aiBlindLabel=mode==="replay"?"BLIND_REPLAY_SESSION":label;const freshAiMemory={...createAiSessionMemory(aiBlindLabel),summary:"New session. Prior working thoughts archived; architecture memory retained.",entries:[]};aiSessionMemoryR.current=freshAiMemory;setAiSessionMemory(freshAiMemory);storageSet("ai_session_memory",freshAiMemory);setCandles([]);candR.current=[];setConfHist([]);
@@ -2707,6 +2729,12 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
     tlR.current=sv.timeline||[];setTimeline([...tlR.current]);setSessionLabel(sv.sessionLabel||"RESUMED");setSessionMode(sv.sessionMode||"seed");
     archetypeIdR.current=sv.archetypeId||null;
     let replayData=null;
+    if(sv.sessionMode==="seed"){
+      setReplayLoading(true);setReplayLoadError("");
+      try{replayData=await loadUnifiedSeed(sv.archetypeId||null);}
+      catch(error){setReplayLoadError(`Seed resume unavailable: ${String(error?.message||error)}`);return;}
+      finally{setReplayLoading(false);}
+    }
     if(sv.sessionMode==="replay"){
       setReplayLoading(true);setReplayLoadError("");
       try{replayData=await replayDataFor(sv.replayDate);}
@@ -2714,7 +2742,7 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
       finally{setReplayLoading(false);}
     }
     if(sv.sessionMode==="replay"&&!replayData){storageSet("interrupted",null);setResumeAvailable(false);return;}
-    engR.current=sv.sessionMode==="replay"?createReplayEngine(replayData):createSeedEngine(sv.archetypeId);
+    engR.current=createReplayEngine(replayData);
     for(let i=0;i<Math.min(sv.tick||0,400);i++)engR.current.tick();
     tickR.current=sv.tick||0;setDone(false);setRunning(true);setScreen("trading");storageSet("interrupted",null);setResumeAvailable(false);
   },[]);
@@ -2882,7 +2910,7 @@ if(screen==="home")return(
         </div>
         {replayLoadError&&<div style={{marginBottom:8,padding:"7px 9px",background:T.redDim,color:T.red,border:`1px solid ${T.red}55`,borderRadius:5,fontSize:8}}>REPLAY LOAD FAILED  |  {replayLoadError}</div>}
         <div style={{display:"flex",gap:8}}>
-          <button disabled={replayLoading} onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:replayLoading?"wait":"pointer",opacity:replayLoading?0.55:1}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>6 data-calibrated archetypes</div></button>
+          <button disabled={replayLoading} onClick={()=>startSession("seed")} style={{flex:1,padding:"12px 0",background:T.accentDim,color:T.accent,border:`1px solid ${T.accent}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:replayLoading?"wait":"pointer",opacity:replayLoading?0.55:1}}>SEED<div style={{fontSize:8,opacity:0.7,marginTop:2}}>14-day unified transition pool</div></button>
           <button disabled={replayLoading} onClick={()=>startSession("replay")} style={{flex:1,padding:"12px 0",background:"#a78bfa18",color:T.purple,border:`1px solid ${T.purple}40`,borderRadius:6,fontFamily:"monospace",fontSize:11,fontWeight:700,cursor:replayLoading?"wait":"pointer",opacity:replayLoading?0.65:1}}>{replayLoading?"LOADING...":"REPLAY"}<div style={{fontSize:8,opacity:0.7,marginTop:2}}>{selectedReplayData?.label||"Select date"}</div></button>
         </div>
       </div>
@@ -3002,7 +3030,7 @@ if(screen==="home")return(
 
       {pos&&(()=>{const originalCapital=Number(pos.originalSize||pos.size||0),remainingCapital=Number(pos.remainingSize??pos.size??0);return <div style={{margin:"6px 14px 0",padding:"8px 12px",background:posPnl>=0?T.accentDim:T.redDim,border:`1px solid ${posPnl>=0?T.accent:T.red}40`,borderRadius:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div><div style={{fontSize:8,color:T.muted}}>OPEN  |  {pos.entryTime}  |  {Math.round(pos.exposurePct??100)}% EXPOSED</div><div style={{fontSize:12,fontWeight:700}}>{pos.strike}{pos.isCall?"C":"P"}  |  ${pos.entry.toFixed(2)}</div><div style={{fontSize:8,color:T.muted,marginTop:2}}>SPY ${mkt?.spySpot?.toFixed(2)??"?"}  |  entry ${pos.entrySpot?.toFixed(2)??"?"}  |  ? {mkt&&pos.entrySpot!=null?`${mkt.spySpot-pos.entrySpot>=0?"+":""}${(mkt.spySpot-pos.entrySpot).toFixed(2)}`:"?"}</div>{pos.positionManager&&<div style={{fontSize:8,color:T.yellow,marginTop:3}}>{pos.positionStage}  |  HOLD {pos.holdConfidence}%  |  OPP {pos.positionOpportunityRemaining}%  |  CONVEXITY {pos.convexityRemaining}%  |  ADVERSE LEGS {pos.positionManager.adverseLegs||0}</div>}</div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:10,color:T.text,fontWeight:800,marginBottom:2}}>{(remainingCapital/(Math.max(.01,pos.entry)*100)).toFixed(1)} CONTRACTS HELD</div><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>${pos.current.toFixed(2)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)}  |  {posDollar>=0?"+":""}{fmt.bal(posDollar)} open</div>{(pos.cashReserve||0)>0&&<div style={{fontSize:8,color:T.accent,marginTop:2}}>{fmt.bal(pos.cashReserve)} realized cash</div>}</div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:10,color:T.text,fontWeight:800,marginBottom:2}}>{(remainingCapital/(Math.max(.01,pos.entry)*100)).toFixed(1)} CONTRACTS HELD</div><div style={{fontSize:15,fontWeight:700,color:posPnl>=0?T.accent:T.red}}>{posDollar>=0?"+":"-"}${Math.abs(posDollar).toFixed(0)}</div><div style={{fontSize:9,color:posPnl>=0?T.accent:T.red}}>{fmt.pct(posPnl)}</div></div>
       </div>})()}
 
       <div style={{flex:1,overflowY:"auto",paddingBottom:20}}>

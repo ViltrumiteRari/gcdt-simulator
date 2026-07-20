@@ -138,14 +138,22 @@ assert.match(app, /reliabilityR\.current\.fallbackExecutions\+\+/);
 const meta = createMetacognitionState();
 assert.equal(meta.forecasts.length, 0);
 const impulse = computeGexImpulse([
-  { t: '10:00', netGexSpx: 100, spySpot: 500, spxSpot: 6000 },
-  { t: '10:01', netGexSpx: 130, spySpot: 500.2, spxSpot: 6002 },
-  { t: '10:02', netGexSpx: 170, spySpot: 500.5, spxSpot: 6005 },
-], { t: '10:03', netGexSpx: 220, spySpot: 500.9, spxSpot: 6009 });
+  { t: '10:00', netGexSpx: 1.0e9, spySpot: 500, spxSpot: 6000 },
+  { t: '10:01', netGexSpx: 1.4e9, spySpot: 500.02, spxSpot: 6002 },
+  { t: '10:02', netGexSpx: 2.0e9, spySpot: 500.04, spxSpot: 6005 },
+], { t: '10:03', netGexSpx: 3.0e9, spySpot: 500.06, spxSpot: 6009 });
 assert.equal(impulse.honestFastestWindow, '1_MINUTE');
 assert.equal(impulse.persistence, 'PERSISTING');
-assert.equal(impulse.transmission, 'TRANSMITTED');
+assert.equal(impulse.transmission, 'LAG_PRESENT');
+assert.equal(impulse.lagOpportunity, 'SPY_LAGGING_GEX_REPRICE');
 assert.equal(impulse.windows.s30, undefined);
+const snapbackImpulse = computeGexImpulse([
+  { t: '10:00', netGexSpx: -1.8e9, spySpot: 500 },
+  { t: '10:01', netGexSpx: 8.0e9, spySpot: 500.04 },
+  { t: '10:02', netGexSpx: -3.0e9, spySpot: 500.01 },
+], { t: '10:03', netGexSpx: 4.0e9, spySpot: 500.03 });
+assert.equal(snapbackImpulse.reactivity, 'HIGHLY_REACTIVE');
+assert.ok(snapbackImpulse.reversalRate >= 0.5);
 
 const forecast = createForecast({
   decision: 'BUY_CALL', current_thesis: 'upside expansion', expected_next_path: 'break higher',

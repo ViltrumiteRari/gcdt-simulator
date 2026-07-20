@@ -48,18 +48,26 @@ export function computeGexImpulse(history, market) {
     const spxChange = finite(current.spx) && finite(prior.spx) ? current.spx - prior.spx : null;
     windows[minutes === 0.5 ? 's30' : `m${minutes}`] = { minutes, gexChange, spyChange, spxChange, from: prior.t ?? prior.minute, to: current.t ?? current.minute };
   }
-  const recentChanges = rows.slice(-4).slice(1).map((row, i) => row.gex - rows.slice(-4)[i].gex).filter(finite);
+  const recentChanges = rows.slice(-6).slice(1).map((row, i) => row.gex - rows.slice(-6)[i].gex).filter(finite);
   const sameDirection = recentChanges.length >= 2 && recentChanges.every(x => Math.sign(x) === Math.sign(recentChanges.at(-1)) && Math.sign(x) !== 0);
-  const snapback = recentChanges.length >= 2 && Math.sign(recentChanges.at(-1)) !== Math.sign(recentChanges.at(-2));
+  const reversals = recentChanges.slice(1).filter((x, i) => Math.sign(x) !== 0 && Math.sign(recentChanges[i]) !== 0 && Math.sign(x) !== Math.sign(recentChanges[i])).length;
+  const reversalRate = recentChanges.length >= 2 ? reversals / (recentChanges.length - 1) : 0;
+  const snapback = reversalRate >= 0.5;
   const fastest = windows.s30 ? '30_SECONDS' : windows.m1 ? '1_MINUTE' : windows.m3 ? '3_MINUTES' : null;
   const lens = windows.s30 || windows.m1 || windows.m3;
-  let transmission = 'UNKNOWN';
+  let transmission = 'UNKNOWN', lagOpportunity = 'NONE', priceConfirmation = 'UNCONFIRMED';
   if (lens && finite(lens.spyChange)) {
-    const expected = Math.sign(lens.gexChange);
-    const response = Math.sign(lens.spyChange);
-    transmission = expected === 0 || response === 0 ? 'NO_PRICE_RESPONSE' : expected === response ? 'TRANSMITTED' : 'DIVERGED';
+    const gexDirection = Math.sign(lens.gexChange);
+    const spyDirection = Math.sign(lens.spyChange);
+    const gexBillions = Math.abs(lens.gexChange) / 1e9;
+    const spyMagnitude = Math.abs(lens.spyChange);
+    priceConfirmation = gexDirection !== 0 && spyDirection === gexDirection ? 'SAME_DIRECTION' : gexDirection !== 0 && spyDirection === -gexDirection ? 'OPPOSITE_DIRECTION' : 'NO_PRICE_RESPONSE';
+    if (gexBillions >= 0.75 && spyMagnitude < 0.08) lagOpportunity = 'SPY_LAGGING_GEX_REPRICE';
+    else if (gexBillions >= 0.75 && spyMagnitude >= 0.08) lagOpportunity = 'SPY_RESPONDING';
+    transmission = lagOpportunity === 'SPY_LAGGING_GEX_REPRICE' ? 'LAG_PRESENT' : lagOpportunity === 'SPY_RESPONDING' ? 'PRICE_RESPONDED' : 'LOW_INFORMATION';
   }
-  return { honestFastestWindow: fastest, cadenceMinutes: cadence, windows, persistence: sameDirection ? 'PERSISTING' : snapback ? 'SNAPBACK' : 'UNCONFIRMED', transmission };
+  const reactivity = snapback ? 'HIGHLY_REACTIVE' : sameDirection ? 'TEMPORARILY_PERSISTENT' : 'REACTIVE_UNCONFIRMED';
+  return { honestFastestWindow: fastest, cadenceMinutes: cadence, windows, persistence: sameDirection ? 'PERSISTING' : snapback ? 'SNAPBACK' : 'UNCONFIRMED', reactivity, reversalRate, transmission, lagOpportunity, priceConfirmation };
 }
 
 export function createForecast(decision, market, tick, signalKeys = [], existing = null) {

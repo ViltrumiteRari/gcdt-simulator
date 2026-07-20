@@ -381,17 +381,32 @@ function computeTheses(mkt,hist,prev){
   let call=33,put=33,wait=34;
   const callReasons=[],putReasons=[],waitReasons=[],callNeeds=[],putNeeds=[],callInvalid=[],putInvalid=[];
 
-  if(gexVelocity.direction>0){call+=gexVelocity.score;put-=8;wait-=10;pushReason(callReasons,`GEX velocity ${gexVelocity.state}`,gexVelocity.score);}
-  else if(gexVelocity.direction<0){put+=gexVelocity.score;call-=8;wait-=10;pushReason(putReasons,`GEX velocity ${gexVelocity.state}`,gexVelocity.score);}
-  else{wait+=7;pushReason(waitReasons,"GEX velocity oscillating / no primary impulse",7);}
-  if(gexVelocity.terminalSpike){wait+=18;pushReason(waitReasons,"TERMINAL_SPIKE_BLOCK",18);}
+  // SPX GEX is reactive state information, not a standalone directional oracle.
+  // Reward it only when price confirms or when it exposes a measurable SPX-reprice/SPY-lag opportunity.
+  const gexDir=gexVelocity.direction, priceDir=priceSlope>0.12?1:priceSlope<-0.12?-1:0;
+  const gexPriceConfirmed=gexDir!==0&&priceDir===gexDir;
+  const gexLag=gexImpulse?.lagOpportunity==='SPY_LAGGING_GEX_REPRICE';
+  if(gexPriceConfirmed){
+    const directionalWeight=Math.min(10,Math.max(4,Math.round(gexVelocity.score*.45)));
+    if(gexDir>0){call+=directionalWeight;put-=3;pushReason(callReasons,`price-confirmed reactive GEX repricing ${gexVelocity.state}`,directionalWeight);}
+    else{put+=directionalWeight;call-=3;pushReason(putReasons,`price-confirmed reactive GEX repricing ${gexVelocity.state}`,directionalWeight);}
+  }else if(gexLag){
+    const lagWeight=8;
+    if(gexDir>0)pushReason(callReasons,'SPX GEX repriced up while SPY spot lagged: catch-up watch',lagWeight);
+    else if(gexDir<0)pushReason(putReasons,'SPX GEX repriced down while SPY spot lagged: catch-down watch',lagWeight);
+    if(gexDir>0)call+=lagWeight; else if(gexDir<0)put+=lagWeight;
+    wait+=2;pushReason(waitReasons,'GEX/spot lag needs local trigger, not blind direction',2);
+  }else{
+    wait+=3;pushReason(waitReasons,`GEX is reactive/unconfirmed (${gexImpulse?.reactivity||'UNKNOWN'})`,3);
+  }
+  if(gexVelocity.terminalSpike){wait+=3;pushReason(waitReasons,'large GEX jump = high sensitivity; magnitude alone is not a veto',3);}
   if(callDomSignal.direction>0){call+=callDomSignal.score;pushReason(callReasons,`Call-dom ${callDomSignal.state}`,callDomSignal.score);}
   else if(callDomSignal.direction<0){put+=callDomSignal.score;pushReason(putReasons,`Call-dom ${callDomSignal.state}`,callDomSignal.score);}
   if(callDomSignal.deadZone){wait+=16;call-=8;put-=8;pushReason(waitReasons,"Call-dom dead zone",16);}
   const itsSlope=l6.length>=2?(((l6.at(-1).itsSPX-l6[0].itsSPX)+(l6.at(-1).itsSPY-l6[0].itsSPY))/2):0;
-  const itsConfirmed=gexVelocity.direction!==0&&Math.abs(itsSlope)>=0.08&&Math.sign(itsSlope)===gexVelocity.direction;
-  if(itsConfirmed&&itsSlope>0){call+=8;put-=3;wait-=3;pushReason(callReasons,"ITS slopes confirm upside GEX velocity",8);}
-  else if(itsConfirmed&&itsSlope<0){put+=8;call-=3;wait-=3;pushReason(putReasons,"ITS slopes confirm downside GEX velocity",8);}
+  const itsConfirmed=gexPriceConfirmed&&Math.abs(itsSlope)>=0.08&&Math.sign(itsSlope)===gexDir;
+  if(itsConfirmed&&itsSlope>0){call+=8;put-=3;wait-=3;pushReason(callReasons,"ITS and price confirm upside structural repricing",8);}
+  else if(itsConfirmed&&itsSlope<0){put+=8;call-=3;wait-=3;pushReason(putReasons,"ITS and price confirm downside structural repricing",8);}
   else if(Math.abs(div)>0.5){wait+=2;pushReason(waitReasons,"ITS gap is lead-lag tension, not direction",2);}
   else{wait+=3;pushReason(waitReasons,"ITS convergence / unclear leadership",3);}
   // v9: accel boost now directional (follows priceSlope), not both sides at once

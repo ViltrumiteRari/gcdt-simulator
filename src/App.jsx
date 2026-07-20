@@ -2570,7 +2570,7 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
     }
   },[aiFreq,addM,addJournal,rules.approved,traderLearning,drainCognition,resetPostExitState]);
 
-  useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>{if(!aiFreezeR.current)doTick(engR.current);},Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
+  useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>{const cognitionPending=cognitionRunningR.current||cognitionQueueR.current.length>0;if(!aiFreezeR.current&&!cognitionPending)doTick(engR.current);},Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
 
   useEffect(()=>{
     const send=()=>{

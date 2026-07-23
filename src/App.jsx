@@ -2085,8 +2085,8 @@ export default function App(){
     const latest=batch.at(-1);
     if(!latest)return;
     cognitionRunningR.current=true;
-    aiFreezeR.current=true;
-    setLiveThought(`Reading and committing cognition for tick ${latest.tick}...`);
+    // Background cognition must never freeze market playback. Only execution-critical Trader decisions may set aiFreezeR.
+    setLiveThought(`Reading cognition for tick ${latest.tick}...`);
     const memory=aiMemoryText(aiSessionMemoryR.current,{recentEntries:5});
     const authoritative=authoritativeStateText(latest.market,posR.current,balR.current,tradeMemoryR.current);
     const campaign=buildCampaignState(latest.market,candR.current,tradeMemoryR.current,metacognitionR.current);
@@ -2109,7 +2109,8 @@ Trade memory: ${JSON.stringify(tradeMemoryR.current)}`;
           lastError=error;
           const message=String(error?.message||error);
           addJournal(latest.t,`AI_COGNITION_RETRY ${attempt}/3 tick ${latest.tick}: ${message}. Simulation remains paused until this tick is understood.`);
-          if(attempt<3)await new Promise(resolve=>setTimeout(resolve,1000));
+          geminiLiveTrader.abortPendingConnection?.(`COGNITION_RETRY_${attempt}:${message}`);
+          if(attempt<3)await new Promise(resolve=>setTimeout(resolve,1000*attempt));
         }
       }
       throw lastError||new Error("COGNITION_FAILED_AFTER_RETRIES");
@@ -2131,32 +2132,24 @@ Trade memory: ${JSON.stringify(tradeMemoryR.current)}`;
       storageSet("ai_session_memory",aiSessionMemoryR.current);
       setAiSessionMemory({...aiSessionMemoryR.current});
       setThoughtSync("SAVING");
-      try{
-        await persistThought({session_id:thoughtSessionIdR.current,market_time:latest.t,kind:"tick_reflection",content:thought,decision:"OBSERVE",spot:latest.spy,metadata:{thesis:obs.current_thesis||"",expected_next_path:obs.expected_next_path||"",urgency:obs.urgency||"NONE",batch_ticks:batch.length,requestedAtTick:batch[0]?.tick,resolvedAtTick:tickR.current,appliedAtTick:latest.tick,status:"COMMITTED_BEFORE_NEXT_TICK",executionEligible:false}});
-        setThoughtSync("SYNCED");
-      }catch{
-        setThoughtSync("LOCAL");
-        throw new Error("THOUGHT_JOURNAL_COMMIT_FAILED");
-      }
+      persistThought({session_id:thoughtSessionIdR.current,market_time:latest.t,kind:"tick_reflection",content:thought,decision:"OBSERVE",spot:latest.spy,metadata:{thesis:obs.current_thesis||"",expected_next_path:obs.expected_next_path||"",urgency:obs.urgency||"NONE",batch_ticks:batch.length,requestedAtTick:batch[0]?.tick,resolvedAtTick:tickR.current,appliedAtTick:latest.tick,status:"ASYNC_SIDE_CAR",executionEligible:false}})
+        .then(()=>setThoughtSync("SYNCED"))
+        .catch(error=>{setThoughtSync("LOCAL");addJournal(latest.t,`THOUGHT_JOURNAL_ASYNC_RETRY_NEEDED tick ${latest.tick}: ${String(error?.message||error)}. Playback continued.`);});
       if(obs.noteworthy)addJournal(latest.t,`AI_TICK_REFLECTION ${obs.urgency||"NONE"}: ${thought}`);
     }).catch(error=>{
       cognitionFailed=true;
       cognitionQueueR.current=[...batch,...cognitionQueueR.current];
-      setRunning(false);
-      setLiveThought(`COGNITION BLOCKED at tick ${latest.tick}`);
-      addJournal(latest.t,`COGNITION_BLOCKED tick ${latest.tick}: ${String(error?.message||error)}. Run halted before the next market tick; unresolved cognition was re-queued.`);
+      setLiveThought(`Background cognition retry queued after tick ${latest.tick}`);
+      addJournal(latest.t,`COGNITION_BACKGROUND_FAILURE tick ${latest.tick}: ${String(error?.message||error)}. Playback continued; unresolved cognition was re-queued.`);
     }).finally(()=>{
       cognitionRunningR.current=false;
-      if(!cognitionFailed){
-        aiFreezeR.current=false;
-        setLiveThought("");
-        if(!finalizingR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)setTimeout(()=>drainCognition(),0);
-      }
+      setLiveThought("");
+      if(!finalizingR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)setTimeout(()=>drainCognition(),cognitionFailed?2000:0);
     });
   },[addJournal]);
 
   useEffect(()=>{
-    if(running&&aiFreezeR.current&&!cognitionRunningR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)drainCognition();
+    if(running&&!cognitionRunningR.current&&cognitionQueueR.current.length&&!thinkR.current&&!activeDecisionR.current)drainCognition();
   },[running,drainCognition]);
 
   const resetPostExitState=useCallback((reason,market)=>{
@@ -2604,7 +2597,27 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
     }
   },[aiFreq,addM,addJournal,rules.approved,traderLearning,drainCognition,resetPostExitState]);
 
-  useEffect(()=>{if(!running||!engR.current)return;ivR.current=setInterval(()=>{const cognitionPending=cognitionRunningR.current||cognitionQueueR.current.length>0;if(!aiFreezeR.current&&!cognitionPending)doTick(engR.current);},Math.max(150,BASE_TICK_MS/speed));return()=>clearInterval(ivR.current);},[running,speed,doTick]);
+  const doTickLatestR=useRef(doTick);doTickLatestR.current=doTick;
+  const addJournalLatestR=useRef(addJournal);addJournalLatestR.current=addJournal;
+  useEffect(()=>{if(!running||!engR.current)return;let cancelled=false;let timerId=null;const delay=Math.max(150,BASE_TICK_MS/speed);const generation=(window.__FIRSTSIGNAL_LOOP_GENERATION||0)+1;window.__FIRSTSIGNAL_LOOP_GENERATION=generation;window.__FIRSTSIGNAL_LOOP_LIFECYCLE={generation,startedAt:Date.now(),running,speed,delay};
+    const loop=()=>{
+      if(cancelled)return;
+      timerId=setTimeout(loop,delay);
+      const active=activeDecisionR.current;
+      window.__FIRSTSIGNAL_RUNTIME_DEBUG={at:Date.now(),tick:tickR.current,aiFreeze:!!aiFreezeR.current,thinking:!!thinkR.current,cognitionRunning:!!cognitionRunningR.current,cognitionQueue:cognitionQueueR.current.length,activeDecision:active?{id:active.id,tick:active.tick,startedAt:active.startedAt,ageMs:Date.now()-active.startedAt,freezeSim:!!active.freezeSim,cognitionClass:active.cognitionClass,cancelled:!!active.cancelled}:null};
+      if(!aiFreezeR.current){
+        try{doTickLatestR.current(engR.current);}catch(error){
+          const lm=latestMarketR.current;
+          const message=String(error?.stack||error?.message||error);
+          window.__FIRSTSIGNAL_RUNTIME_DEBUG={...window.__FIRSTSIGNAL_RUNTIME_DEBUG,lastError:message};
+          if(lm)addJournalLatestR.current(fmt.time(lm.h,lm.m,lm.s||0),`REPLAY_TICK_EXCEPTION tick ${tickR.current}: ${message.slice(0,500)}`);
+          setRunning(false);cancelled=true;return;
+        }
+      }
+    };
+    timerId=setTimeout(loop,delay);
+    return()=>{cancelled=true;window.__FIRSTSIGNAL_LOOP_LIFECYCLE={...(window.__FIRSTSIGNAL_LOOP_LIFECYCLE||{}),generation,cleanedAt:Date.now(),cleanupTick:tickR.current,cleanupRunning:running,cleanupSpeed:speed};clearTimeout(timerId);};
+  },[running,speed]);
 
   useEffect(()=>{
     const send=()=>{
@@ -2705,21 +2718,15 @@ When the authoritative canonical action is exact BUY_CALL or BUY_PUT, the matchi
     sessionOpenR.current=null;sessionHighR.current=-Infinity;sessionLowR.current=Infinity;aboveFepTotalR.current=0;belowFepTotalR.current=0;
     prevAccelR.current=0;lastAiTickR.current=-99;repeatWaitR.current=0;lastWaitReasonR.current="";lastMindsetKeyR.current="";optionMemoryR.current={};marketBrainR.current=createMarketBrain();setMarketBrain(marketBrainR.current);chopGateR.current="OFF";setChopGate("OFF");pinHistR.current=[];flipCrossR.current=[];lastFlipSideR.current=null;leadWrongTicksR.current=0;prevCallWallR.current=null;prevPutWallR.current=null;sessionModelR.current={leadOpp:0,leadCatch:0,leadReject:0,accelFollow:0,accelFail:0,pinWins:0,pinLosses:0,lastLeadState:"",lastAccelTick:-99};contextMemoryR.current=createContextMemory();metacognitionR.current=createMetacognitionState();
     setDone(false);setSaved(false);setGexInf(0.08);setPatchProposals([]);setPatchIdx(0);setLiveThought("");
-    try {
-      setLiveThought("Establishing Gemini Live continuity before replay...");
-      const continuity = await geminiLiveTrader.establishContinuity();
-      await fetch(`${AGENT_BASE}/trader/continuity`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(continuity)}).catch(()=>{});
-    } catch (error) {
-      const failure={...geminiLiveTrader.continuityStatus(),state:'CONTINUITY_BROKEN',breakReason:String(error?.message||error)};
-      await fetch(`${AGENT_BASE}/trader/continuity`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(failure)}).catch(()=>{});
-      await fetch(`${AGENT_BASE}/worker/control`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'PAUSE',reason:'TRADER_CONTINUITY_STARTUP_FAILED',error:failure.breakReason})}).catch(()=>{});
-      setReplayLoadError(`Trader continuity startup failed: ${failure.breakReason}`);
-      setLiveThought("");
-      setRunning(false);
-      setScreen("trading");
-      return;
-    }
-    storageSet("interrupted",null);setRunning(true);setScreen("trading");
+    // Continuity warm-up is a sidecar. Never hold replay startup behind a provider socket or observer endpoint.
+    geminiLiveTrader.establishContinuity()
+      .then(continuity=>fetch(`${AGENT_BASE}/trader/continuity`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(continuity)}).catch(()=>{}))
+      .catch(error=>{
+        const failure={...geminiLiveTrader.continuityStatus(),state:'CONTINUITY_BROKEN',breakReason:String(error?.message||error)};
+        fetch(`${AGENT_BASE}/trader/continuity`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(failure)}).catch(()=>{});
+        addJournal("PREOPEN",`TRADER_CONTINUITY_BACKGROUND_RECOVERY: ${failure.breakReason}. Replay opened; execution-critical requests still fail closed until Gemini reconnects.`);
+      });
+    storageSet("interrupted",null);setLiveThought("");setRunning(true);setScreen("trading");
   },[selectedReplayDate]);
 
   campaignStartRef.current=startSession;

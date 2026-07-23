@@ -11,7 +11,7 @@ const classifyProviderError = error => {
   if(/quota|resource_exhausted|billing|exceeded your current quota|429/i.test(message))return {code:'PROVIDER_THROTTLED',permanent:false,message};
   if(/unauthenticated|permission_denied|invalid api key|401|403/i.test(message))return {code:'PROVIDER_AUTH_FAILED',permanent:true,message};
   if(/CONTINUITY_BROKEN|RECONNECTED_WITHOUT_RESUMPTION_HANDLE|ORIGINAL_TRADER_SESSION_UNAVAILABLE/i.test(message))return {code:'CONTINUITY_BROKEN',permanent:true,message};
-  if(/TIMEOUT|network|closed|disconnect|unavailable/i.test(message))return {code:'TRANSIENT_CONNECTION_FAILURE',permanent:false,message};
+  if(/TIMEOUT|network|closed|disconnect|unavailable|operation was cancelled|canceled|cancelled/i.test(message))return {code:'TRANSIENT_CONNECTION_FAILURE',permanent:false,message};
   return {code:'PROVIDER_UNKNOWN_FAILURE',permanent:false,message};
 };
 const withTimeout = (promise, ms, code) => new Promise((resolve,reject)=>{
@@ -173,8 +173,8 @@ class GeminiLiveTrader {
               // Socket-open is not proof that the server accepted the handle.
               onopen:()=>{},
               onmessage:message=>this.handleMessage(message),
-              onerror:event=>this.handleFailure(new Error(`GEMINI_LIVE_ERROR:${event?.message||'unknown'}`),true),
-              onclose:event=>this.handleFailure(new Error(`GEMINI_LIVE_CLOSE:${event?.reason||'closed'}`),true),
+              onerror:event=>this.handleFailure(new Error(`GEMINI_LIVE_ERROR:${event?.message||'unknown'}`),true,attemptGroup),
+              onclose:event=>this.handleFailure(new Error(`GEMINI_LIVE_CLOSE:${event?.reason||'closed'}`),true,attemptGroup),
             },
             config:this.liveConfig(),
           }),CONNECT_TIMEOUT_MS,'GEMINI_LIVE_CONNECT_TIMEOUT');
@@ -271,7 +271,8 @@ class GeminiLiveTrader {
     if (turnComplete && !this.pending) this.serverTurnActive = false;
   }
 
-  handleFailure(err, reconnect = false) {
+  handleFailure(err, reconnect = false, attemptGroup = this.connectAttemptSeq) {
+    if(attemptGroup!==this.connectAttemptSeq)return;
     const pending = this.pending;
     const failure=classifyProviderError(err);
     this.lastFailure={...failure,at:new Date().toISOString()};
@@ -393,8 +394,10 @@ ${market}`;
     const session = await this.ensureSession();
     return await new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
+        if(this.pending?.kind!=='observation')return;
         this.pending = null;
         this.serverTurnActive = false;
+        this.abortPendingConnection('GEMINI_LIVE_OBSERVATION_TIMEOUT');
         reject(new Error('GEMINI_LIVE_OBSERVATION_TIMEOUT'));
       }, 15000);
       this.pending = { kind: 'observation', resolve, reject, timer, onThought: null };

@@ -117,6 +117,12 @@ def prepare(day,force=False):
         if old.get('sourceFingerprint')==fp: return {**old,'cache':'HIT'}
     coverage=[merge_canonical(day,t) for t in ('SPY','SPX')]
     sim=build_sim_input(day); payload,out=build_replay(day); quality=replay_quality(payload)
+    override_path=day/'quality_override.json'
+    if override_path.exists():
+        override=json.loads(override_path.read_text(encoding='utf-8'))
+        quality={**quality,**{k:v for k,v in override.items() if k not in ('date','evidence')}}
+        quality['qualityOverride']=True
+        quality['overrideEvidence']=override.get('evidence',{})
     record={'date':day.name,'preparedAt':datetime.now().isoformat(),'sourceFingerprint':fp,'sources':sources,'coverage':coverage,'simRows':sim.get('rows',{}),'quality':quality,'output':str(out),'cache':'BUILT'}
     marker.write_text(json.dumps(record,indent=2),encoding='utf-8')
     return record

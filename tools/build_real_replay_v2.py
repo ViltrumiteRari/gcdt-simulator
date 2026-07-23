@@ -1,4 +1,4 @@
-import json
+﻿import json
 import math
 import tarfile
 from datetime import datetime
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 DAYS = ["2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"]
-SOURCE_INTERVAL_SECONDS = {"2026-07-13":300,"2026-07-14":300,"2026-07-15":20,"2026-07-16":20,"2026-07-17":20}
+SOURCE_INTERVAL_SECONDS = {"2026-07-13":300,"2026-07-14":300,"2026-07-15":20,"2026-07-16":20,"2026-07-17":20,"2026-07-20":20,"2026-07-21":20,"2026-07-22":20}
 ROOT = Path(r"D:\FirstSignal_Sim_Dataset")
 OUT = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayData.js")
 OUT_JUL10 = Path(r"C:\Users\adahy\Desktop\FirstSignal Sim v1\src\realReplayDataJul10.js")
@@ -85,7 +85,7 @@ def causal_ffill_frame(frame, columns, target_index):
 
 def load_market():
     market = pd.read_csv(DATA / "market_timeline.csv")
-    market["captured_at"] = pd.to_datetime(market["captured_at"], format="mixed")
+    market["captured_at"] = pd.to_datetime(market["captured_at"].astype(str).str.slice(0,19), errors="coerce")
     minute_index = pd.date_range(f"{DAY} 09:30:00", f"{DAY} 16:15:00", freq="20s")
     out = {}
     first_native_spot = {}
@@ -102,7 +102,7 @@ def load_market():
         anchor_mask = (frame["captured_at"].dt.second == 0) & (frame["captured_at"].dt.minute % 5 == 0) & spot_num.notna()
         anchors = frame.loc[anchor_mask, ["captured_at"]].copy()
         anchors["anchor_spot"] = spot_num.loc[anchor_mask].to_numpy()
-        if len(anchors) >= 2:
+        if len(anchors) >= 2 and SOURCE_INTERVAL_SECONDS.get(DAY, 300) >= 60:
             anchor_series = anchors.set_index("captured_at")["anchor_spot"]
             full_index = frame["captured_at"]
             expected, _ = causal_project_series(anchor_series, pd.DatetimeIndex(full_index), slope_cap=5.0 if ticker == "SPX" else 0.5)
@@ -155,7 +155,7 @@ def load_market():
     focus_path = DATA / "options_focus.csv"
     if focus_path.exists():
         focus = pd.read_csv(focus_path)
-        focus["captured_at"] = pd.to_datetime(focus["captured_at"])
+        focus["captured_at"] = pd.to_datetime(focus["captured_at"].astype(str).str.slice(0,19), errors="coerce")
         for ticker, underlying in (("SPY", "SPY"), ("SPX", "^SPX")):
             fx = focus[focus["underlying"] == underlying].copy()
             if fx.empty:
@@ -215,7 +215,7 @@ def load_dedicated_spot(day, ticker, minute_index):
 
 def load_gex():
     gex = pd.read_csv(DATA / "gex_key_levels.csv")
-    gex["captured_at"] = pd.to_datetime(gex["captured_at"])
+    gex["captured_at"] = pd.to_datetime(gex["captured_at"].astype(str).str.slice(0,19), errors="coerce")
     return gex.sort_values("captured_at")
 
 
@@ -329,7 +329,7 @@ def read_chain(day):
     chain = pd.read_csv(path)
     if chain.empty:
         return chain
-    chain["captured_at"] = pd.to_datetime(chain["captured_at"])
+    chain["captured_at"] = pd.to_datetime(chain["captured_at"].astype(str).str.slice(0,19), errors="coerce")
     chain = chain[(chain["underlying"] == "SPY") & (chain["expiration"].astype(str) == day)].copy()
     if chain.empty:
         return chain
@@ -514,7 +514,7 @@ def build_day(day):
         market[ticker]['spot'] = pd.to_numeric(market[ticker]['spot'], errors='coerce')
         if market[ticker]['spot'].isna().any():
             raw_market = pd.read_csv(DATA / 'market_timeline.csv')
-            raw_market['captured_at'] = pd.to_datetime(raw_market['captured_at'], errors='coerce')
+            raw_market['captured_at'] = pd.to_datetime(raw_market['captured_at'].astype(str).str.slice(0,19), errors='coerce')
             raw_spot = raw_market[(raw_market['ticker'] == ticker)].copy()
             raw_spot['spot'] = pd.to_numeric(raw_spot['spot'], errors='coerce')
             raw_series = raw_spot.dropna(subset=['captured_at','spot']).sort_values('captured_at').drop_duplicates('captured_at', keep='last').set_index('captured_at')['spot']
@@ -610,3 +610,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

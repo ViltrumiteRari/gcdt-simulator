@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-20T16:06:22.011916",
+  "generatedAt": "2026-07-22T19:38:12.172523",
   "days": [
     {
       "date": "2026-06-29",
@@ -798,6 +798,60 @@
       },
       "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-17.json",
       "cache": "BUILT"
+    },
+    {
+      "date": "2026-07-22",
+      "preparedAt": "2026-07-22T19:38:12.163446",
+      "sourceFingerprint": "validated-synthesis-v1-20260722",
+      "sources": [
+        "SPY/SPX spot/exposure 20s",
+        "OptionStrat flow 20s",
+        "options chain inventory",
+        "SYNTHESIS_REPORT.json",
+        "DAY_VALIDATION.json"
+      ],
+      "coverage": [
+        {
+          "ticker": "SPY",
+          "canonicalBuckets": 1259,
+          "first": "09:20",
+          "last": "16:19",
+          "maxGapMinutes": 0
+        },
+        {
+          "ticker": "SPX",
+          "canonicalBuckets": 1259,
+          "first": "09:20",
+          "last": "16:19",
+          "maxGapMinutes": 0
+        }
+      ],
+      "simRows": {
+        "replaySnapshots": 1216
+      },
+      "quality": {
+        "level": "GREEN",
+        "snapshotCount": 1216,
+        "gexCompleteTicks": 1216,
+        "gexMissingTicks": 0,
+        "gexFirst": "09:30:00",
+        "gexLast": "16:15:00",
+        "gexLongestHeldTicksSPY": 4,
+        "gexLongestHeldTicksSPX": 4,
+        "spotLongestHeldTicksSPY": 7,
+        "spotLongestHeldTicksSPX": 6,
+        "gexResearchWindowHeldTicksSPY": 4,
+        "gexResearchWindowHeldTicksSPX": 4,
+        "expectedNativeHoldTicks": 1,
+        "sourceIntervalSeconds": 20,
+        "playbackIntervalSeconds": 20,
+        "gexStaleFailure": false,
+        "realOptionTicks": 1216,
+        "optionCoverage": "FULL_OR_MOSTLY_REAL"
+      },
+      "output": "C:\\Users\\adahy\\Desktop\\FirstSignal Sim v1\\public\\replays\\2026-07-22.json",
+      "cache": "BUILT",
+      "validation": "VALIDATED_31_OF_31"
     }
   ]
 }

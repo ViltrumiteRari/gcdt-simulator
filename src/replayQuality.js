@@ -13,6 +13,8 @@ export const REPLAY_QUALITY = {
   "2026-07-15": { level: "GREEN", label: "REPLAY READY \u00b7 20-SECOND NATIVE CORE", summary: "1,216 playback ticks; native source cadence 20 seconds; wall and continuity verification passed.", missingEssential: [] },
   "2026-07-16": { level: "GREEN", label: "REPLAY READY \u00b7 20-SECOND NATIVE CORE", summary: "1,216 playback ticks; native source cadence 20 seconds; wall and continuity verification passed.", missingEssential: [] },
   "2026-07-17": { level: "GREEN", label: "REPLAY READY \u00b7 20-SECOND NATIVE CORE", summary: "1,216 playback ticks; native source cadence 20 seconds; wall and continuity verification passed.", missingEssential: [] },
+  "2026-07-20": { level: "GREEN", label: "REPLAY READY \u00b7 20-SECOND NATIVE CORE", summary: "1,216 playback ticks; native source cadence 20 seconds; wall and continuity verification passed.", missingEssential: [] },
+  "2026-07-21": { level: "YELLOW", label: "REPLAY READY * RECONSTRUCTED MIDDAY CORE", summary: "Usable 20-second replay, but midday SPY/SPX GEX was mathematically repaired from pre/post chain anchors and OptionStrat flow; chain/context continuity includes gap-filled indexes.", missingEssential: [], asterisk: true, qualityWeight: 0.65, benchmarkEligible: false, reasonCodes: ["MIDDAY_GEX_RECONSTRUCTION","CHAIN_INDEX_GAPFILLED","MARKET_CONTEXT_GAPFILLED"] },
 };
 
 export function replayQualityFor(date) {
